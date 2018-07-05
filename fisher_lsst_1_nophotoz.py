@@ -62,14 +62,18 @@ class FisherLsst(object):
       self.u = UnivPlanck15()
 
       # photo-z and shear bias parameters
+#!!! new
       photoZPar = PhotoZParams(nBins=self.nBins)
       shearMultBiasPar = ShearMultBiasParams(nBins=self.nBins)
-      
+
       # define the tracer/shear bins
+#!!! fix to include shear bias and photo-z uncertainties
       self.w_g, self.w_s, self.zBounds = self.generateBins(self.u, photoZPar, shearMultBiasPar)
       
-      # update the galaxy bias parameters
+      # update the galaxy bias parameters from these kernels
+#!!! new
       galaxyBiasPar = GalaxyBiasParams(self.nBins, self.w_g)
+
       
       # compute the 2-point functions
       self.p2d_gg, self.p2d_gs, self.p2d_ss = self.generatePowerSpectra(self.u, self.w_g, self.w_s, save=self.save)
@@ -101,32 +105,19 @@ class FisherLsst(object):
       w_g = {}
       w_s = {}
       for iBin in range(self.nBins):
-         # sharp photo-z cuts
-         zMinP = zBounds[iBin]
-         zMaxP = zBounds[iBin+1]
-         # true photo-z bounds
-         zMin = 1./w_glsst.aMax-1.
-         zMax = 1./w_glsst.aMin-1.
-         # true dn/dz_true from dn/dz_phot
-         p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-photoZPar.fiducial[iBin])**2/photoZPar.fiducial[self.nBins+iBin]**2) / np.sqrt(2.*np.pi*photoZPar.fiducial[self.nBins+iBin]**2)
-         f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
-         dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-2)[0]
-         # interpolate it for speed (for lensing kernel calculation)
-         Z = np.linspace(zMin, zMax, 501)
-         F = np.array(map(dndz_tForInterp, Z))
-         dndz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
-         
+         zMin = zBounds[iBin]
+         zMax = zBounds[iBin+1]
          # tracer bin
+#!!! update to take into account photoZPar
          w_g[iBin] = WeightTracerCustom(u,
                                         lambda z: w_glsst.b(z), # galaxy bias
-                                        dndz_t, # dn/dz_true
+                                        lambda z: w_glsst.dndz(z), # dn/dz
                                         zMin=zMin,
                                         zMax=zMax,
                                         name='g'+str(iBin))
-         
          # shear bin
          w_s[iBin] = WeightLensCustom(u,
-                                      dndz_t, # dn/dz_true
+                                      lambda z: w_glsst.dndz(z), # dn/dz
                                       m=lambda z: shearMultBiasPar.fiducial[iBin], # multiplicative shear bias
                                       zMinG=zMin,
                                       zMaxG=zMax,
@@ -355,7 +346,7 @@ class FisherLsst(object):
          dndz = np.array(map(self.w_g[iBin].dndz, Z))
          dndz /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
          # plot it
-         ax.fill_between(Z, 0., dndz, facecolor=plt.cm.autumn(1.*iBin/self.nBins), edgecolor='', alpha=0.5)
+         ax.fill_between(Z, 0., dndz, facecolor=plt.cm.autumn(1.*iBin/self.nBins), edgecolor='', alpha=1)
       #
       ax.set_xlabel(r'$z$')
       ax.set_ylabel(r'$dN / d\Omega\; dz$ [arcmin$^{-2}$]')
@@ -367,13 +358,8 @@ class FisherLsst(object):
       fig=plt.figure(0, figsize=(12,8))
       ax=fig.add_subplot(111)
       #
-      # compute correlation matrix
-      corMat = np.zeros_like(self.covMat)
-      for i in range(self.nData):
-         for j in range(self.nData):
-            corMat[i,j] = self.covMat[i,j] / np.sqrt(self.covMat[i,i] * self.covMat[j,j])
       upperDiag = np.triu(np.ones(self.nData))
-      plt.imshow(corMat * upperDiag, interpolation='nearest', norm=LogNorm(vmin=1.e-4, vmax=1), cmap=cmaps.viridis_r)
+      plt.imshow(self.covMat * upperDiag, interpolation='nearest', norm=LogNorm(vmin=1.e-4, vmax=1), cmap=cmaps.viridis)
       #
       ax.plot(np.arange(self.nData+1)-0.5, np.arange(self.nData+1)-0.5, 'k', lw=1)
       #

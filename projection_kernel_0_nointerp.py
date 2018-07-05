@@ -10,11 +10,11 @@ class Projection(object):
       #self.aMin
       #self.aMax
 
-      # interpolate the lensing kernel, for speed
-      nA = 501
-      A = np.linspace(self.aMin, self.aMax, nA)
-      F = np.array(map(self.fForInterp, A))
-      self.f = interp1d(A, F, kind='linear', bounds_error=False, fill_value=0.)
+#      # interpolate the lensing kernel, for speed
+#      nA = 501
+#      A = np.linspace(self.aMin, self.aMax, nA)
+#      F = np.array(map(self.fForInterp, A))
+#      self.f = interp1d(A, F, kind='linear', bounds_error=False, fill_value=0.)
 
    def __str__(self):
       return self.name
@@ -23,8 +23,7 @@ class Projection(object):
    
    # projection kernel, such that, e.g.:
    # kappa = int dchi f(a) delta
-   # to be interpolated for speed
-   def fForInterp(self, a):
+   def f(self, a):
       pass
 
 
@@ -169,11 +168,12 @@ class WeightY(Projection):
    """
    
    def __init__(self, U, name='y'):
+      super(WeightY, self).__init__(U, name=name)
+      #
       self.aMin = 0.2   # min bound for integral over a
       self.aMax = 1.-0.005   # max bound for integral over a
-      super(WeightY, self).__init__(U, name=name)
    
-   def fForInterp(self, a):
+   def f(self, a):
       """Compton y projection kernel
       """
       return a
@@ -187,6 +187,7 @@ class WeightLensSingle(Projection):
    """
    
    def __init__(self, U, z_source=1., name='lens'):
+      super(WeightLensSingle, self).__init__(U, name=name)
       # a for mass func, biases, and projection
       a_source = 1./(1.+z_source)
       #
@@ -195,9 +196,8 @@ class WeightLensSingle(Projection):
       self.aMin = max(a_source, 1./11.)   # don't go further than z=10
       epsilon = 1.e-5
       self.aMax = 1.-epsilon
-      super(WeightLensSingle, self).__init__(U, name=name)
    
-   def fForInterp(self, a):
+   def f(self, a):
       """lensing projection kernel
       for single source
       a is dimless, Wlensing(a) in (h Mpc^-1)
@@ -245,6 +245,8 @@ class WeightLensOguriTakada11(Projection):
    """
    
    def __init__(self, U, z_source=1., name='lens'):
+      super(WeightLensOguriTakada11, self).__init__(U, name=name)
+      #
       # parameters for source distribution (Oguri & Takada 2011)
       self.z0 = z_source/3. # should be <z_source>/3
       self.nz0 = 20.   # width of integral over sources
@@ -252,7 +254,6 @@ class WeightLensOguriTakada11(Projection):
       self.aMin = 1./( 1. + self.nz0 * self.z0 ) # integrate far enough to get all the sources
       epsilon = 1.e-5
       self.aMax = 1.-epsilon
-      super(WeightLensOguriTakada11, self).__init__(U, name=name)
 
 
    def fdpdz(self, z):
@@ -264,7 +265,7 @@ class WeightLensOguriTakada11(Projection):
       return result
    
    
-   def fForInterp(self, a):
+   def f(self, a):
       d_a = self.U.bg.comoving_distance(1./a-1.)
       result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1))
@@ -280,6 +281,8 @@ class WeightLensHandEtAl13(Projection):
    """
    
    def __init__(self, U, name='lens'):
+      super(WeightLensHandEtAl13, self).__init__(U, name=name)
+      
       # source distribution (eq6 from Hand et al 2013)
       A = 0.688
       a = 0.531
@@ -293,10 +296,8 @@ class WeightLensHandEtAl13(Projection):
       self.aMin = 1./(1.+10.)  # arbitrary for now
       epsilon = 1.e-5
       self.aMax = 1.-epsilon
-   
-      super(WeightLensHandEtAl13, self).__init__(U, name=name)
 
-   def fForInterp(self, a):
+   def f(self, a):
       d_a = self.U.bg.comoving_distance(1./a-1.)
       result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1.))
@@ -359,16 +360,18 @@ class WeightLensDasEtAl13(Projection):
    """
    
    def __init__(self, U, name='lens'):
+      super(WeightLensDasEtAl13, self).__init__(U, name=name)
+      
       # source distribution (eq11 from Das Errard Spergel 2013)
       z0 = 0.69   # ie median z is 1
       self.fdpdz = lambda z: 1.5 * z**2/z0**3 * np.exp(-(z/z0)**1.5)
+      
       # a for mass func, biases, and projection
       self.aMin = 1./(1.+10.)  # arbitrary for now
       epsilon = 1.e-5
       self.aMax = 1.-epsilon
-      super(WeightLensDasEtAl13, self).__init__(U, name=name)
    
-   def fForInterp(self, a):
+   def f(self, a):
       d_a = self.U.bg.comoving_distance(1./a-1.)
       result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1.))
@@ -410,6 +413,8 @@ class WeightLensCustom(Projection):
       not those of the resulting lensing kernel.
       m is the shear multiplicative bias.
       '''
+      super(WeightLensCustom, self).__init__(U, name=name)
+      
       # bounds for the tracer sample (dn/dz)
       self.aMinG = 1./(1.+zMaxG)
       self.aMaxG = 1./(1.+zMinG)
@@ -427,7 +432,11 @@ class WeightLensCustom(Projection):
       # dpdz normalized such that int dz dpdz = 1
       self.fdpdz = lambda z: self.fdndz(z) / self.ngal
    
-      super(WeightLensCustom, self).__init__(U, name=name)
+      # interpolate the lensing kernel, for speed
+      nA = 501
+      A = np.linspace(self.aMin, self.aMax, nA)
+      F = np.array(map(self.fForInterp, A))
+      self.f = interp1d(A, F, kind='linear', bounds_error=False, fill_value=0.)
 
    
    def fForInterp(self, a):
@@ -477,6 +486,8 @@ class WeightLensCIBSchmidt15(Projection):
    """
    
    def __init__(self, U, z0=1., alpha=1., name='lens'):
+      super(WeightLensCIBSchmidt15, self).__init__(U, name=name)
+      #
       # a for mass func, biases, and projection
       self.aMin = 1./( 1. + 10. ) # integrate far enough to get all the sources
       epsilon = 1.e-5
@@ -487,10 +498,8 @@ class WeightLensCIBSchmidt15(Projection):
       # normalize to have int_zMin^zMax dz dPdz = 1
       norm = integrate.quad(fdpdzNonNormalized, 1./self.aMax, 1./self.aMin, epsabs=0, epsrel=1.e-4)[0]
       self.fdpdz = lambda z: fdpdzNonNormalized(z) / norm
-      #
-      super(WeightLensCIBSchmidt15, self).__init__(U, name=name)
    
-   def fForInterp(self, a):
+   def f(self, a):
       d_a = self.U.bg.comoving_distance(1./a-1.)
       result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1.))
@@ -536,11 +545,13 @@ class WeightLensCIBPullen17(Projection):
    """
    
    def __init__(self, U, nu=353, name='lens'):
+      super(WeightLensCIBPullen17, self).__init__(U, name=name)
+      #
       # a for mass func, biases, and projection
       self.aMin = 1./( 1. + 5. ) # integrate far enough to get all the sources
       epsilon = 1.e-5
       self.aMax = 1.-epsilon
-      
+      #
       # read digitized values
       path = "./input/cib_zdist_pullen17/Pullen+17_"+str(nu)+".txt"
       data = np.genfromtxt(path)
@@ -549,10 +560,8 @@ class WeightLensCIBPullen17(Projection):
       norm = integrate.quad(fdpdzNonNormalized, 1./self.aMax, 1./self.aMin, epsabs=0, epsrel=1.e-4)[0]
       self.fdpdz = lambda z: fdpdzNonNormalized(z) / norm
       
-      super(WeightLensCIBPullen17, self).__init__(U, name=name)
-      
    
-   def fForInterp(self, a):
+   def f(self, a):
       d_a = self.U.bg.comoving_distance(1./a-1.)
       result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1.))
@@ -599,14 +608,14 @@ class WeightCIBPlanck15(Projection):
    """
    
    def __init__(self, U, name='cibplanck'):
+      super(WeightCIBPlanck15, self).__init__(U, name=name)
+   
       # a for mass func, biases, and projection
       self.aMin = 1./(1.+10.)  # arbitrary for now
       epsilon = 1.e-5
       self.aMax = 1.-epsilon
    
-      super(WeightCIBPlanck15, self).__init__(U, name=name)
-   
-   def fForInterp(self, a):
+   def f(self, a):
       return self.U.bg.comoving_distance(1./a-1.)**2
 
 
@@ -619,12 +628,13 @@ class WeightTracer(Projection):
    """
    
    def __init__(self, U, name='d'):
+      super(WeightTracer, self).__init__(U, name=name)
+
       # normalization of dn/dz, ie number of galaxies per unit steradian
       self.ngal = integrate.quad(self.dndz, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-3)[0]
       # convert to number of galaxies per square arcmin
       self.ngal_per_arcmin2 = self.ngal * (np.pi/180./60.)**2
 
-      super(WeightTracer, self).__init__(U, name=name)
 
    def b(self, z):
       """tracer bias
@@ -637,7 +647,7 @@ class WeightTracer(Projection):
       """
       pass
 
-   def fForInterp(self, a):
+   def f(self, a):
       """projection kernel
       """
       z = 1./a - 1.
@@ -872,6 +882,7 @@ class WeightCIBPenin12(Projection):
    """
    
    def __init__(self, U, nu=217.e9, fluxCut=160.e-3, name='cibpenin12'):
+      super(WeightCIBPenin12, self).__init__(U, name=name+'_'+str(int(nu/1.e9))+'GHZ')
       self.nu = nu   # in Hz
       self.fluxCut = fluxCut  # in Jy
       
@@ -941,10 +952,8 @@ class WeightCIBPenin12(Projection):
       #
       forjNu4 = UnivariateSpline(self.A, self.JNu4, k=1, s=0)
       self.jNu4 = lambda a: forjNu4(a) * (a>=self.aMin)*(a<=self.aMax)
-   
-      super(WeightCIBPenin12, self).__init__(U, name=name+'_'+str(int(nu/1.e9))+'GHZ')
 
-   def fForInterp(self, a):
+   def f(self, a):
       """projection kernel
       """
       result = self.U.bg.comoving_distance(1./a-1., 1.)**2

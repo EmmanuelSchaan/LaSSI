@@ -12,7 +12,7 @@
 # You should have received a copy of the CC0 legalcode along with this
 # work.  If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 
-__all__ = ['magma', 'inferno', 'plasma', 'viridis']
+__all__ = ['magma', 'inferno', 'plasma', 'plasma_r', 'viridis', 'viridis_r']
 
 _magma_data = [[0.001462, 0.000466, 0.013866],
                [0.002258, 0.001295, 0.018331],
@@ -785,6 +785,8 @@ _plasma_data = [[0.050383, 0.029803, 0.527975],
                 [0.941896, 0.968590, 0.140956],
                 [0.940015, 0.975158, 0.131326]]
 
+_plasma_r_data = _plasma_data[::-1]
+
 _viridis_data = [[0.267004, 0.004874, 0.329415],
                  [0.268510, 0.009605, 0.335427],
                  [0.269944, 0.014625, 0.341379],
@@ -1042,17 +1044,23 @@ _viridis_data = [[0.267004, 0.004874, 0.329415],
                  [0.983868, 0.904867, 0.136897],
                  [0.993248, 0.906157, 0.143936]]
 
+_viridis_r_data = _viridis_data[::-1]
+
 from matplotlib.colors import ListedColormap
 
 cmaps = {}
 for (name, data) in (('magma', _magma_data),
                      ('inferno', _inferno_data),
                      ('plasma', _plasma_data),
-                     ('viridis', _viridis_data)):
+                     ('plasma_r', _plasma_r_data),
+                     ('viridis', _viridis_data),
+                     ('viridis_r', _viridis_r_data)):
 
     cmaps[name] = ListedColormap(data, name=name)
 
 magma = cmaps['magma']
 inferno = cmaps['inferno']
 plasma = cmaps['plasma']
+plasma_r = cmaps['plasma_r']
 viridis = cmaps['viridis']
+viridis_r = cmaps['viridis_r']
