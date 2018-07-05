@@ -2,6 +2,10 @@ import universe
 reload(universe)
 from universe import *
 
+import parameters_fisher
+reload(parameters_fisher)
+from parameters_fisher import *
+
 import projection_kernel
 reload(projection_kernel)
 from projection_kernel import *
@@ -50,12 +54,26 @@ class FisherLsst(object):
       print "Data vector has "+str(self.nData)+" elements"
       
       
+      # define cosmology parameters
+#      cosmoPar = CosmoParams()
 
       # define base cosmology
+#!!! should use the cosmo parameters defined above
       self.u = UnivPlanck15()
 
+      # photo-z and shear bias parameters
+#!!! new
+      photoZPar = PhotoZParams(nBins=self.nBins)
+      shearMultBiasPar = ShearMultBiasParams(nBins=self.nBins)
+
       # define the tracer/shear bins
-      self.w_g, self.w_s, self.zBounds = self.generateBins(self.u)
+#!!! fix to include shear bias and photo-z uncertainties
+      self.w_g, self.w_s, self.zBounds = self.generateBins(self.u, photoZPar, shearMultBiasPar)
+      
+      # update the galaxy bias parameters from these kernels
+#!!! new
+      galaxyBiasPar = GalaxyBiasParams(self.nBins, self.w_g)
+
       
       # compute the 2-point functions
       self.p2d_gg, self.p2d_gs, self.p2d_ss = self.generatePowerSpectra(self.u, self.w_g, self.w_s, save=self.save)
@@ -76,7 +94,7 @@ class FisherLsst(object):
 
    ##################################################################################
 
-   def generateBins(self, u):
+   def generateBins(self, u, photoZPar, shearMultBiasPar):
       # LSST souce sample
       w_glsst = WeightTracerLSSTSources(u, name='glsst')
       # split it into bins
@@ -90,6 +108,7 @@ class FisherLsst(object):
          zMin = zBounds[iBin]
          zMax = zBounds[iBin+1]
          # tracer bin
+#!!! update to take into account photoZPar
          w_g[iBin] = WeightTracerCustom(u,
                                         lambda z: w_glsst.b(z), # galaxy bias
                                         lambda z: w_glsst.dndz(z), # dn/dz
@@ -99,7 +118,7 @@ class FisherLsst(object):
          # shear bin
          w_s[iBin] = WeightLensCustom(u,
                                       lambda z: w_glsst.dndz(z), # dn/dz
-                                      m=lambda z: 0., # multiplicative shear bias
+                                      m=lambda z: shearMultBiasPar.fiducial[iBin], # multiplicative shear bias
                                       zMinG=zMin,
                                       zMaxG=zMax,
                                       name='s'+str(iBin))
@@ -313,7 +332,34 @@ class FisherLsst(object):
 
 
    ##################################################################################
+   
+   def plotDndz(self):
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      for iBin in range(self.nBins):
+         # define z range of bin
+         zMin = 1./self.w_g[iBin].aMax-1.
+         zMax = 1./self.w_g[iBin].aMin-1.
+         Z = np.linspace(zMin, zMax, 501)
+         # evaluate dn/dz
+         dndz = np.array(map(self.w_g[iBin].dndz, Z))
+         dndz /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
+         # plot it
+         ax.fill_between(Z, 0., dndz, facecolor=plt.cm.autumn(1.*iBin/self.nBins), edgecolor='', alpha=1)
+      #
+      ax.set_xlabel(r'$z$')
+      ax.set_ylabel(r'$dN / d\Omega\; dz$ [arcmin$^{-2}$]')
+      
+      plt.show()
 
+
+
+
+
+
+   
+   
    def plotCovMat(self):
       fig=plt.figure(0, figsize=(12,8))
       ax=fig.add_subplot(111)

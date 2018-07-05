@@ -112,7 +112,6 @@ class PhotoZParams(Parameters):
 
 
 ##################################################################################
-#!!!!! incomplete
 
 class GalaxyBiasParams(Parameters):
 
