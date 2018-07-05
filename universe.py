@@ -7,9 +7,9 @@ class Universe(object):
    def __init__(self, params=None):
    
       # neutrino masses
-      self.Mnu = 0.2 # eV
+      self.Mnu = 0.06 # eV, minimum possible masses
       self.normalHierarchy = True
-      self.nuMasses = self.computeNuMasses(0.2, normal=self.normalHierarchy)
+      self.nuMasses = self.computeNuMasses(self.Mnu, normal=self.normalHierarchy)
 
       # all cosmological parameters
       if params is None:
@@ -35,12 +35,14 @@ class Universe(object):
          self.params = params
       
       print "Running CLASS"
+      tStart = time()
       self.engine = CLASS.ClassEngine(self.params)
       self.bg = CLASS.Background(self.engine)
       self.sp = CLASS.Spectra(self.engine)
       self.th = CLASS.Thermo(self.engine)
       self.pm = CLASS.Primordial(self.engine)
-      print "done"
+      tStop = time()
+      print "took "+str(tStop-tStart)+" sec"
 
       # wave vectors computed for power spectrum (h/Mpc)
       self.kMin = self.sp.P_k_min
@@ -64,6 +66,7 @@ class Universe(object):
       self.rho_g = lambda z: self.bg.rho_g(z)/(1.+z)**3 * 1.e10
       self.rho_k = lambda z: self.bg.rho_k(z)/(1.+z)**3 * 1.e10
       self.rho_lambda = lambda z: self.bg.rho_lambda(z)/(1.+z)**3 * 1.e10
+      self.rho_fld = lambda z: self.bg.rho_fld(z)/(1.+z)**3 * 1.e10
       self.rho_ncdm = lambda z: self.bg.rho_ncdm(z)/(1.+z)**3 * 1.e10
       self.rho_r = lambda z: self.bg.rho_r(z)/(1.+z)**3 * 1.e10
       self.rho_ur = lambda z: self.bg.rho_ur(z)/(1.+z)**3 * 1.e10
@@ -232,6 +235,7 @@ class Universe(object):
       plt.loglog(1.+z, self.rho_ur(z), label=r"$\rho_{ur}$")
       #plt.loglog(1.+z, self.rho_ncdm(z), label=r"$\rho_{ncdm}$")
       plt.loglog(1.+z, self.rho_lambda(z), label=r"$\rho_\Lambda$")
+      plt.loglog(1.+z, self.rho_fld(z), label=r"$\rho_\text{fluid}$")
       plt.legend()
       plt.xlabel(r"$1.+z$")
       plt.ylabel(r"Comoving density [(M$_\odot$/h)/(Mpc/h)$^3$]")
@@ -242,6 +246,7 @@ class Universe(object):
       plt.loglog(1.+z, self.bg.Omega_m(z), label=r"$\Omega_m$")
       plt.loglog(1.+z, self.bg.Omega_r(z), label=r"$\Omega_r$")
       plt.loglog(1.+z, self.bg.Omega_lambda(z), label=r"$\Omega_\Lambda$")
+      plt.loglog(1.+z, self.bg.Omega_fld(z), label=r"$\Omega_\text{fluid}$")
       plt.legend()
       plt.xlabel(r"$1.+z$")
       plt.ylabel("Energy density parameters")
@@ -763,9 +768,6 @@ class UnivHillPajer13(Universe):
                'Omega_cdm': 0.236,
                'Omega_k': 0.,
                'P_k_max_1/Mpc': 10.,
-#                  'N_ncdm': 3,
-#                  'm_ncdm': str(self.nuMasses[0])+','+str(self.nuMasses[1])+','+str(self.nuMasses[2]),
-#                  'deg_ncdm': '1, 1, 1',
                'non linear': 'halofit',
                'z_max_pk': 100.
                }
@@ -789,9 +791,6 @@ class UnivTinkerEtAl08(Universe):
                'Omega_cdm': 0.26,
                'Omega_k': 0.,
                'P_k_max_1/Mpc': 10.,
-#                  'N_ncdm': 3,
-#                  'm_ncdm': str(self.nuMasses[0])+','+str(self.nuMasses[1])+','+str(self.nuMasses[2]),
-#                  'deg_ncdm': '1, 1, 1',
                'non linear': 'halofit',
                'z_max_pk': 100.
                }
@@ -815,9 +814,6 @@ class UnivSchaanEtAl14(Universe):
                'Omega_cdm': 0.196,
                'Omega_k': 0.,
                'P_k_max_1/Mpc': 10.,
-#                  'N_ncdm': 3,
-#                  'm_ncdm': str(self.nuMasses[0])+','+str(self.nuMasses[1])+','+str(self.nuMasses[2]),
-#                  'deg_ncdm': '1, 1, 1',
                'non linear': 'halofit',
                'z_max_pk': 100.
                }
@@ -842,9 +838,6 @@ class UnivHandEtAl13(Universe):
                'Omega_cdm': 0.227,
                'Omega_k': 0.,
                'P_k_max_1/Mpc': 10.,
-#                  'N_ncdm': 3,
-#                  'm_ncdm': str(self.nuMasses[0])+','+str(self.nuMasses[1])+','+str(self.nuMasses[2]),
-#                  'deg_ncdm': '1, 1, 1',
                'non linear': 'halofit',
                'z_max_pk': 100.
                }
@@ -869,9 +862,6 @@ class UnivMariana(Universe):
                'Omega_cdm': 0.2441429,
                'Omega_k': 0.,
                'P_k_max_1/Mpc': 10.,
-#                  'N_ncdm': 3,
-#                  'm_ncdm': str(self.nuMasses[0])+','+str(self.nuMasses[1])+','+str(self.nuMasses[2]),
-#                  'deg_ncdm': '1, 1, 1',
                'non linear': 'halofit',
                'z_max_pk': 100.
                }
@@ -905,3 +895,51 @@ class UnivPlanck15(Universe):
       super(UnivPlanck15, self).__init__(params=params)
 
 
+##################################################################################
+
+class UnivNuWCurv(Universe):
+
+   def __init__(self):
+
+      # neutrino masses
+      self.Mnu = 0.06 # eV, minimum possible masses
+      self.normalHierarchy = True
+      self.nuMasses = self.computeNuMasses(self.Mnu, normal=self.normalHierarchy)
+
+      params = {
+               # Cosmological parameters
+               'Omega_cdm': 0.267,
+               'Omega_b': 0.0493,
+               'A_s': 2.3e-9,
+               'n_s': 0.9624,
+               'tau_reio': 0.06,
+               'h': 0.6712,
+               #
+               # Massive neutrinos
+               'N_ncdm': 3,
+               'm_ncdm': str(self.nuMasses[0])+','+str(self.nuMasses[1])+','+str(self.nuMasses[2]),
+               'deg_ncdm': '1, 1, 1',
+               #
+               # w0 and wa
+               'Omega_Lambda': 0.,
+               'w0_fld': -1.,
+               'wa_fld': 0.,
+               #
+               # Curvature
+               'Omega_k': 0.,
+               #
+               # parameters
+               'output': 'mPk dTk vTk',#'lCl tCl pCl mPk',
+               'P_k_max_1/Mpc': 10.,
+               'non linear': 'halofit',
+               'z_max_pk': 100.
+               }
+      super(UnivNuWCurv, self).__init__(params=params)
+
+
+##################################################################################
+
+class UnivFisher(Universe):
+
+   def __init__(self, cosmoPar):
+      super(UnivFisher, self).__init__(params=cosmoPar.paramsClassy)

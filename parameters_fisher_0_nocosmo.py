@@ -46,19 +46,13 @@ class Parameters(object):
    def plotParams(self):
       '''Show the parameter names, fiducial/high/low values, priors.
       '''
-
+      invFisher = np.linalg.inv(self.priorFisher)
+      std = np.sqrt(np.diag(invFisher))
       
       fig=plt.figure(0)
       ax=fig.add_subplot(111)
       #
-      # if a Fisher prior is available, plot it
-      try:
-         invFisher = np.linalg.inv(self.priorFisher)
-         std = np.sqrt(np.diag(invFisher))
-         ax.errorbar(range(self.nPar), self.fiducial, yerr=std, fmt='o')
-      # otherwise, just show the fiducial values
-      except:
-         ax.errorbar(range(self.nPar), self.fiducial, fmt='o')
+      ax.errorbar(range(self.nPar), self.fiducial, yerr=std, fmt='o')
       #
       ax.set_xticks(range(self.nPar))
       ax.set_xticklabels(self.namesLatex, fontsize=24)
@@ -141,98 +135,62 @@ class GalaxyBiasParams(Parameters):
 
 
 ##################################################################################
+#!!!!! incomplete
 
 class CosmoParams(Parameters):
 
-   def __init__(self, massiveNu=False, wCDM=False, curvature=False):
-   
-      # base cosmology
-      self.names = np.array(['Omega_cdm', 'Omega_b', 'A_s', 'n_s', 'tau_reio', 'h'])
-      self.namesLatex = np.array([r'$\Omega_\text{CDM}$', r'$\Omega_\text{b}$', r'$A_\text{s}$', r'$n_\text{s}$', r'$\tau$', r'$h$'])
-      self.fiducial = np.array([0.267, 0.0493, 2.3e-9, 0.9624, 0.06, 0.6712 ])
-      self.paramsClassy = {
-                           # Cosmological parameters
-                           'Omega_cdm': 0.267,
-                           'Omega_b': 0.0493,
-                           'A_s': 2.3e-9,
-                           'n_s': 0.9624,
-                           'tau_reio': 0.06,
-                           'h': 0.6712,
-                           # parameters
-                           'output': 'mPk dTk vTk',#'lCl tCl pCl mPk',
-                           'P_k_max_1/Mpc': 10.,
-                           'non linear': 'halofit',
-                           'z_max_pk': 100.
-                           }
+   def __init__(self):
+      self.nPar = 8
+
+      # naming convention compatible with class
+      self.names = np.array(['Omega_cdm',
+                            'Omega_b',
+#                            'Omega_k',
+                            'A_s',
+                            'n_s',
+                            'tau_reio', # 'reio_parametrization' should be set to 'reio_camb'
+                            'h',
+#                            'M_nu',
+                            'w0_fld'
+#                            'wa_fld',
+                            ])
+
+      self.namesLatex = np.array([r'$\Omega^0_\text{CDM}$',
+                                  r'$\Omega^0_\text{b}$',
+#                                  r'$\Omega^0_k$',
+                                  r'$A_S$',
+                                  r'$n_S$',
+                                  r'$w_0$',
+#                                  r'$w_a$',
+                                  r'$h_0$',
+#                                  r'$M_\nu$',
+                                  r'$\tau$'
+                                  ])
+
+      self.fiducial = np.array([0.32,
+                                0.049,
+#                                0.,
+                                2.3e-9,
+                                0.9624,
+                                -1.,
+#                                0.,
+                                0.6711,
+#                                0.,
+                                0.06
+                                ])
+
+#      self.high = 0.
+#      self.low = 0.
+#      self.priorFisher = 0.
+
+
       
-      
-      # neutrino masses
-      if massiveNu:
-         self.names = np.concatenate((self.names, np.array(['Mnu'])))
-         self.namesLatex = np.concatenate((self.namesLatex, np.array([r'$M_\nu$'])))
-         #
-         Mnu = 0.06 # eV, minimum possible masses
-         normalHierarchy = True
-         # compute neutrino masses
-         nuMasses = self.computeNuMasses(Mnu, normal=normalHierarchy)
-         self.fiducial = np.concatenate((self.fiducial, np.array([Mnu])))
-         self.paramsClassy.update({
-                                 # Massive neutrinos
-                                 'N_ncdm': 3,
-                                 'm_ncdm': str(nuMasses[0])+','+str(nuMasses[1])+','+str(nuMasses[2]),
-                                 'deg_ncdm': '1, 1, 1',
-                                 })
-      
-      
-      # wCDM
-      if wCDM:
-         self.names = np.concatenate((self.names, np.array(['w0_fld', 'wa_fld'])))
-         self.namesLatex = np.concatenate((self.namesLatex, np.array([r'$w_0$', r'$w_a$'])))
-         self.fiducial = np.concatenate((self.fiducial, np.array([-1., 0.])))
-         self.paramsClassy.update({
-                                 # w0 and wa
-                                 'Omega_Lambda': 0.,
-                                 'w0_fld': -1.,
-                                 'wa_fld': 0.,
-                                 })
-
-
-      # curvature
-      if curvature:
-         self.names = np.concatenate((self.names, np.array(['Omega_k'])))
-         self.namesLatex = np.concatenate((self.namesLatex, np.array([r'$\Omega_\text{k}$'])))
-         self.fiducial = np.concatenate((self.fiducial, np.array([0.])))
-         self.paramsClassy.update({
-                                 # Curvature
-                                 'Omega_k': 0.,
-                                 })
-
-
-      self.nPar = len(self.names)
-      self.priorFisher = np.zeros((self.nPar, self.nPar))
-      return
 
 
 
-   def computeNuMasses(self, mSum, normal=True):
-      '''mSum: sum of neutrino masses in eV
-      normal=True for normal hierarchy
-      output: masses in eV
-      '''
-      dmsq_atm = 2.5e-3 # eV^2
-      dmsq_solar = 7.6e-5 # eV^2
-      if normal:
-         f = lambda m0: m0 + np.sqrt(m0**2+dmsq_solar) + np.sqrt(m0**2+dmsq_solar+dmsq_atm) - mSum
-         m0 = optimize.brentq(f , 0., mSum)
-         result = np.array([m0, np.sqrt(m0**2+dmsq_solar), np.sqrt(m0**2+dmsq_solar+dmsq_atm)])
-      else:
-         f = lambda m0: m0 + np.sqrt(m0**2+dmsq_atm) + np.sqrt(m0**2+dmsq_atm+dmsq_solar) - mSum
-         m0 = optimize.brentq(f , 0., mSum)
-         result = np.array([m0, np.sqrt(m0**2+dmsq_atm), np.sqrt(m0**2+dmsq_atm+dmsq_solar)])
-      return result
 
 
-##################################################################################
+
 
 
 
