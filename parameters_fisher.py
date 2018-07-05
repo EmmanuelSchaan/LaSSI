@@ -16,10 +16,6 @@ class Parameters(object):
       '''
       pass
 
-   def plotParams(self):
-      '''Show the parameter names, fiducial/high/low values, priors.
-      '''
-      pass
 
    def addParams(self, newParams):
       '''Adds new parameters to the parameter set.
@@ -32,10 +28,37 @@ class Parameters(object):
       self.low = np.concatenate((self.low, newParams.low))
       # combine the Fisher priors
       combined = np.zeros((self.nPar+newParams.nPar, self.nPar+newParams.nPar))
+#      print self.nPar, newParams.nPar
+#      print shape(combined[:self.nPar, :self.nPar])
       combined[:self.nPar, :self.nPar] = self.priorFisher[:,:]
       combined[self.nPar:, self.nPar:] = newParams.priorFisher[:,:]
+      self.priorFisher = combined
       # increase the number of parameters
       self.nPar += newParams.nPar
+
+   def extractParams(self):
+      '''Create new parameter class
+      with only a subset of the current parameters.
+      '''
+      pass
+
+
+   def plotParams(self):
+      '''Show the parameter names, fiducial/high/low values, priors.
+      '''
+      invFisher = np.linalg.inv(self.priorFisher)
+      std = np.sqrt(np.diag(invFisher))
+      
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      ax.errorbar(range(self.nPar), self.fiducial, yerr=std, fmt='o')
+      #
+      ax.set_xticks(range(self.nPar))
+      ax.set_xticklabels(self.namesLatex, fontsize=24)
+      [l.set_rotation(45) for l in ax.get_xticklabels()]
+
+      plt.show()
 
 
 ##################################################################################
@@ -48,6 +71,8 @@ class ShearMultBiasParams(Parameters):
       self.names = np.array(['m'+str(iBin) for iBin in range(self.nPar)])
       self.namesLatex = np.array([r'$m_{'+str(iBin)+'}$' for iBin in range(self.nPar)])
       self.fiducial = np.array([0. for iBin in range(self.nPar)])
+      self.high = np.array([0.05 for iBin in range(self.nPar)])
+      self.low = np.array([-0.05 for iBin in range(self.nPar)])
       self.priorStd = np.array([mStd for iBin in range(self.nPar)])
       self.priorFisher = np.diagflat(1./self.priorStd**2)
 
@@ -56,21 +81,21 @@ class ShearMultBiasParams(Parameters):
 class PhotoZParams(Parameters):
 
    def __init__(self, nBins=2, dzFid=0., szFid=0.05, dzStd=0.002, szStd=0.003):
-      self.nPar = nBins
+      self.nPar = 2 * nBins
 
       # bias and std dev of photo-z
-      dz = np.array(['dz'+str(iBin) for iBin in range(self.nPar)])
-      sz = np.array(['sz'+str(iBin) for iBin in range(self.nPar)])
+      dz = np.array(['dz'+str(iBin) for iBin in range(nBins)])
+      sz = np.array(['sz'+str(iBin) for iBin in range(nBins)])
       self.names = np.concatenate((dz, sz))
       
       # latex strings for the names
-      dz = np.array([r'$\delta z_{'+str(iBin)+'}$' for iBin in range(self.nPar)])
-      sz = np.array([r'$\sigma z_{'+str(iBin)+'}$' for iBin in range(self.nPar)])
+      dz = np.array([r'$\delta z_{'+str(iBin)+'}$' for iBin in range(nBins)])
+      sz = np.array([r'$\sigma z_{'+str(iBin)+'}$' for iBin in range(nBins)])
       self.namesLatex = np.concatenate((dz, sz))
 
       # fiducial values
-      dz = np.array([dzFid for iBin in range(self.nPar)])
-      sz = np.array([szFid for iBin in range(self.nPar)])
+      dz = np.array([dzFid for iBin in range(nBins)])
+      sz = np.array([szFid for iBin in range(nBins)])
       self.fiducial = np.concatenate((dz, sz))
 
       # high/low values for derivative
@@ -78,11 +103,12 @@ class PhotoZParams(Parameters):
       self.low = self.fiducial * 0.95
 
       # std dev of parameter prior
-      dz = np.array([dzStd for iBin in range(self.nPar)])
-      sz = np.array([szStd for iBin in range(self.nPar)])
+      dz = np.array([dzStd for iBin in range(nBins)])
+      sz = np.array([szStd for iBin in range(nBins)])
       self.priorStd = np.concatenate((dz, sz))
       # corresponding Fisher matrix of priors
       self.priorFisher = np.diagflat(1./self.priorStd**2)
+
 
 
 ##################################################################################
