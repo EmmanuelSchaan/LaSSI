@@ -51,12 +51,12 @@ class P2d(object):
       
       
    def SaveP(self):
-      print "precomputing p2d "+self.name
+#      print "precomputing p2d "+self.name
       data = np.zeros((len(self.L), 5))
       data[:,0] = self.L.copy()
 #      pool = Pool(ncpus=self.nProc)
-      data[:,1] = np.array(map(self.fP_1h, self.L))
-      data[:,2] = np.array(map(self.fP_2h, self.L))
+#      data[:,1] = np.array(map(self.fP_1h, self.L))
+#      data[:,2] = np.array(map(self.fP_2h, self.L))
       data[:,3] = np.array(map(self.fP, self.L))
       data[:,4] = np.array(map(self.fPnoise, self.L))
       np.savetxt("./output/pn_2d/p2d_"+self.name+".txt", data)
@@ -153,6 +153,26 @@ class P2d(object):
       result = integrate.quad(f, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
       #print "done ell=",l
       return result
+
+#   def fP(self, l):
+#      a = np.linspace(self.aMin, self.aMax, 101)
+#      z = 1./a-1.
+#      chi = self.U.bg.comoving_distance(1./a-1.)
+#      #
+#      result = 3.e5/( self.U.hubble(1./a-1.) * a**2 )
+#      if self.Weight2 is None:
+#         result *= self.Weight1.f(a)**2
+#      else:
+#         result *= self.Weight1.f(a) * self.Weight2.f(a)
+#      result /= chi**2
+#      f = lambda z: self.Pn.fPinterp(l/self.U.bg.comoving_distance(z), z)
+#      result *= np.array(map(f, z))
+#
+#      result = np.trapz(result, a)
+#      return result
+
+
+
 
    ##################################################################################
    

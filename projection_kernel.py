@@ -11,7 +11,7 @@ class Projection(object):
       #self.aMax
 
       # interpolate the lensing kernel, for speed
-      nA = 501
+      nA = 101
       A = np.linspace(self.aMin, self.aMax, nA)
       F = np.array(map(self.fForInterp, A))
       self.f = interp1d(A, F, kind='linear', bounds_error=False, fill_value=0.)

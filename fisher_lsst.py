@@ -23,9 +23,7 @@ from covp_2d import *
 
 class FisherLsst(object):
    
-   def __init__(self, nBins=2, nL=20, fsky=1., name="", save=True):
-      
-      self.name = ""
+   def __init__(self, cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=2, nL=20, fsky=1., name=None, save=True):
       self.save = save
       
       # sky fraction
@@ -38,6 +36,7 @@ class FisherLsst(object):
       self.nGG = self.nG * (self.nG+1) / 2   # not just gg from same z-bin
       self.nGS = self.nG * self.nS # not just higher z s than g
       self.nSS = self.nS * (self.nS+1) / 2
+      print "Tomographic bins: "+str(self.nBins)
 
       # ell bins
       self.nL = nL
@@ -53,53 +52,93 @@ class FisherLsst(object):
       self.nData = (self.nGG + self.nGS + self.nSS) * self.nL
       print "Data vector has "+str(self.nData)+" elements"
       
-      
-      # define cosmology parameters
-#      cosmoPar = CosmoParams()
+      if name is None:
+         self.name = "lsst_gg_gs_ss_nBins"+str(self.nBins)+"_nL"+str(self.nL)
+      else:
+         self.name = name
 
-      # define base cosmology
-#!!! should use the cosmo parameters defined above
-      self.u = UnivPlanck15()
+      ##################################################################################
 
-      # photo-z and shear bias parameters
-      photoZPar = PhotoZParams(nBins=self.nBins)
-      shearMultBiasPar = ShearMultBiasParams(nBins=self.nBins)
+      # cosmology parameters
+      self.cosmoPar = cosmoPar
       
-      # define the tracer/shear bins
-      self.w_g, self.w_s, self.zBounds = self.generateBins(self.u, photoZPar, shearMultBiasPar)
+      # nuisance parameters
+      self.galaxyBiasPar = galaxyBiasPar
+      self.shearMultBiasPar = shearMultBiasPar
+      self.photoZPar = photoZPar
+      # combined nuisance parameters
+      self.nuisancePar = self.galaxyBiasPar.copy()
+      self.nuisancePar.addParams(self.shearMultBiasPar)
+      self.nuisancePar.addParams(self.photoZPar)
       
-      # update the galaxy bias parameters
-      galaxyBiasPar = GalaxyBiasParams(self.nBins, self.w_g)
+      # all parameters
+      self.fullPar = self.cosmoPar.copy()
+      self.fullPar.addParams(self.nuisancePar)
+      print "Params: "+str(self.fullPar.nPar)+" total = "+str(self.cosmoPar.nPar)+" cosmo + "+str(self.nuisancePar.nPar)+" nuisance"
+
+      ##################################################################################
+      # Fiducial data vector and covariance
       
-      # compute the 2-point functions
+      tStartFisher = time()
+      
+      print "Run CLASS",
+      tStart = time()
+      self.u = Universe(self.cosmoPar.paramsClassy)
+      tStop = time()
+      print "("+str(np.round(tStop-tStart,1))+" sec)"
+
+      print "Tracer and shear bins",
+      tStart = time()
+      self.w_g, self.w_s, self.zBounds = self.generateBins(self.u, self.nuisancePar.fiducial)
+      tStop = time()
+      print "("+str(np.round(tStop-tStart,1))+" sec)"
+      
+      print "Power spectra",
+      tStart = time()
       self.p2d_gg, self.p2d_gs, self.p2d_ss = self.generatePowerSpectra(self.u, self.w_g, self.w_s, save=self.save)
-      
-      # generate data vector
+      tStop = time()
+      print "("+str(np.round(tStop-tStart,1))+" sec)"
+
+      print "Data vector",
+      tStart = time()
       self.dataVector = self.generateDataVector(self.p2d_gg, self.p2d_gs, self.p2d_ss)
-      
-      # generate covariance matrix
+      tStop = time()
+      print "("+str(np.round(tStop-tStart,1))+" sec)"
+
+      print "Covariance matrix",
+      tStart = time()
       self.covMat = self.generateCov(self.p2d_gg, self.p2d_gs, self.p2d_ss)
       self.invCov = np.linalg.inv(self.covMat)
-      '''
-      # generate derivatives of the data vector
-      self.derivativeDataVector = self.generateDerivativeDataVector(self)
-      '''
-
-
-
+      tStop = time()
+      print "("+str(np.round(tStop-tStart,1))+" sec)"
+      
+      ##################################################################################
+      
+      # Derivatives of the data vector
+      if self.save:
+         self.saveDerivativeDataVector()
+      self.loadDerivativeDataVector()
+      
+      tStopFisher = time()
+      print "Full calculation took "+str(np.round((tStopFisher-tStartFisher)/60.,1))+" min"
 
    ##################################################################################
 
-   def generateBins(self, u, photoZPar, shearMultBiasPar):
-      # LSST souce sample
+
+   def generateBins(self, u, nuisancePar):
+      # split the nuisance parameters
+      galaxyBiasPar = nuisancePar[:self.galaxyBiasPar.nPar]
+      shearMultBiasPar = nuisancePar[self.galaxyBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar]
+      photoZPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar:]
+      # LSST source sample
       w_glsst = WeightTracerLSSTSources(u, name='glsst')
       # split it into bins
       zBounds = w_glsst.splitBins(self.nBins)
       
       # generate the corresponding tracer and shear bins
-      print "Generate tracer and shear bins"
-      w_g = {}
-      w_s = {}
+
+      w_g = np.empty(self.nBins, dtype=object)
+      w_s = np.empty(self.nBins, dtype=object)
       for iBin in range(self.nBins):
          # sharp photo-z cuts
          zMinP = zBounds[iBin]
@@ -108,17 +147,17 @@ class FisherLsst(object):
          zMin = 1./w_glsst.aMax-1.
          zMax = 1./w_glsst.aMin-1.
          # true dn/dz_true from dn/dz_phot
-         p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-photoZPar.fiducial[iBin])**2/photoZPar.fiducial[self.nBins+iBin]**2) / np.sqrt(2.*np.pi*photoZPar.fiducial[self.nBins+iBin]**2)
+         p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-photoZPar[iBin])**2/photoZPar[self.nBins+iBin]**2) / np.sqrt(2.*np.pi*photoZPar[self.nBins+iBin]**2)
          f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
          dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-2)[0]
          # interpolate it for speed (for lensing kernel calculation)
-         Z = np.linspace(zMin, zMax, 501)
+         Z = np.linspace(zMin, zMax, 101)
          F = np.array(map(dndz_tForInterp, Z))
          dndz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
          
          # tracer bin
          w_g[iBin] = WeightTracerCustom(u,
-                                        lambda z: w_glsst.b(z), # galaxy bias
+                                        lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
                                         dndz_t, # dn/dz_true
                                         zMin=zMin,
                                         zMax=zMax,
@@ -127,63 +166,56 @@ class FisherLsst(object):
          # shear bin
          w_s[iBin] = WeightLensCustom(u,
                                       dndz_t, # dn/dz_true
-                                      m=lambda z: shearMultBiasPar.fiducial[iBin], # multiplicative shear bias
+                                      m=lambda z: shearMultBiasPar[iBin], # multiplicative shear bias
                                       zMinG=zMin,
                                       zMaxG=zMax,
                                       name='s'+str(iBin))
-         print "- done "+str(iBin+1)+" of "+str(self.nBins)
-      print "total ngal="+str(np.sum([w_g[i].ngal_per_arcmin2 for i in range(self.nBins)]))+"/arcmin2, should be "+str(w_glsst.ngal_per_arcmin2)
+
+         #print "- done "+str(iBin+1)+" of "+str(self.nBins)
+      #print "total ngal="+str(np.sum([w_g[i].ngal_per_arcmin2 for i in range(self.nBins)]))+"/arcmin2, should be "+str(w_glsst.ngal_per_arcmin2)
       return w_g, w_s, zBounds
 
 
-   def generatePowerSpectra(self, u, w_g, w_s, save=True):
+   ##################################################################################
+
+   def generatePowerSpectra(self, u, w_g, w_s, name=None, save=True):
+      if name is None:
+         name = "_"+self.name
       # gg: do not impose same bin
-      print "Compute p_gg"
-      tStart = time()
-      p2d_gg = {}
+      p2d_gg = np.empty((self.nBins, self.nBins), dtype=object)
       for iBin1 in range(self.nBins):
          # auto-correlation: same bin
-         p2d_gg[iBin1, iBin1] = P2d(u, u, w_g[iBin1], fPnoise=lambda l:1./w_g[iBin1].ngal, doT=False, name='', L=self.L, nProc=1, save=save)
+         p2d_gg[iBin1, iBin1] = P2d(u, u, w_g[iBin1], fPnoise=lambda l:1./w_g[iBin1].ngal, doT=False, name=name, L=self.L, nProc=1, save=save)
          # cross-correlation: different bins
          for iBin2 in range(iBin1+1, self.nBins):
-            p2d_gg[iBin1, iBin2] = P2d(u, u, w_g[iBin1], w_g[iBin2], doT=False, name='', L=self.L, nProc=1, save=save)
+            p2d_gg[iBin1, iBin2] = P2d(u, u, w_g[iBin1], w_g[iBin2], doT=False, name=name, L=self.L, nProc=1, save=save)
             # so that the order doesn't matter
             p2d_gg[iBin2, iBin1] = p2d_gg[iBin1, iBin2]
-      tStop = time()
-      print "took "+str(tStop-tStart)+" sec"
 
       # gs: do not impose higher z s than g
-      print "Compute p_gs"
-      tStart = time()
-      p2d_gs = {}
+      p2d_gs = np.empty((self.nBins, self.nBins), dtype=object)
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
-            p2d_gs[iBin1, iBin2] = P2d(u, u, w_g[iBin1], w_s[iBin2], doT=False, name='', L=self.L, nProc=1, save=save)
-      tStop = time()
-      print "took "+str(tStop-tStart)+" sec"
+            p2d_gs[iBin1, iBin2] = P2d(u, u, w_g[iBin1], w_s[iBin2], doT=False, name=name, L=self.L, nProc=1, save=save)
       
       # ss
-      print "Compute p_ss"
-      tStart = time()
-      p2d_ss = {}
+      p2d_ss = np.empty((self.nBins, self.nBins), dtype=object)
       for iBin1 in range(self.nBins):
          # auto-correlation: same bin
-         p2d_ss[iBin1, iBin1] = P2d(u, u, w_s[iBin1], fPnoise=lambda l:0.26**2/w_s[iBin1].ngal, doT=False, L=self.L, nProc=1, save=save)
+         p2d_ss[iBin1, iBin1] = P2d(u, u, w_s[iBin1], fPnoise=lambda l:0.26**2/w_s[iBin1].ngal, doT=False, name=name, L=self.L, nProc=1, save=save)
          # cross correlation: different bins
          for iBin2 in range(iBin1+1, self.nBins):
-            p2d_ss[iBin1, iBin2] = P2d(u, u, w_s[iBin1], w_s[iBin2], doT=False, name='', L=self.L, nProc=1, save=save)
+            p2d_ss[iBin1, iBin2] = P2d(u, u, w_s[iBin1], w_s[iBin2], doT=False, name=name, L=self.L, nProc=1, save=save)
             # so that the order doesn't matter
             p2d_ss[iBin2, iBin1] = p2d_ss[iBin1, iBin2]
-      tStop = time()
-      print "took "+str(tStop-tStart)+" sec"
 
       return p2d_gg, p2d_gs, p2d_ss
 
 
+   ##################################################################################
+
    def generateDataVector(self, p2d_gg, p2d_gs, p2d_ss):
       dataVector = np.zeros(self.nData)
-      print "Generating data vector"
-      tStart = time()
       iData = 0
       # gg
       for iBin1 in range(self.nBins):
@@ -200,20 +232,17 @@ class FisherLsst(object):
          for iBin2 in range(iBin1, self.nBins):
             dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ss[iBin1, iBin2].fPinterp, self.L))
             iData += 1
-
-      tStop = time()
-      print "took "+str(tStop-tStart)+" sec"
       return dataVector
 
 
+   ##################################################################################
+
    def generateCov(self, p2d_gg, p2d_gs, p2d_ss):
       covMat = np.zeros((self.nData, self.nData))
-      tStart = time()
-      print "Computing covariance matrix"
       # below, i1 and i2 define the row and column of the nL*nL blocks for each pair of 2-point function
       # i1, i2 \in [0, nGG+nGS+nSS]
       
-      print "gg-gg"
+      #print "gg-gg"
       # considering gg[i1,i2]
       i1 = 0
       for iBin1 in range(self.nBins):
@@ -231,7 +260,7 @@ class FisherLsst(object):
             # move to next row
             i1 += 1
 
-      print "gg-gs"
+      #print "gg-gs"
       # considering gg[i1,i2]
       i1 = 0
       for iBin1 in range(self.nBins):
@@ -249,7 +278,7 @@ class FisherLsst(object):
             # move to next row
             i1 += 1
 
-      print "gg-ss"
+      #print "gg-ss"
       # considering gg[i1,i2]
       i1 = 0
       for iBin1 in range(self.nBins):
@@ -267,7 +296,7 @@ class FisherLsst(object):
             # move to next row
             i1 += 1
 
-      print "gs-gs"
+      #print "gs-gs"
       # considering gs[i1,i2]
       i1 = self.nGG
       for iBin1 in range(self.nBins):
@@ -286,7 +315,7 @@ class FisherLsst(object):
             # move to next row
             i1 += 1
 
-      print "gs-ss"
+      #print "gs-ss"
       # considering gs[i1,i2]
       i1 = self.nGG
       for iBin1 in range(self.nBins):
@@ -304,7 +333,7 @@ class FisherLsst(object):
             # move to next row
             i1 += 1
 
-      print "ss-ss"
+      #print "ss-ss"
       # considering ss[i1,i2]
       i1 = self.nGG + self.nGS
       for iBin1 in range(self.nBins):
@@ -328,18 +357,76 @@ class FisherLsst(object):
          for i2 in range(i1):
             covMat[i1, i2] = covMat[i2, i1]
 
-   
-      tStop = time()
-      print "took "+str(tStop-tStart)+" sec"
       return covMat
 
 
+   ##################################################################################
 
-   def generateDerivativeDataVector(self):
-      pass
+   def saveDerivativeDataVector(self):
+      # Derivatives of the data vector:
+      # matrix of size self.params.nPar x self.nData
+      derivative = np.zeros((self.fullPar.nPar, self.nData))
+      
+      for iPar in range(self.cosmoPar.nPar):
+         print "Derivative wrt "+self.cosmoPar.names[iPar],
+         tStart = time()
+         # high
+         name = self.name+self.cosmoPar.names[iPar]+"high"
+         cosmoParClassy = self.cosmoPar.paramsClassy.copy()
+         print cosmoParClassy
+         print "#"
+         cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyHigh[self.cosmoPar.names[iPar]]
+         print cosmoParClassy
+         u = Universe(cosmoParClassy)
+         w_g, w_s, zBounds = self.generateBins(u, self.nuisancePar.fiducial)
+         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
+         dataVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
+#         # low
+#         name = self.name+self.cosmoPar.names[iPar]+"low"
+#         cosmoParClassy = self.cosmoPar.paramsClassy.copy()
+#         cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyLow[self.cosmoPar.names[iPar]]
+#         u = Universe(cosmoParClassy)
+#         w_g, w_s, zBounds = self.generateBins(u, self.nuisancePar.fiducial)
+#         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
+#         dataVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
+#         # derivative
+#         derivative[iPar,:] = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
+         derivative[iPar,:] = (dataVectorHigh-self.dataVector) / (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
+         tStop = time()
+         print "("+str(np.round(tStop-tStart,1))+" sec)"
+      
+      # Nuisance parameters
+      for iPar in range(self.nuisancePar.nPar):
+         print "Derivative wrt "+self.nuisancePar.names[iPar],
+         tStart = time()
+         params = self.nuisancePar.fiducial.copy()
+         # high
+         name = "_"+self.name+self.nuisancePar.names[iPar]+"high"
+         params[iPar] = self.nuisancePar.high[iPar]
+         w_g, w_s, zBounds = self.generateBins(self.u, params)
+         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_g, w_s, name=name, save=True)
+         dataVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
+#         # low
+#         name = self.name+self.nuisancePar.names[iPar]+"low"
+#         params[iPar] = self.nuisancePar.low[iPar]
+#         w_g, w_s, zBounds = self.generateBins(self.u, params)
+#         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_g, w_s, name=name, save=True)
+#         dataVectorLow = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
+#         # derivative
+#         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-dataVectorLow) / (self.nuisancePar.high[iPar]-self.nuisancePar.low[iPar])
+         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-self.dataVector) / (self.nuisancePar.high[iPar]-self.nuisancePar.fiducial[iPar])
+         tStop = time()
+         print "("+str(np.round(tStop-tStart,1))+" sec)"
+      
+      path = "dDatadPar_"+self.name
+      np.savetxt(path, derivative)
+
+   def loadDerivativeDataVector(self):
+      path = "dDatadPar_"+self.name
+      self.derivativeDataVector = np.genfromtxt(path)
 
 
-
+   ##################################################################################
    ##################################################################################
    
    def plotDndz(self):
@@ -428,7 +515,6 @@ class FisherLsst(object):
       
       plt.show()
 
-
       # gs
       fig=plt.figure(1)
       ax=fig.add_subplot(111)
@@ -449,7 +535,6 @@ class FisherLsst(object):
       ax.set_ylabel(r'$C_\ell^{g\gamma}$')
 
       plt.show()
-
 
       # ss
       fig=plt.figure(2)
@@ -472,6 +557,76 @@ class FisherLsst(object):
 
       plt.show()
 
+
+   def plotDerivativeDataVector(self):
+      # one color per cosmo param
+      Colors = plt.cm.jet(1.*np.arange(self.cosmoPar.nPar)/self.cosmoPar.nPar)
+      
+      # gg
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      # for each cosmo parameter
+      for iPar in range(self.cosmoPar.nPar):
+         # plot all the 2pt functions
+         for i2pt in range(self.nGG):
+            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] * self.cosmoPar.fiducial[iPar] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            color = Colors[iPar]
+            color = darkerLighter(color, amount=-0.8*i2pt/self.nGG)
+            ax.plot(self.L, dlnDdlnP, c=color, lw=3)
+         ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
+      #
+      ax.grid()
+      ax.legend(loc=4, ncol=4, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.set_xscale('log', nonposx='clip')
+      ax.set_ylim((-3., 4.))
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$d\ln C_\ell^{gg} / d\ln \text{Param.}$')
+
+
+      # gs
+      fig=plt.figure(1)
+      ax=fig.add_subplot(111)
+      #
+      # for each cosmo parameter
+      for iPar in range(self.cosmoPar.nPar):
+         # plot all the 2pt functions
+         for i2pt in range(self.nGG, self.nGG+self.nGS):
+            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] * self.cosmoPar.fiducial[iPar] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            color = Colors[iPar]
+            color = darkerLighter(color, amount=-0.8*(i2pt-self.nGG)/self.nGS)
+            ax.plot(self.L, dlnDdlnP, c=color, lw=3)
+         ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
+      #
+      ax.grid()
+      ax.legend(loc=4, ncol=4, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.set_xscale('log', nonposx='clip')
+      ax.set_ylim((-3., 4.))
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$d\ln C_\ell^{gs} / d\ln \text{Param.}$')
+
+      # ss
+      fig=plt.figure(2)
+      ax=fig.add_subplot(111)
+      #
+      # for each cosmo parameter
+      for iPar in range(self.cosmoPar.nPar):
+         # plot all the 2pt functions
+         for i2pt in range(self.nGG+self.nGS, self.nGG+self.nGS+self.nSS):
+            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] * self.cosmoPar.fiducial[iPar] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            color = Colors[iPar]
+            color = darkerLighter(color, amount=-0.8*(i2pt-(self.nGG+self.nGS))/self.nSS)
+            ax.plot(self.L, dlnDdlnP, c=color, lw=3)
+         ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
+      #
+      ax.grid()
+      ax.legend(loc=4, ncol=4, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.set_xscale('log', nonposx='clip')
+      ax.set_ylim((-3., 4.))
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$d\ln C_\ell^{ss} / d\ln \text{Param.}$')
+
+      plt.show()
 
 
 

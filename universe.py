@@ -34,15 +34,13 @@ class Universe(object):
       else:
          self.params = params
       
-      print "Running CLASS"
-      tStart = time()
+      # run CLASS
       self.engine = CLASS.ClassEngine(self.params)
       self.bg = CLASS.Background(self.engine)
       self.sp = CLASS.Spectra(self.engine)
       self.th = CLASS.Thermo(self.engine)
       self.pm = CLASS.Primordial(self.engine)
-      tStop = time()
-      print "took "+str(tStop-tStart)+" sec"
+
 
       # wave vectors computed for power spectrum (h/Mpc)
       self.kMin = self.sp.P_k_min
@@ -121,7 +119,7 @@ class Universe(object):
          return 0.
       else:
          return self.sp.get_pk(k, z)
-         
+
 
    ##################################################################################
    # spherical collapse
@@ -936,10 +934,3 @@ class UnivNuWCurv(Universe):
                }
       super(UnivNuWCurv, self).__init__(params=params)
 
-
-##################################################################################
-
-class UnivFisher(Universe):
-
-   def __init__(self, cosmoPar):
-      super(UnivFisher, self).__init__(params=cosmoPar.paramsClassy)

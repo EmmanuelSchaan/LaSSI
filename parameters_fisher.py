@@ -17,6 +17,17 @@ class Parameters(object):
       pass
 
 
+   def copy(self):
+      newPar = Parameters()
+      newPar.nPar = self.nPar
+      newPar.names = self.names
+      newPar.namesLatex = self.namesLatex
+      newPar.fiducial = self.fiducial
+      newPar.high = self.high
+      newPar.low = self.low
+      newPar.priorFisher = self.priorFisher
+      return newPar
+
    def addParams(self, newParams):
       '''Adds new parameters to the parameter set.
       '''
@@ -121,18 +132,14 @@ class PhotoZParams(Parameters):
 
 class GalaxyBiasParams(Parameters):
 
-   def __init__(self, nBins, w_g):
-      '''w_g: dictionary of projection kernel classes
-      for each z-bin
+   def __init__(self, nBins):
+      '''Galaxy biases, relative to their fiducial values
       '''
       self.nPar = nBins
       self.names = np.array(['bg'+str(iBin) for iBin in range(self.nPar)])
-      self.namesLatex = np.array([r'$b_{g\;'+str(iBin)+'}$' for iBin in range(self.nPar)])
+      self.namesLatex = np.array([r'$b_{g\;'+str(iBin)+'} / b_{g\;'+str(iBin)+r'}^\text{ fid}$' for iBin in range(self.nPar)])
       
-      # tracer bias for the LSST gold sample,
-      # from the LSST Science book, chapter 3 and 13.
-      self.fiducial = np.array([w_g[iBin].bMean() for iBin in range(self.nPar)])
-
+      self.fiducial = np.array([1. for iBin in range(self.nPar)])
       # high/low values for derivative
       self.high = self.fiducial * 1.05
       self.low = self.fiducial * 0.95
@@ -145,11 +152,15 @@ class GalaxyBiasParams(Parameters):
 class CosmoParams(Parameters):
 
    def __init__(self, massiveNu=False, wCDM=False, curvature=False):
-   
+      '''Step sizes inspired from Allison+15
+      '''
       # base cosmology
+      self.nPar = 6
       self.names = np.array(['Omega_cdm', 'Omega_b', 'A_s', 'n_s', 'tau_reio', 'h'])
       self.namesLatex = np.array([r'$\Omega_\text{CDM}$', r'$\Omega_\text{b}$', r'$A_\text{s}$', r'$n_\text{s}$', r'$\tau$', r'$h$'])
       self.fiducial = np.array([0.267, 0.0493, 2.3e-9, 0.9624, 0.06, 0.6712 ])
+      self.high = np.array([0.267 + 0.0066, 0.0493 + 0.0018, 2.3e-9 + 1.e-10, 0.9624 + 0.01, 0.06 + 0.02, 0.6712 + 0.067 ])
+      self.low = np.array([0.267 - 0.0066, 0.0493 - 0.0018, 2.3e-9 - 1.e-10, 0.9624 - 0.01, 0.06 - 0.02, 0.6712 - 0.067 ])
       self.paramsClassy = {
                            # Cosmological parameters
                            'Omega_cdm': 0.267,
@@ -164,54 +175,121 @@ class CosmoParams(Parameters):
                            'non linear': 'halofit',
                            'z_max_pk': 100.
                            }
-      
-      
+      self.paramsClassyHigh = {
+                           # Cosmological parameters
+                           'Omega_cdm': 0.267 + 0.0066,
+                           'Omega_b': 0.0493 + 0.0018,
+                           'A_s': 2.3e-9 + 1.e-10,
+                           'n_s': 0.9624 + 0.01,
+                           'tau_reio': 0.06 + 0.02,
+                           'h': 0.6712 + 0.067,
+                           # parameters
+                           'output': 'mPk dTk vTk',#'lCl tCl pCl mPk',
+                           'P_k_max_1/Mpc': 10.,
+                           'non linear': 'halofit',
+                           'z_max_pk': 100.
+                           }
+      self.paramsClassyLow = {
+                           # Cosmological parameters
+                           'Omega_cdm': 0.267 - 0.0066,
+                           'Omega_b': 0.0493 - 0.0018,
+                           'A_s': 2.3e-9 - 1.e-10,
+                           'n_s': 0.9624 - 0.01,
+                           'tau_reio': 0.06 - 0.02,
+                           'h': 0.6712 - 0.067,
+                           # parameters
+                           'output': 'mPk dTk vTk',#'lCl tCl pCl mPk',
+                           'P_k_max_1/Mpc': 10.,
+                           'non linear': 'halofit',
+                           'z_max_pk': 100.
+                           }
+
       # neutrino masses
       if massiveNu:
-         self.names = np.concatenate((self.names, np.array(['Mnu'])))
+         self.nPar += 1
+         self.names = np.concatenate((self.names, np.array(['m_ncdm'])))
          self.namesLatex = np.concatenate((self.namesLatex, np.array([r'$M_\nu$'])))
          #
          Mnu = 0.06 # eV, minimum possible masses
          normalHierarchy = True
          # compute neutrino masses
-         nuMasses = self.computeNuMasses(Mnu, normal=normalHierarchy)
          self.fiducial = np.concatenate((self.fiducial, np.array([Mnu])))
+         nuMasses = self.computeNuMasses(Mnu, normal=normalHierarchy)
          self.paramsClassy.update({
                                  # Massive neutrinos
                                  'N_ncdm': 3,
                                  'm_ncdm': str(nuMasses[0])+','+str(nuMasses[1])+','+str(nuMasses[2]),
                                  'deg_ncdm': '1, 1, 1',
                                  })
-      
-      
+         self.low = np.concatenate((self.low, np.array([Mnu])))
+         self.paramsClassyLow.update({
+                                 # Massive neutrinos
+                                 'N_ncdm': 3,
+                                 'm_ncdm': str(nuMasses[0])+','+str(nuMasses[1])+','+str(nuMasses[2]),
+                                 'deg_ncdm': '1, 1, 1',
+                                 })
+         self.high = np.concatenate((self.high, np.array([Mnu+0.02])))
+         nuMasses = self.computeNuMasses(Mnu+0.02, normal=normalHierarchy)
+         self.paramsClassyHigh.update({
+                                 # Massive neutrinos
+                                 'N_ncdm': 3,
+                                 'm_ncdm': str(nuMasses[0])+','+str(nuMasses[1])+','+str(nuMasses[2]),
+                                 'deg_ncdm': '1, 1, 1',
+                                 })
+
+
       # wCDM
       if wCDM:
+         self.nPar += 2
          self.names = np.concatenate((self.names, np.array(['w0_fld', 'wa_fld'])))
          self.namesLatex = np.concatenate((self.namesLatex, np.array([r'$w_0$', r'$w_a$'])))
          self.fiducial = np.concatenate((self.fiducial, np.array([-1., 0.])))
+         
+         self.high = np.concatenate((self.high, np.array([-1.+0.3, 0.+0.6])))
+         self.low = np.concatenate((self.low, np.array([-1., 0.])))
          self.paramsClassy.update({
                                  # w0 and wa
                                  'Omega_Lambda': 0.,
                                  'w0_fld': -1.,
                                  'wa_fld': 0.,
                                  })
-
+         self.paramsClassyHigh.update({
+                                 # w0 and wa
+                                 'Omega_Lambda': 0.,
+                                 'w0_fld': -1.+0.3,
+                                 'wa_fld': 0.+0.6,
+                                 })
+         self.paramsClassyLow.update({
+                                 # w0 and wa
+                                 'Omega_Lambda': 0.,
+                                 'w0_fld': -1.,
+                                 'wa_fld': 0.,
+                                 })
 
       # curvature
       if curvature:
+         self.nPar += 1
          self.names = np.concatenate((self.names, np.array(['Omega_k'])))
          self.namesLatex = np.concatenate((self.namesLatex, np.array([r'$\Omega_\text{k}$'])))
          self.fiducial = np.concatenate((self.fiducial, np.array([0.])))
+
+         self.high = np.concatenate((self.high, np.array([0.+0.01])))
+         self.low = np.concatenate((self.low, np.array([0.-0.01])))
          self.paramsClassy.update({
                                  # Curvature
                                  'Omega_k': 0.,
                                  })
+         self.paramsClassyHigh.update({
+                                 # Curvature
+                                 'Omega_k': 0.+0.01,
+                                 })
+         self.paramsClassyLow.update({
+                                 # Curvature
+                                 'Omega_k': 0.-0.01,
+                                 })
 
-
-      self.nPar = len(self.names)
       self.priorFisher = np.zeros((self.nPar, self.nPar))
       return
-
 
 
    def computeNuMasses(self, mSum, normal=True):
