@@ -5,7 +5,7 @@ from fisher_lsst import *
 ##################################################################################
 # Forecast parameters
 
-nBins = 2
+nBins = 10
 nL = 20
 fsky = 0.4
 
@@ -38,9 +38,9 @@ fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nB
 
 
 #fisherLsst.plotDndz()
-#fisherLsst.plotPowerSpectra()
+fisherLsst.plotPowerSpectra()
 #fisherLsst.plotCovMat()
-fisherLsst.plotDerivativeDataVector()
+#fisherLsst.plotDerivativeDataVector()
 
 
 ##################################################################################

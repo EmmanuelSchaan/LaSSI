@@ -25,7 +25,12 @@ class P2d(object):
       else:
          self.aMin = max(self.Weight1.aMin, self.Weight2.aMin)
          self.aMax = min(self.Weight1.aMax, self.Weight2.aMax)
-
+      # check that the two kernels actually overlap
+      if self.aMin>self.aMax:
+         self.aMin = self.aMax
+         self.fP_1h = lambda l: 0.
+         self.fP_2h = lambda l: 0.
+         self.fP = lambda l: 0.
 
       # values of ell to evaluate
       if L is None:
@@ -148,30 +153,61 @@ class P2d(object):
       #print "done ell=",l
       return result
 
+#   def fP(self, l):
+#      f = lambda a: self.integrandP(a, self.Pn.fPinterp, l)
+#      result = integrate.quad(f, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
+#      #print "done ell=",l
+#      return result
+
    def fP(self, l):
-      f = lambda a: self.integrandP(a, self.Pn.fPinterp, l)
-      result = integrate.quad(f, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
-      #print "done ell=",l
+      '''Way faster implementation! But maybe less accurate...
+      The bottleneck was looking up the projection kernel function from the projection class.
+      The function itself is super fast, because interpolated, but the lookup is slow.
+      By evaluating it on an array, do the lookup only once. Gain factor ~10 in speed.
+      '''
+      # evaluate array of integrand
+      A = np.linspace(self.aMin, self.aMax, 101)
+      Z = 1./A-1.
+      Chi = self.U.bg.comoving_distance(1./A-1.)
+      #
+      result = 3.e5/( self.U.hubble(1./A-1.) * A**2 )
+      if self.Weight2 is None:
+         result *= self.Weight1.f(A)**2
+      else:
+         result *= self.Weight1.f(A) * self.Weight2.f(A)
+      result /= Chi**2
+      #
+      p = np.vectorize(self.Pn.fPinterp)
+      result *= p(l/Chi, Z)
+      # integrate with trapezium method
+      result = np.trapz(result, A)
       return result
 
 #   def fP(self, l):
-#      a = np.linspace(self.aMin, self.aMax, 101)
-#      z = 1./a-1.
-#      chi = self.U.bg.comoving_distance(1./a-1.)
-#      #
-#      result = 3.e5/( self.U.hubble(1./a-1.) * a**2 )
+#      # take all method lookups outside of loop, for speed
+#      p = self.Pn.fPinterp
+#      chi = self.U.bg.comoving_distance
+#      h = self.U.hubble
+#      w1 = self.Weight1.f
 #      if self.Weight2 is None:
-#         result *= self.Weight1.f(a)**2
+#         ww = lambda a: w1(a)**2
 #      else:
-#         result *= self.Weight1.f(a) * self.Weight2.f(a)
-#      result /= chi**2
-#      f = lambda z: self.Pn.fPinterp(l/self.U.bg.comoving_distance(z), z)
-#      result *= np.array(map(f, z))
-#
-#      result = np.trapz(result, a)
+#         w2 = self.Weight2.f
+#         ww = lambda a: w1(a) * w2(a)
+#      # define integrand
+#      def integrand(a):
+#         z = 1./a-1.
+#         result = 3.e5/( h(1./a-1.) * a**2 )
+#         result *= ww(a)
+#         result /= chi(a)**2
+##         print p(l/chi, z)
+##         print result
+#         result *= p(l/chi(a), z)
+#         return result
+#      # compute integral
+#      result = integrate.quad(integrand, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
+#      #print "done ell=",l
 #      return result
-
-
 
 
    ##################################################################################

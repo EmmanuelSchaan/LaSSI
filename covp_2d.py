@@ -49,31 +49,31 @@ class CovP2d(object):
    
    def LoadAll(self):
       # Gaussian covariance contributions
-      # cosmic variance only
-      f = lambda l: self.Pac.fPinterp(l) * self.Pbd.fPinterp(l) + self.Pad.fPinterp(l) * self.Pbc.fPinterp(l)
-      self.P = np.array(map(f, self.L))
-      self.P /= self.Npairs
-      # noise only
-      f = lambda l: self.Pac.fPnoise(l) * self.Pbd.fPnoise(l) + self.Pad.fPnoise(l) * self.Pbc.fPnoise(l)
-      self.N = np.array(map(f, self.L))
-      self.N /= self.Npairs
+#      # cosmic variance only
+#      f = lambda l: self.Pac.fPinterp(l) * self.Pbd.fPinterp(l) + self.Pad.fPinterp(l) * self.Pbc.fPinterp(l)
+#      self.P = np.array(map(f, self.L))
+#      self.P /= self.Npairs
+#      # noise only
+#      f = lambda l: self.Pac.fPnoise(l) * self.Pbd.fPnoise(l) + self.Pad.fPnoise(l) * self.Pbc.fPnoise(l)
+#      self.N = np.array(map(f, self.L))
+#      self.N /= self.Npairs
       # noise + cosmic variance
       f = lambda l: self.Pac.fPtotinterp(l) * self.Pbd.fPtotinterp(l) + self.Pad.fPtotinterp(l) * self.Pbc.fPtotinterp(l)
       self.Gauss = np.array(map(f, self.L))
       self.Gauss /= self.Npairs
-      # trispectrum
-      if self.T2d is not None:
-         self.T = self.T2d.Ttot / self.OmS
-      else:
-         self.T = np.zeros_like(self.L)
-      # supersample variance
-      if self.HSVP2d is None:
-         self.HSV = np.zeros_like(self.L)
-      else:
-         self.HSV = self.HSVP2d.P
-      # total
-      self.Total = self.Gauss + self.T + self.HSV
-      
+#      # trispectrum
+#      if self.T2d is not None:
+#         self.T = self.T2d.Ttot / self.OmS
+#      else:
+#         self.T = np.zeros_like(self.L)
+#      # supersample variance
+#      if self.HSVP2d is None:
+#         self.HSV = np.zeros_like(self.L)
+#      else:
+#         self.HSV = self.HSVP2d.P
+#      # total
+#      self.Total = self.Gauss + self.T + self.HSV
+
       
       # covariance matrix
       # Gaussian covariance

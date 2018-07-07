@@ -143,11 +143,17 @@ class FisherLsst(object):
          # sharp photo-z cuts
          zMinP = zBounds[iBin]
          zMaxP = zBounds[iBin+1]
-         # true photo-z bounds
-         zMin = 1./w_glsst.aMax-1.
-         zMax = 1./w_glsst.aMin-1.
+         # photo-z bias and uncertainty for this bin
+#!!! here the param is just sz, not sz/(1+z). I may want to change this.
+         dz = photoZPar[iBin]
+         sz = photoZPar[self.nBins+iBin]
+         # true z bounds: truncate at 3 sigma
+         # careful for the first and last bin
+         zMin = max(zMinP - 3.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
+         zMax = min(zMaxP + 3.*sz, 1./w_glsst.aMin-1.)   # 1./w_glsst.aMin-1.
          # true dn/dz_true from dn/dz_phot
-         p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-photoZPar[iBin])**2/photoZPar[self.nBins+iBin]**2) / np.sqrt(2.*np.pi*photoZPar[self.nBins+iBin]**2)
+
+         p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
          f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
          dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-2)[0]
          # interpolate it for speed (for lensing kernel calculation)
@@ -503,7 +509,7 @@ class FisherLsst(object):
          for iBin2 in range(iBin1, self.nBins):
             d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
             std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-            ax.errorbar(self.L, d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, label=r'$g_{'+str(iBin1)+'} g_{'+str(iBin2)+'}$')
+            ax.errorbar(self.L*(1.+0.01*i1/self.nGG), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, label=r'$g_{'+str(iBin1)+'} g_{'+str(iBin2)+'}$')
             # move to next row
             i1 += 1
       #
@@ -524,7 +530,7 @@ class FisherLsst(object):
          for iBin2 in range(self.nBins):
             d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
             std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-            ax.errorbar(self.L, d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, label=r'$g_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
+            ax.errorbar(self.L*(1.+0.01*i1/self.nGS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, label=r'$g_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
             # move to next row
             i1 += 1
       #
@@ -545,7 +551,7 @@ class FisherLsst(object):
          for iBin2 in range(iBin1, self.nBins):
             d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
             std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-            ax.errorbar(self.L, d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, label=r'$\gamma_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
+            ax.errorbar(self.L*(1.+0.01*i1/self.nSS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, label=r'$\gamma_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
             # move to next row
             i1 += 1
       #
