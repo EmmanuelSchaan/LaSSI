@@ -37,8 +37,8 @@ photoZPar = PhotoZParams(nBins=nBins)
 fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, name=None, save=False)
 
 
-#fisherLsst.plotDndz()
-fisherLsst.plotPowerSpectra()
+fisherLsst.plotDndz()
+#fisherLsst.plotPowerSpectra()
 #fisherLsst.plotCovMat()
 #fisherLsst.plotDerivativeDataVector()
 

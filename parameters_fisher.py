@@ -107,7 +107,7 @@ class PhotoZParams(Parameters):
       
       # latex strings for the names
       dz = np.array([r'$\delta z_{'+str(iBin)+'}$' for iBin in range(nBins)])
-      sz = np.array([r'$\sigma z_{'+str(iBin)+'}$' for iBin in range(nBins)])
+      sz = np.array([r'$\sigma z_{'+str(iBin)+'}/(1+z)$' for iBin in range(nBins)])
       self.namesLatex = np.concatenate((dz, sz))
 
       # fiducial values

@@ -143,10 +143,10 @@ class FisherLsst(object):
          # sharp photo-z cuts
          zMinP = zBounds[iBin]
          zMaxP = zBounds[iBin+1]
-         # photo-z bias and uncertainty for this bin
-#!!! here the param is just sz, not sz/(1+z). I may want to change this.
+         # photo-z bias and uncertainty for this bin:
+         # I am using a loose mean redshift
          dz = photoZPar[iBin]
-         sz = photoZPar[self.nBins+iBin]
+         sz = photoZPar[self.nBins+iBin] * (1.+0.5*(zMinP+zMaxP))
          # true z bounds: truncate at 3 sigma
          # careful for the first and last bin
          zMin = max(zMinP - 3.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
@@ -439,8 +439,18 @@ class FisherLsst(object):
       fig=plt.figure(0)
       ax=fig.add_subplot(111)
       #
+      # full LSST source sample
+      w_glsst = WeightTracerLSSTSources(self.u, name='glsst')
+      zMin = 1./w_glsst.aMax-1.
+      zMax = 1./w_glsst.aMin-1.
+      Z = np.linspace(zMin, zMax, 501)
+      dndz = w_glsst.dndz(Z)
+      dndz /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
+      ax.plot(Z, dndz, 'k')
+      #
+      # binned with photo-z uncertainties
       for iBin in range(self.nBins):
-         # define z range of bin
+         # redshift range for that bin
          zMin = 1./self.w_g[iBin].aMax-1.
          zMax = 1./self.w_g[iBin].aMin-1.
          Z = np.linspace(zMin, zMax, 501)
@@ -448,7 +458,7 @@ class FisherLsst(object):
          dndz = np.array(map(self.w_g[iBin].dndz, Z))
          dndz /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
          # plot it
-         ax.fill_between(Z, 0., dndz, facecolor=plt.cm.autumn(1.*iBin/self.nBins), edgecolor='', alpha=0.5)
+         ax.fill_between(Z, 0., dndz, facecolor=plt.cm.autumn(1.*iBin/self.nBins), edgecolor='', alpha=0.7)
       #
       ax.set_xlabel(r'$z$')
       ax.set_ylabel(r'$dN / d\Omega\; dz$ [arcmin$^{-2}$]')

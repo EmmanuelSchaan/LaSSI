@@ -47,8 +47,8 @@ class CovP2d(object):
          self.Npairs = self.OmS/(4.*np.pi) * (2.*self.L+1.)
       return
    
-   def LoadAll(self):
-      # Gaussian covariance contributions
+#   def LoadAll(self):
+#      # Gaussian covariance contributions
 #      # cosmic variance only
 #      f = lambda l: self.Pac.fPinterp(l) * self.Pbd.fPinterp(l) + self.Pad.fPinterp(l) * self.Pbc.fPinterp(l)
 #      self.P = np.array(map(f, self.L))
@@ -57,10 +57,10 @@ class CovP2d(object):
 #      f = lambda l: self.Pac.fPnoise(l) * self.Pbd.fPnoise(l) + self.Pad.fPnoise(l) * self.Pbc.fPnoise(l)
 #      self.N = np.array(map(f, self.L))
 #      self.N /= self.Npairs
-      # noise + cosmic variance
-      f = lambda l: self.Pac.fPtotinterp(l) * self.Pbd.fPtotinterp(l) + self.Pad.fPtotinterp(l) * self.Pbc.fPtotinterp(l)
-      self.Gauss = np.array(map(f, self.L))
-      self.Gauss /= self.Npairs
+#       noise + cosmic variance
+#      f = lambda l: self.Pac.fPtotinterp(l) * self.Pbd.fPtotinterp(l) + self.Pad.fPtotinterp(l) * self.Pbc.fPtotinterp(l)
+#      self.Gauss = np.array(map(f, self.L))
+#      self.Gauss /= self.Npairs
 #      # trispectrum
 #      if self.T2d is not None:
 #         self.T = self.T2d.Ttot / self.OmS
@@ -73,13 +73,21 @@ class CovP2d(object):
 #         self.HSV = self.HSVP2d.P
 #      # total
 #      self.Total = self.Gauss + self.T + self.HSV
+#
+#      # covariance matrix
+#      # Gaussian covariance
+#      self.covMat = np.diagflat(self.Gauss)
+#      return
 
-      
+   def LoadAll(self):
+      # Gaussian covariance
+      self.Gauss = self.Pac.Ptot * self.Pbd.Ptot + self.Pad.Ptot * self.Pbc.Ptot
+      self.Gauss /= self.Npairs
+ 
       # covariance matrix
       # Gaussian covariance
       self.covMat = np.diagflat(self.Gauss)
       return
-
    
    
    ##################################################################################
