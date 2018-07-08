@@ -153,35 +153,35 @@ class P2d(object):
       #print "done ell=",l
       return result
 
-#   def fP(self, l):
-#      f = lambda a: self.integrandP(a, self.Pn.fPinterp, l)
-#      result = integrate.quad(f, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
-#      #print "done ell=",l
-#      return result
-
    def fP(self, l):
-      '''Way faster implementation! But maybe less accurate...
-      The bottleneck was looking up the projection kernel function from the projection class.
-      The function itself is super fast, because interpolated, but the lookup is slow.
-      By evaluating it on an array, do the lookup only once. Gain factor ~10 in speed.
-      '''
-      # evaluate array of integrand
-      A = np.linspace(self.aMin, self.aMax, 101)
-      Z = 1./A-1.
-      Chi = self.U.bg.comoving_distance(1./A-1.)
-      #
-      result = 3.e5/( self.U.hubble(1./A-1.) * A**2 )
-      if self.Weight2 is None:
-         result *= self.Weight1.f(A)**2
-      else:
-         result *= self.Weight1.f(A) * self.Weight2.f(A)
-      result /= Chi**2
-      #
-      p = np.vectorize(self.Pn.fPinterp)
-      result *= p(l/Chi, Z)
-      # integrate with trapezium method
-      result = np.trapz(result, A)
+      f = lambda a: self.integrandP(a, self.Pn.fPinterp, l)
+      result = integrate.quad(f, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
+      #print "done ell=",l
       return result
+
+#   def fP(self, l):
+#      '''Way faster implementation! But maybe less accurate...
+#      The bottleneck was looking up the projection kernel function from the projection class.
+#      The function itself is super fast, because interpolated, but the lookup is slow.
+#      By evaluating it on an array, do the lookup only once. Gain factor ~10 in speed.
+#      '''
+#      # evaluate array of integrand
+#      A = np.linspace(self.aMin, self.aMax, 101)
+#      Z = 1./A-1.
+#      Chi = self.U.bg.comoving_distance(1./A-1.)
+#      #
+#      result = 3.e5/( self.U.hubble(1./A-1.) * A**2 )
+#      if self.Weight2 is None:
+#         result *= self.Weight1.f(A)**2
+#      else:
+#         result *= self.Weight1.f(A) * self.Weight2.f(A)
+#      result /= Chi**2
+#      #
+#      p = np.vectorize(self.Pn.fPinterp)
+#      result *= p(l/Chi, Z)
+#      # integrate with trapezium method
+#      result = np.trapz(result, A)
+#      return result
 
 #   def fP(self, l):
 #      # take all method lookups outside of loop, for speed

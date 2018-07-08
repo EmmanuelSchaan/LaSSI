@@ -54,11 +54,13 @@ class Parameters(object):
       pass
 
 
-   def plotParams(self):
+   def plotParams(self, IPar=None):
       '''Show the parameter names, fiducial/high/low values, priors.
+      IPar (optional): indices of parameters to show
       '''
+      if IPar is None:
+         IPar = range(self.nPar)
 
-      
       fig=plt.figure(0)
       ax=fig.add_subplot(111)
       #
@@ -66,16 +68,26 @@ class Parameters(object):
       try:
          invFisher = np.linalg.inv(self.priorFisher)
          std = np.sqrt(np.diag(invFisher))
-         ax.errorbar(range(self.nPar), self.fiducial, yerr=std, fmt='o')
+         ax.errorbar(range(len(IPar)), self.fiducial[IPar], yerr=std[IPar], fmt='o')
       # otherwise, just show the fiducial values
       except:
-         ax.errorbar(range(self.nPar), self.fiducial, fmt='o')
+         ax.errorbar(range(len(IPar)), self.fiducial[IPar], fmt='o')
       #
-      ax.set_xticks(range(self.nPar))
-      ax.set_xticklabels(self.namesLatex, fontsize=24)
+      ax.set_xticks(range(len(IPar)))
+      ax.set_xticklabels(self.namesLatex[IPar], fontsize=24)
       [l.set_rotation(45) for l in ax.get_xticklabels()]
 
       plt.show()
+
+
+   def plotContours(self, IPar=None):
+      '''Show confidence ellipses.
+      IPar (optional): indices of parameters to show
+      '''
+      if IPar is None:
+         IPar = range(self.nPar)
+
+      pass
 
 
 ##################################################################################
@@ -155,12 +167,12 @@ class CosmoParams(Parameters):
       '''Step sizes inspired from Allison+15
       '''
       # base cosmology
-      self.nPar = 6
-      self.names = np.array(['Omega_cdm', 'Omega_b', 'A_s', 'n_s', 'tau_reio', 'h'])
-      self.namesLatex = np.array([r'$\Omega_\text{CDM}$', r'$\Omega_\text{b}$', r'$A_\text{s}$', r'$n_\text{s}$', r'$\tau$', r'$h$'])
-      self.fiducial = np.array([0.267, 0.0493, 2.3e-9, 0.9624, 0.06, 0.6712 ])
-      self.high = np.array([0.267 + 0.0066, 0.0493 + 0.0018, 2.3e-9 + 1.e-10, 0.9624 + 0.01, 0.06 + 0.02, 0.6712 + 0.067 ])
-      self.low = np.array([0.267 - 0.0066, 0.0493 - 0.0018, 2.3e-9 - 1.e-10, 0.9624 - 0.01, 0.06 - 0.02, 0.6712 - 0.067 ])
+      self.nPar = 5#6
+      self.names = np.array(['Omega_cdm', 'Omega_b', 'A_s', 'n_s', 'h'])#, 'tau_reio'])
+      self.namesLatex = np.array([r'$\Omega_\text{CDM}$', r'$\Omega_\text{b}$', r'$A_\text{s}$', r'$n_\text{s}$', r'$h$'])#, r'$\tau$'])
+      self.fiducial = np.array([0.267, 0.0493, 2.3e-9, 0.9624, 0.6712])#, 0.06])
+      self.high = np.array([0.267 + 0.0066, 0.0493 + 0.0018, 2.3e-9 + 1.e-10, 0.9624 + 0.01, 0.6712 + 0.067])#, 0.06 + 0.02])
+      self.low = np.array([0.267 - 0.0066, 0.0493 - 0.0018, 2.3e-9 - 1.e-10, 0.9624 - 0.01, 0.6712 - 0.067])#, 0.06 - 0.02])
       self.paramsClassy = {
                            # Cosmological parameters
                            'Omega_cdm': 0.267,
@@ -170,6 +182,7 @@ class CosmoParams(Parameters):
                            'tau_reio': 0.06,
                            'h': 0.6712,
                            # parameters
+                           'reio_parametrization': 'reio_camb',
                            'output': 'mPk dTk vTk',#'lCl tCl pCl mPk',
                            'P_k_max_1/Mpc': 10.,
                            'non linear': 'halofit',
@@ -184,6 +197,7 @@ class CosmoParams(Parameters):
                            'tau_reio': 0.06 + 0.02,
                            'h': 0.6712 + 0.067,
                            # parameters
+                           'reio_parametrization': 'reio_camb',
                            'output': 'mPk dTk vTk',#'lCl tCl pCl mPk',
                            'P_k_max_1/Mpc': 10.,
                            'non linear': 'halofit',
@@ -198,6 +212,7 @@ class CosmoParams(Parameters):
                            'tau_reio': 0.06 - 0.02,
                            'h': 0.6712 - 0.067,
                            # parameters
+                           'reio_parametrization': 'reio_camb',
                            'output': 'mPk dTk vTk',#'lCl tCl pCl mPk',
                            'P_k_max_1/Mpc': 10.,
                            'non linear': 'halofit',

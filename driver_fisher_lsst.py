@@ -37,11 +37,14 @@ photoZPar = PhotoZParams(nBins=nBins)
 fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, name=None, save=False)
 
 
-fisherLsst.plotDndz()
+#fisherLsst.plotDndz()
 #fisherLsst.plotPowerSpectra()
 #fisherLsst.plotCovMat()
-#fisherLsst.plotDerivativeDataVector()
-
+fisherLsst.plotDerivativeDataVector()
+fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar))
+fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar))
+fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar))
+fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar+photoZPar.nPar))
 
 ##################################################################################
 

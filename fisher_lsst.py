@@ -36,7 +36,9 @@ class FisherLsst(object):
       self.nGG = self.nG * (self.nG+1) / 2   # not just gg from same z-bin
       self.nGS = self.nG * self.nS # not just higher z s than g
       self.nSS = self.nS * (self.nS+1) / 2
+      self.n2pt = self.nGG + self.nGS + self.nSS
       print "Tomographic bins: "+str(self.nBins)
+      print "2-pt functions: "+str(self.n2pt)
 
       # ell bins
       self.nL = nL
@@ -112,12 +114,13 @@ class FisherLsst(object):
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
       
-      ##################################################################################
-      
-      # Derivatives of the data vector
+      print "Derivatives of the data vector"
       if self.save:
          self.saveDerivativeDataVector()
       self.loadDerivativeDataVector()
+      
+      print "Fisher matrix"
+      self.loadFisher()
       
       tStopFisher = time()
       print "Full calculation took "+str(np.round((tStopFisher-tStartFisher)/60.,1))+" min"
@@ -401,6 +404,7 @@ class FisherLsst(object):
          tStop = time()
          print "("+str(np.round(tStop-tStart,1))+" sec)"
       
+      
       # Nuisance parameters
       for iPar in range(self.nuisancePar.nPar):
          print "Derivative wrt "+self.nuisancePar.names[iPar],
@@ -432,6 +436,22 @@ class FisherLsst(object):
       self.derivativeDataVector = np.genfromtxt(path)
 
 
+   ##################################################################################
+   
+   def loadFisher(self):
+      self.fisher = np.zeros((self.fullPar.nPar, self.fullPar.nPar))
+      for i in range(self.fullPar.nPar):
+         for j in range(self.fullPar.nPar):
+            result = np.dot(self.invCov, self.derivativeDataVector[j,:])
+            result = np.dot(self.derivativeDataVector[j,:].transpose(), result)
+            self.fisher[i,j] = result
+      self.posteriorPar = self.fullPar.copy()
+      self.posteriorPar.priorFisher = self.fisher.copy()
+      try:
+         self.invFisher = np.linalg.inv(self.fisher)
+      except:
+         self.invFisher = np.zeros_like(self.fisher)
+   
    ##################################################################################
    ##################################################################################
    
