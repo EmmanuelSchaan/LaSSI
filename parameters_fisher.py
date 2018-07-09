@@ -55,7 +55,7 @@ class Parameters(object):
 
 
    def plotParams(self, IPar=None):
-      '''Show the parameter names, fiducial/high/low values, priors.
+      '''Show the parameter names, fiducial values and priors.
       IPar (optional): indices of parameters to show
       '''
       if IPar is None:
@@ -78,6 +78,35 @@ class Parameters(object):
       [l.set_rotation(45) for l in ax.get_xticklabels()]
 
       plt.show()
+
+
+#   def plotParamStd(self, IPar=None):
+#      '''Show the parameter names and priors.
+#      IPar (optional): indices of parameters to show
+#      '''
+#      if IPar is None:
+#         IPar = range(self.nPar)
+#
+#      fig=plt.figure(0)
+#      ax=fig.add_subplot(111)
+#      #
+#      # if a Fisher prior is available, plot it
+#      try:
+#         invFisher = np.linalg.inv(self.priorFisher)
+#         std = np.sqrt(np.diag(invFisher))
+#         ax.errorbar(range(len(IPar)), np.zeros_like(IPar), yerr=std[IPar], fmt='o')
+#      # otherwise, just show the fiducial values
+#      except:
+#         print "Problem with the Fisher priors"
+#         fig.clf()
+#         return
+#      #
+#      ax.set_xticks(range(len(IPar)))
+#      ax.set_xticklabels(self.namesLatex[IPar], fontsize=24)
+#      [l.set_rotation(45) for l in ax.get_xticklabels()]
+#
+#      plt.show()
+
 
 
    def plotContours(self, IPar=None):
@@ -127,9 +156,14 @@ class PhotoZParams(Parameters):
       sz = np.array([szFid for iBin in range(nBins)])
       self.fiducial = np.concatenate((dz, sz))
 
-      # high/low values for derivative
-      self.high = self.fiducial * 1.05
-      self.low = self.fiducial * 0.95
+      # high values
+      dz = np.array([dzFid+0.05 for iBin in range(nBins)])
+      sz = np.array([szFid+0.01 for iBin in range(nBins)])
+      self.high = np.concatenate((dz, sz))
+      # low values
+      dz = np.array([dzFid-0.05 for iBin in range(nBins)])
+      sz = np.array([szFid-0.01 for iBin in range(nBins)])
+      self.low = np.concatenate((dz, sz))
 
       # std dev of parameter prior
       dz = np.array([dzStd for iBin in range(nBins)])
@@ -169,7 +203,7 @@ class CosmoParams(Parameters):
       # base cosmology
       self.nPar = 5#6
       self.names = np.array(['Omega_cdm', 'Omega_b', 'A_s', 'n_s', 'h'])#, 'tau_reio'])
-      self.namesLatex = np.array([r'$\Omega_\text{CDM}$', r'$\Omega_\text{b}$', r'$A_\text{s}$', r'$n_\text{s}$', r'$h$'])#, r'$\tau$'])
+      self.namesLatex = np.array([r'$\Omega^0_\text{CDM}$', r'$\Omega^0_\text{b}$', r'$A_\text{s}$', r'$n_\text{s}$', r'$h_0$'])#, r'$\tau$'])
       self.fiducial = np.array([0.267, 0.0493, 2.3e-9, 0.9624, 0.6712])#, 0.06])
       self.high = np.array([0.267 + 0.0066, 0.0493 + 0.0018, 2.3e-9 + 1.e-10, 0.9624 + 0.01, 0.6712 + 0.067])#, 0.06 + 0.02])
       self.low = np.array([0.267 - 0.0066, 0.0493 - 0.0018, 2.3e-9 - 1.e-10, 0.9624 - 0.01, 0.6712 - 0.067])#, 0.06 - 0.02])

@@ -148,6 +148,7 @@ class FisherLsst(object):
          zMaxP = zBounds[iBin+1]
          # photo-z bias and uncertainty for this bin:
          # I am using a loose mean redshift
+#!!!! do better?
          dz = photoZPar[iBin]
          sz = photoZPar[self.nBins+iBin] * (1.+0.5*(zMinP+zMaxP))
          # true z bounds: truncate at 3 sigma
@@ -382,10 +383,10 @@ class FisherLsst(object):
          # high
          name = self.name+self.cosmoPar.names[iPar]+"high"
          cosmoParClassy = self.cosmoPar.paramsClassy.copy()
-         print cosmoParClassy
-         print "#"
+#         print cosmoParClassy
+#         print "#"
          cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyHigh[self.cosmoPar.names[iPar]]
-         print cosmoParClassy
+#         print cosmoParClassy
          u = Universe(cosmoParClassy)
          w_g, w_s, zBounds = self.generateBins(u, self.nuisancePar.fiducial)
          p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
@@ -401,6 +402,12 @@ class FisherLsst(object):
 #         # derivative
 #         derivative[iPar,:] = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
          derivative[iPar,:] = (dataVectorHigh-self.dataVector) / (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
+         # check that all went well
+         if not all(np.isfinite(derivative[iPar,:])):
+            print "########"
+            print "problem with "+self.cosmoPar.names[iPar]
+            print "high value = "+str(self.cosmoPar.high[iPar])
+            print "low value = "+str(self.cosmoPar.fiducial[iPar])
          tStop = time()
          print "("+str(np.round(tStop-tStart,1))+" sec)"
       
@@ -425,6 +432,13 @@ class FisherLsst(object):
 #         # derivative
 #         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-dataVectorLow) / (self.nuisancePar.high[iPar]-self.nuisancePar.low[iPar])
          derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-self.dataVector) / (self.nuisancePar.high[iPar]-self.nuisancePar.fiducial[iPar])
+         # check that all went well
+         if not all(np.isfinite(derivative[self.cosmoPar.nPar+iPar,:])):
+            print "########"
+            print "problem with "+self.nuisancePar.names[iPar]
+            print "high value = "+str(self.nuisancePar.high[iPar])
+            print "low value = "+str(self.nuisancePar.fiducial[iPar])
+         
          tStop = time()
          print "("+str(np.round(tStop-tStart,1))+" sec)"
       
@@ -440,11 +454,15 @@ class FisherLsst(object):
    
    def loadFisher(self):
       self.fisher = np.zeros((self.fullPar.nPar, self.fullPar.nPar))
+      # Fisher from the data
       for i in range(self.fullPar.nPar):
          for j in range(self.fullPar.nPar):
             result = np.dot(self.invCov, self.derivativeDataVector[j,:])
-            result = np.dot(self.derivativeDataVector[j,:].transpose(), result)
+            result = np.dot(self.derivativeDataVector[i,:].transpose(), result)
             self.fisher[i,j] = result
+      # Add the priors
+      self.fisher += self.fullPar.priorFisher
+      # create posterior parameter
       self.posteriorPar = self.fullPar.copy()
       self.posteriorPar.priorFisher = self.fisher.copy()
       try:
@@ -452,6 +470,7 @@ class FisherLsst(object):
       except:
          self.invFisher = np.zeros_like(self.fisher)
    
+
    ##################################################################################
    ##################################################################################
    

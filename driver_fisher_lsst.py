@@ -40,11 +40,16 @@ fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nB
 #fisherLsst.plotDndz()
 #fisherLsst.plotPowerSpectra()
 #fisherLsst.plotCovMat()
-fisherLsst.plotDerivativeDataVector()
-fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar))
-fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar))
-fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar))
-fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar+photoZPar.nPar))
+#fisherLsst.plotDerivativeDataVector()
+
+#
+#fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar))
+#fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar))
+#fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar))
+#fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar+photoZPar.nPar))
+
+#
+#fisherLsst.posteriorPar.plotParamStd(IPar=range(cosmoPar.nPar))
 
 ##################################################################################
 
