@@ -38,7 +38,7 @@ fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nB
 
 
 #fisherLsst.plotDndz()
-#fisherLsst.plotPowerSpectra()
+fisherLsst.plotPowerSpectra()
 #fisherLsst.plotCovMat()
 #fisherLsst.plotDerivativeDataVector()
 
