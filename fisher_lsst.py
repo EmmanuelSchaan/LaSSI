@@ -559,7 +559,7 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          # add entry to caption
          color = Colors[iBin1]
-         ax.plot([], [], c=color, label=r'$<g_{i} g_{i+'+str(iBin1)+'}>$')
+         ax.plot([], [], c=color, label=r'$\langle g_{i} g_{i+'+str(iBin1)+r'}\rangle$')
          for iBin2 in range(iBin1, self.nBins):
             d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
             std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
@@ -576,7 +576,7 @@ class FisherLsst(object):
       ax.set_ylabel(r'$C_\ell^{gg}$')
       '''
       
-      '''
+      
       # gg: panels
       Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
       #
@@ -638,28 +638,21 @@ class FisherLsst(object):
       #
       ax2.set_ylabel(r'$\langle g_i g_{i+2}\rangle$', fontsize=18)
       ax2.set_xlabel(r'$\ell$')
-      '''
+      
 
-
       
-      
-      
-      
-      
-      
-      
-      
-      '''
       # gs
+      Colors = plt.cm.winter(1.*np.arange(self.nBins)/(self.nBins-1.))
       fig=plt.figure(1)
       ax=fig.add_subplot(111)
       #
       i1 = self.nGG
       for iBin1 in range(self.nBins):
+         color = Colors[iBin1]
          for iBin2 in range(self.nBins):
             d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
             std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-            ax.errorbar(self.L*(1.+0.01*i1/self.nGS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, label=r'$g_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
+            ax.errorbar(self.L*(1.+0.01*i1/self.nGS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)# label=r'$\langle g_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+r'}\rangle$')
             # move to next row
             i1 += 1
       #
@@ -668,26 +661,36 @@ class FisherLsst(object):
       ax.set_yscale('log', nonposy='clip')
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$C_\ell^{g\gamma}$')
-      '''
-
-      # ss
+      ax.set_title(r'Galaxy - galaxy lensing')
+      
+      
+      # ss: all on same plot
+      Colors = plt.cm.jet(1.*np.arange(self.nBins)/(self.nBins-1.))
       fig=plt.figure(2)
       ax=fig.add_subplot(111)
       #
       i1 = self.nGG + self.nGS
       for iBin1 in range(self.nBins):
+         # add entry to caption
+         color = Colors[iBin1]
+         ax.plot([], [], c=color, label=r'$\langle\gamma_{i} \gamma_{i+'+str(iBin1)+r'} \rangle $')
          for iBin2 in range(iBin1, self.nBins):
             d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+            #
+            color = Colors[iBin2-iBin1]
+            #
             std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-            ax.errorbar(self.L*(1.+0.01*i1/self.nSS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, label=r'$\gamma_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
+            ax.errorbar(self.L*(1.+0.01*i1/self.nSS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)#, label=r'$\gamma_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
             # move to next row
             i1 += 1
       #
-      ax.legend(loc=1)
+      ax.legend(loc=1, labelspacing=0.05, handlelength=0.4, borderaxespad=0.01)
       ax.set_xscale('log')
       ax.set_yscale('log', nonposy='clip')
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$C_\ell^{\gamma\gamma}$')
+      ax.set_title(r'Shear tomography')
+      
       
       plt.show()
       
