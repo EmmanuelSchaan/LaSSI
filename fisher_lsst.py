@@ -775,9 +775,8 @@ class FisherLsst(object):
       nPhotoz = 101
       Photoz = np.logspace(np.log10(1.e-5), np.log10(1.), nPhotoz, 10.)
       
-      # parameters to plot
-      IPar = range(self.cosmoPar.nPar)
-      sigmas = np.zeros((len(IPar), nPhotoz))
+      # posterior uncertainties
+      sigmas = np.zeros((self.fullPar.nPar, nPhotoz))
       
       for iPhotoz in range(nPhotoz):
          photoz = Photoz[iPhotoz]
@@ -793,9 +792,12 @@ class FisherLsst(object):
          # compute uncertainties with prior
          invFisher = np.linalg.inv(newFisherPosterior)
          std = np.sqrt(np.diag(invFisher))
-         sigmas[:, iPhotoz] = std[IPar]
+         sigmas[:, iPhotoz] = std
+         print np.shape(sigmas)
       
-
+      
+      # cosmological parameters
+      IPar = range(self.cosmoPar.nPar)
       fig=plt.figure(0)
       ax=fig.add_subplot(111)
       #
@@ -803,13 +805,48 @@ class FisherLsst(object):
       ax.axvline(0.002, color='gray')
       #
       for iPar in IPar:
-#         ax.loglog(Photoz, sigmas[iPar, :]/self.cosmoPar.fiducial[iPar], label=self.cosmoPar.namesLatex[iPar])
-         ax.plot(Photoz, sigmas[iPar, :] / sigmas[iPar, 0], label=self.cosmoPar.namesLatex[iPar])
+#         ax.plot(Photoz, sigmas[iPar, :]/self.fullPar.fiducial[iPar], label=self.cosmoPar.namesLatex[iPar])
+         ax.plot(Photoz, sigmas[iPar, :] / sigmas[iPar, 0], label=self.fullPar.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
       ax.legend(loc=2)
       ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect photo-z}$')
       ax.set_xlabel(r'Photo-z prior')
+      
+
+      # photo-z parameters
+      fig=plt.figure(1)
+      ax=fig.add_subplot(111)
+      #
+      # fiducial prior
+      ax.axvline(0.002, color='gray')
+      #
+      # photo-z shifts
+      IPar = self.cosmoPar.nPar+self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar
+      IPar += np.arange(self.nBins)
+      # add legend entry
+      color = 'r'
+      ax.plot([], [], color=color, label=r'$\delta z$')
+      for iPar in IPar:
+         color = 'r'
+         ax.plot(Photoz, sigmas[iPar, :], color=color)#, label=self.fullPar.namesLatex[iPar])
+      #
+      # photo-z scatter
+      IPar = self.cosmoPar.nPar+self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar + self.nBins
+      IPar += np.arange(self.nBins)
+      # add legend entry
+      color = 'b'
+      ax.plot([], [], color=color, label=r'$\sigma_z / (1+z)$')
+      for iPar in IPar:
+         color = 'b'
+         ax.plot(Photoz, sigmas[iPar, :], color=color)#, label=self.fullPar.namesLatex[iPar])
+      #
+      ax.set_xscale('log', nonposx='clip')
+      ax.set_yscale('log', nonposx='clip')
+      ax.legend(loc=2)
+      ax.set_ylabel(r'$\sigma_\text{Param}$')
+      ax.set_xlabel(r'Photo-z prior')
+
 
       plt.show()
 
@@ -821,8 +858,7 @@ class FisherLsst(object):
       M = np.logspace(np.log10(1.e-5), np.log10(1.), nM, 10.)
       
       # parameters to plot
-      IPar = range(self.cosmoPar.nPar)
-      sigmas = np.zeros((len(IPar), nM))
+      sigmas = np.zeros((self.fullPar.nPar, nM))
       
       for iM in range(nM):
          m = M[iM]
@@ -839,8 +875,10 @@ class FisherLsst(object):
          # compute uncertainties with prior
          invFisher = np.linalg.inv(newFisherPosterior)
          std = np.sqrt(np.diag(invFisher))
-         sigmas[:, iM] = std[IPar]
+         sigmas[:, iM] = std
 
+      # cosmological parameters
+      IPar = range(self.cosmoPar.nPar)
       fig=plt.figure(0)
       ax=fig.add_subplot(111)
       #
@@ -848,13 +886,35 @@ class FisherLsst(object):
       ax.axvline(0.005, color='gray', alpha=0.5)
       #
       for iPar in IPar:
-#         ax.loglog(M, sigmas[iPar, :]/self.cosmoPar.fiducial[iPar], label=self.cosmoPar.namesLatex[iPar])
-         ax.plot(M, sigmas[iPar, :] / sigmas[iPar, 0], label=self.cosmoPar.namesLatex[iPar])
+#         ax.loglog(M, sigmas[iPar, :]/self.fullPar.fiducial[iPar], label=self.fullPar.namesLatex[iPar])
+         ax.plot(M, sigmas[iPar, :] / sigmas[iPar, 0], label=self.fullPar.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
       ax.legend(loc=2)
       ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect shear bias}$')
       ax.set_xlabel(r'Shear bias prior')
+
+
+      # shear bias parameters
+      fig=plt.figure(1)
+      ax=fig.add_subplot(111)
+      #
+      # fiducial prior
+      ax.axvline(0.005, color='gray')
+      #
+      IPar = self.cosmoPar.nPar+self.galaxyBiasPar.nPar
+      IPar += np.arange(self.nBins)
+      for iPar in IPar:
+         color = plt.cm.autumn((iPar-IPar[0])/(len(IPar)-1.))
+         ax.plot(M, sigmas[iPar, :], color=color, label=self.fullPar.namesLatex[iPar])
+      #
+      ax.set_xscale('log', nonposx='clip')
+#      ax.set_yscale('log', nonposx='clip')
+      ax.legend(loc=2)
+      ax.set_ylabel(r'$\sigma_\text{Param}$')
+      ax.set_xlabel(r'Shear bias prior')
+
+
 
       plt.show()
 
