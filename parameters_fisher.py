@@ -79,6 +79,25 @@ class Parameters(object):
 
       plt.show()
 
+   def printParams(self, IPar=None):
+      '''Show the parameter names, fiducial values and priors.
+      IPar (optional): indices of parameters to show
+      '''
+      if IPar is None:
+         IPar = range(self.nPar)
+
+      # if a Fisher prior is available, print the uncertainties
+      try:
+         invFisher = np.linalg.inv(self.priorFisher)
+         std = np.sqrt(np.diag(invFisher))
+         for iPar in IPar:
+            print self.names[iPar]+" = "+str(self.fiducial[iPar])+" +/- "+str(std[iPar])
+      # otherwise, just print the fiducial values
+      except:
+         for iPar in IPar:
+            print self.names[iPar]+" = "+str(self.fiducial[iPar])
+
+
 
 #   def plotParamStd(self, IPar=None):
 #      '''Show the parameter names and priors.

@@ -453,22 +453,20 @@ class FisherLsst(object):
    ##################################################################################
    
    def loadFisher(self):
-      self.fisher = np.zeros((self.fullPar.nPar, self.fullPar.nPar))
+      self.fisherData = np.zeros((self.fullPar.nPar, self.fullPar.nPar))
       # Fisher from the data
       for i in range(self.fullPar.nPar):
          for j in range(self.fullPar.nPar):
             result = np.dot(self.invCov, self.derivativeDataVector[j,:])
             result = np.dot(self.derivativeDataVector[i,:].transpose(), result)
-            self.fisher[i,j] = result
-      # Add the priors
-      self.fisher += self.fullPar.priorFisher
-      # create posterior parameter
+            self.fisherData[i,j] = result
+      # Fisher from the prior
+      self.fisherPrior = self.fullPar.priorFisher.copy()
+      # Fisher from data and prior
+      self.fisherPosterior = self.fisherData + self.fisherPrior
+      # create posterior parameter object
       self.posteriorPar = self.fullPar.copy()
-      self.posteriorPar.priorFisher = self.fisher.copy()
-      try:
-         self.invFisher = np.linalg.inv(self.fisher)
-      except:
-         self.invFisher = np.zeros_like(self.fisher)
+      self.posteriorPar.priorFisher = self.fisherPosterior.copy()
    
 
    ##################################################################################
@@ -764,6 +762,133 @@ class FisherLsst(object):
       ax.set_ylabel(r'$d\ln C_\ell^{ss} / d\ln \text{Param.}$')
 
       plt.show()
+
+
+
+   ##################################################################################
+   ##################################################################################
+
+
+   
+   def photoZRequirements(self):
+      # values of photo-z priors to try
+      nPhotoz = 101
+      Photoz = np.logspace(np.log10(1.e-5), np.log10(1.), nPhotoz, 10.)
+      
+      # parameters to plot
+      IPar = range(self.cosmoPar.nPar)
+      sigmas = np.zeros((len(IPar), nPhotoz))
+      
+      for iPhotoz in range(nPhotoz):
+         photoz = Photoz[iPhotoz]
+         # update the photo-z priors
+         newPhotoZPar = PhotoZParams(nBins=self.nBins, dzFid=0., szFid=0.05, dzStd=photoz, szStd=photoz*1.5)
+         # update the full parameter object
+         newPar = self.cosmoPar.copy()
+         newPar.addParams(self.galaxyBiasPar)
+         newPar.addParams(self.shearMultBiasPar)
+         newPar.addParams(newPhotoZPar)
+         # get the new posterior Fisher matrix
+         newFisherPosterior = self.fisherData + newPar.priorFisher
+         # compute uncertainties with prior
+         invFisher = np.linalg.inv(newFisherPosterior)
+         std = np.sqrt(np.diag(invFisher))
+         sigmas[:, iPhotoz] = std[IPar]
+      
+
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      # fiducial prior
+      ax.axvline(0.002, color='gray')
+      #
+      for iPar in IPar:
+#         ax.loglog(Photoz, sigmas[iPar, :]/self.cosmoPar.fiducial[iPar], label=self.cosmoPar.namesLatex[iPar])
+         ax.plot(Photoz, sigmas[iPar, :] / sigmas[iPar, 0], label=self.cosmoPar.namesLatex[iPar])
+      #
+      ax.set_xscale('log', nonposx='clip')
+      ax.legend(loc=2)
+      ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect photo-z}$')
+      ax.set_xlabel(r'Photo-z prior')
+
+      plt.show()
+
+
+
+   def shearBiasRequirements(self):
+      # values of photo-z priors to try
+      nM = 101
+      M = np.logspace(np.log10(1.e-5), np.log10(1.), nM, 10.)
+      
+      # parameters to plot
+      IPar = range(self.cosmoPar.nPar)
+      sigmas = np.zeros((len(IPar), nM))
+      
+      for iM in range(nM):
+         m = M[iM]
+         # update the shear bias priors
+         shearMultBiasPar = ShearMultBiasParams(nBins=self.nBins, mStd=m)
+         
+         # update the full parameter object
+         newPar = self.cosmoPar.copy()
+         newPar.addParams(self.galaxyBiasPar)
+         newPar.addParams(shearMultBiasPar)
+         newPar.addParams(self.photoZPar)
+         # get the new posterior Fisher matrix
+         newFisherPosterior = self.fisherData + newPar.priorFisher
+         # compute uncertainties with prior
+         invFisher = np.linalg.inv(newFisherPosterior)
+         std = np.sqrt(np.diag(invFisher))
+         sigmas[:, iM] = std[IPar]
+
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      # fiducial value
+      ax.axvline(0.005, color='gray', alpha=0.5)
+      #
+      for iPar in IPar:
+#         ax.loglog(M, sigmas[iPar, :]/self.cosmoPar.fiducial[iPar], label=self.cosmoPar.namesLatex[iPar])
+         ax.plot(M, sigmas[iPar, :] / sigmas[iPar, 0], label=self.cosmoPar.namesLatex[iPar])
+      #
+      ax.set_xscale('log', nonposx='clip')
+      ax.legend(loc=2)
+      ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect shear bias}$')
+      ax.set_xlabel(r'Shear bias prior')
+
+      plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
