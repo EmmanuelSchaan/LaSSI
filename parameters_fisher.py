@@ -98,36 +98,6 @@ class Parameters(object):
             print self.names[iPar]+" = "+str(self.fiducial[iPar])
 
 
-
-#   def plotParamStd(self, IPar=None):
-#      '''Show the parameter names and priors.
-#      IPar (optional): indices of parameters to show
-#      '''
-#      if IPar is None:
-#         IPar = range(self.nPar)
-#
-#      fig=plt.figure(0)
-#      ax=fig.add_subplot(111)
-#      #
-#      # if a Fisher prior is available, plot it
-#      try:
-#         invFisher = np.linalg.inv(self.priorFisher)
-#         std = np.sqrt(np.diag(invFisher))
-#         ax.errorbar(range(len(IPar)), np.zeros_like(IPar), yerr=std[IPar], fmt='o')
-#      # otherwise, just show the fiducial values
-#      except:
-#         print "Problem with the Fisher priors"
-#         fig.clf()
-#         return
-#      #
-#      ax.set_xticks(range(len(IPar)))
-#      ax.set_xticklabels(self.namesLatex[IPar], fontsize=24)
-#      [l.set_rotation(45) for l in ax.get_xticklabels()]
-#
-#      plt.show()
-
-
-
    def plotContours(self, IPar=None):
       '''Show confidence ellipses.
       IPar (optional): indices of parameters to show

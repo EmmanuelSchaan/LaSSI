@@ -147,16 +147,15 @@ class FisherLsst(object):
          zMinP = zBounds[iBin]
          zMaxP = zBounds[iBin+1]
          # photo-z bias and uncertainty for this bin:
-         # I am using a loose mean redshift
-#!!!! do better?
+#!!!! I am using a loose mean redshift
          dz = photoZPar[iBin]
          sz = photoZPar[self.nBins+iBin] * (1.+0.5*(zMinP+zMaxP))
          # true z bounds: truncate at 3 sigma
          # careful for the first and last bin
          zMin = max(zMinP - 3.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
          zMax = min(zMaxP + 3.*sz, 1./w_glsst.aMin-1.)   # 1./w_glsst.aMin-1.
+         
          # true dn/dz_true from dn/dz_phot
-
          p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
          f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
          dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-2)[0]
@@ -164,14 +163,7 @@ class FisherLsst(object):
          Z = np.linspace(zMin, zMax, 101)
          F = np.array(map(dndz_tForInterp, Z))
          dndz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
-         
-         # tracer bin
-         w_g[iBin] = WeightTracerCustom(u,
-                                        lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
-                                        dndz_t, # dn/dz_true
-                                        zMin=zMin,
-                                        zMax=zMax,
-                                        name='g'+str(iBin))
+
          
          # shear bin
          w_s[iBin] = WeightLensCustom(u,
@@ -180,6 +172,29 @@ class FisherLsst(object):
                                       zMinG=zMin,
                                       zMaxG=zMax,
                                       name='s'+str(iBin))
+
+         # tracer bin
+         w_g[iBin] = WeightTracerCustom(u,
+                                        lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
+                                        dndz_t, # dn/dz_true
+                                        zMin=zMin,
+                                        zMax=zMax,
+                                        name='g'+str(iBin))
+
+         '''
+         # add magnification bias
+#!!!! I am using a loose mean redshift
+         alpha = w_glsst.magnificationBias(0.5*(zMinP+zMaxP))
+         print "bin "+str(iBin)+": mag bias alpha="+str(alpha)
+         w_g_nomagbias[iBin] = WeightTracerCustom(u,
+                                        lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
+                                        dndz_t, # dn/dz_true
+                                        zMin=zMin,
+                                        zMax=zMax,
+                                        name='g'+str(iBin))
+         w_g[iBin].f = lambda a: w_g_nomagbias[iBin].f(a) + 2.*(alpha-1.)*w_s[iBin].f(a)
+         '''
+
 
          #print "- done "+str(iBin+1)+" of "+str(self.nBins)
       #print "total ngal="+str(np.sum([w_g[i].ngal_per_arcmin2 for i in range(self.nBins)]))+"/arcmin2, should be "+str(w_glsst.ngal_per_arcmin2)
@@ -771,6 +786,10 @@ class FisherLsst(object):
 
    
    def photoZRequirements(self):
+      '''Here the photo-z value is such that
+      sigma (delta z) = photoz
+      sigma (sigma z) = 1.5 * photoz
+      '''
       # values of photo-z priors to try
       nPhotoz = 101
       Photoz = np.logspace(np.log10(1.e-5), np.log10(1.), nPhotoz, 10.)
@@ -795,7 +814,6 @@ class FisherLsst(object):
          sigmas[:, iPhotoz] = std
          print np.shape(sigmas)
       
-      
       # cosmological parameters
       IPar = range(self.cosmoPar.nPar)
       fig=plt.figure(0)
@@ -805,14 +823,12 @@ class FisherLsst(object):
       ax.axvline(0.002, color='gray')
       #
       for iPar in IPar:
-#         ax.plot(Photoz, sigmas[iPar, :]/self.fullPar.fiducial[iPar], label=self.cosmoPar.namesLatex[iPar])
          ax.plot(Photoz, sigmas[iPar, :] / sigmas[iPar, 0], label=self.fullPar.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
       ax.legend(loc=2)
       ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect photo-z}$')
       ax.set_xlabel(r'Photo-z prior')
-      
 
       # photo-z parameters
       fig=plt.figure(1)
@@ -847,13 +863,12 @@ class FisherLsst(object):
       ax.set_ylabel(r'$\sigma_\text{Param}$')
       ax.set_xlabel(r'Photo-z prior')
 
-
       plt.show()
 
 
 
    def shearBiasRequirements(self):
-      # values of photo-z priors to try
+      # values of shear priors to try
       nM = 101
       M = np.logspace(np.log10(1.e-5), np.log10(1.), nM, 10.)
       
@@ -886,14 +901,12 @@ class FisherLsst(object):
       ax.axvline(0.005, color='gray', alpha=0.5)
       #
       for iPar in IPar:
-#         ax.loglog(M, sigmas[iPar, :]/self.fullPar.fiducial[iPar], label=self.fullPar.namesLatex[iPar])
          ax.plot(M, sigmas[iPar, :] / sigmas[iPar, 0], label=self.fullPar.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
       ax.legend(loc=2)
       ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect shear bias}$')
       ax.set_xlabel(r'Shear bias prior')
-
 
       # shear bias parameters
       fig=plt.figure(1)
@@ -909,12 +922,9 @@ class FisherLsst(object):
          ax.plot(M, sigmas[iPar, :], color=color, label=self.fullPar.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
-#      ax.set_yscale('log', nonposx='clip')
       ax.legend(loc=2)
       ax.set_ylabel(r'$\sigma_\text{Param}$')
       ax.set_xlabel(r'Shear bias prior')
-
-
 
       plt.show()
 

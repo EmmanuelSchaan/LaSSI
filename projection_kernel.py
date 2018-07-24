@@ -10,7 +10,7 @@ class Projection(object):
       #self.aMin
       #self.aMax
 
-      # interpolate the lensing kernel, for speed
+      # interpolate the projection kernel, for speed
       nA = 101
       A = np.linspace(self.aMin, self.aMax, nA)
       F = np.array(map(self.fForInterp, A))
@@ -775,6 +775,35 @@ class WeightTracerLSSTGold(WeightTracer):
       super(WeightTracerLSSTGold, self).__init__(U, name=name)
 
 
+   def magnificationBias(self, z):
+      '''Implements the magnification bias from Joachimi Bridle 2010.
+      Computes alpha = dn/dS, such that:
+      W = W_g + 2(alpha-1)*W_kappa.
+      '''
+      b11 = 0.44827
+      b12 = -1.
+      b13 = 0.05617
+      b14 = 0.07704
+      b15 = -11.3768
+      result = b11 + b12*(b13*self.iLim - b14)**b15
+      #
+      b21 = 0.
+      b22 = 1.
+      b23 = 0.19658
+      b24 = 3.31359
+      b25 = -2.5028
+      result += (b21 + b22*(b23*self.iLim - b24)**b25 ) * z
+      #
+      b31 = 0.
+      b32 = 1.
+      b33 = 0.18107
+      b34 = 3.05213
+      b35 = -2.5027
+      result += (b31 + b32*(b33*self.iLim - b34)**b35 ) * z**2
+      return result
+
+
+
 ##################################################################################
 ##################################################################################
 
@@ -812,6 +841,33 @@ class WeightTracerLSSTSources(WeightTracer):
       super(WeightTracerLSSTSources, self).__init__(U, name=name)
 
 
+
+   def magnificationBias(self, z):
+      '''Implements the magnification bias from Joachimi Bridle 2010.
+      Computes alpha = dn/dS, such that:
+      W = W_g + 2(alpha-1)*W_kappa.
+      '''
+      b11 = 0.44827
+      b12 = -1.
+      b13 = 0.05617
+      b14 = 0.07704
+      b15 = -11.3768
+      result = b11 + b12*(b13*self.iLim - b14)**b15
+      #
+      b21 = 0.
+      b22 = 1.
+      b23 = 0.19658
+      b24 = 3.31359
+      b25 = -2.5028
+      result += (b21 + b22*(b23*self.iLim - b24)**b25 ) * z
+      #
+      b31 = 0.
+      b32 = 1.
+      b33 = 0.18107
+      b34 = 3.05213
+      b35 = -2.5027
+      result += (b31 + b32*(b33*self.iLim - b34)**b35 ) * z**2
+      return result
 
 
 ##################################################################################
