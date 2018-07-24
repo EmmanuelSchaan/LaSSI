@@ -23,7 +23,7 @@ from covp_2d import *
 
 class FisherLsst(object):
    
-   def __init__(self, cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=2, nL=20, fsky=1., name=None, save=True):
+   def __init__(self, cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=2, nL=20, fsky=1., name=None, magBias=False, save=True):
       self.save = save
       
       # sky fraction
@@ -53,11 +53,17 @@ class FisherLsst(object):
       # size of data vector
       self.nData = (self.nGG + self.nGS + self.nSS) * self.nL
       print "Data vector has "+str(self.nData)+" elements"
+
+      # include known magnification bias or not
+      self.magBias = magBias
       
-      if name is None:
-         self.name = "lsst_gg_gs_ss_nBins"+str(self.nBins)+"_nL"+str(self.nL)
-      else:
-         self.name = name
+      # output file names
+      self.name = "lsst_gg_gs_ss_nBins"+str(self.nBins)+"_nL"+str(self.nL)
+      if self.magBias:
+         self.name += "_magbias"
+      if name is not None:
+         self.name += "_"+name
+
 
       ##################################################################################
 
@@ -180,20 +186,19 @@ class FisherLsst(object):
                                         zMin=zMin,
                                         zMax=zMax,
                                         name='g'+str(iBin))
-
-         '''
-         # add magnification bias
-#!!!! I am using a loose mean redshift
-         alpha = w_glsst.magnificationBias(0.5*(zMinP+zMaxP))
-         print "bin "+str(iBin)+": mag bias alpha="+str(alpha)
-         w_g_nomagbias[iBin] = WeightTracerCustom(u,
-                                        lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
-                                        dndz_t, # dn/dz_true
-                                        zMin=zMin,
-                                        zMax=zMax,
-                                        name='g'+str(iBin))
-         w_g[iBin].f = lambda a: w_g_nomagbias[iBin].f(a) + 2.*(alpha-1.)*w_s[iBin].f(a)
-         '''
+         
+         # add magnification bias, if requested
+         if self.magBias:
+   #!!!! I am using a loose mean redshift
+            alpha = w_glsst.magnificationBias(0.5*(zMinP+zMaxP))
+            print "bin "+str(iBin)+": mag bias alpha="+str(alpha)
+            w_g_nomagbias[iBin] = WeightTracerCustom(u,
+                                           lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
+                                           dndz_t, # dn/dz_true
+                                           zMin=zMin,
+                                           zMax=zMax,
+                                           name='g'+str(iBin))
+            w_g[iBin].f = lambda a: w_g_nomagbias[iBin].f(a) + 2.*(alpha-1.)*w_s[iBin].f(a)
 
 
          #print "- done "+str(iBin+1)+" of "+str(self.nBins)
@@ -922,7 +927,8 @@ class FisherLsst(object):
          ax.plot(M, sigmas[iPar, :], color=color, label=self.fullPar.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
-      ax.legend(loc=2)
+      ax.set_yscale('log', nonposy='clip')
+      ax.legend(loc=2, labelspacing=0.05, handlelength=0.4, borderaxespad=0.01)
       ax.set_ylabel(r'$\sigma_\text{Param}$')
       ax.set_xlabel(r'Shear bias prior')
 

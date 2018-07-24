@@ -28,30 +28,99 @@ class Parameters(object):
       newPar.priorFisher = self.priorFisher
       return newPar
 
-   def addParams(self, newParams):
+#   def addParams(self, newParams, pos=-1):
+#      '''Adds new parameters to the parameter set.
+#      The new parameters are inserted at position pos.
+#      '''
+#      # concatenate parameter names and values
+#      self.names = np.concatenate((self.names, newParams.names))
+#      self.namesLatex = np.concatenate((self.namesLatex, newParams.namesLatex))
+#      self.fiducial = np.concatenate((self.fiducial, newParams.fiducial))
+#      self.high = np.concatenate((self.high, newParams.high))
+#      self.low = np.concatenate((self.low, newParams.low))
+#      # combine the Fisher priors
+#      combined = np.zeros((self.nPar+newParams.nPar, self.nPar+newParams.nPar))
+##      print self.nPar, newParams.nPar
+##      print shape(combined[:self.nPar, :self.nPar])
+#      combined[:self.nPar, :self.nPar] = self.priorFisher[:,:]
+#      combined[self.nPar:, self.nPar:] = newParams.priorFisher[:,:]
+#      self.priorFisher = combined
+#      # increase the number of parameters
+#      self.nPar += newParams.nPar
+
+
+   def addParams(self, newParams, pos=None):
       '''Adds new parameters to the parameter set.
+      The new parameters are inserted at index position pos:
+      pos=0 puts the new params at the start,
+      pos=self.nPar puts them at the end
       '''
+      if pos is None:
+         pos = self.nPar
       # concatenate parameter names and values
-      self.names = np.concatenate((self.names, newParams.names))
-      self.namesLatex = np.concatenate((self.namesLatex, newParams.namesLatex))
-      self.fiducial = np.concatenate((self.fiducial, newParams.fiducial))
-      self.high = np.concatenate((self.high, newParams.high))
-      self.low = np.concatenate((self.low, newParams.low))
+      self.names = np.concatenate((self.names[:pos], newParams.names, self.names[pos:]))
+      self.namesLatex = np.concatenate((self.namesLatex[:pos], newParams.namesLatex, self.namesLatex[pos:]))
+      self.fiducial = np.concatenate((self.fiducial[:pos], newParams.fiducial, self.fiducial[pos:]))
+      self.high = np.concatenate((self.high[:pos], newParams.high, self.high[pos:]))
+      self.low = np.concatenate((self.low[:pos], newParams.low, self.low[pos:]))
       # combine the Fisher priors
       combined = np.zeros((self.nPar+newParams.nPar, self.nPar+newParams.nPar))
-#      print self.nPar, newParams.nPar
-#      print shape(combined[:self.nPar, :self.nPar])
-      combined[:self.nPar, :self.nPar] = self.priorFisher[:,:]
-      combined[self.nPar:, self.nPar:] = newParams.priorFisher[:,:]
+      combined[:pos, :pos] = self.priorFisher[:pos, :pos]
+      combined[pos:pos+newParams.nPar, pos:pos+newParams.nPar] = newParams.priorFisher[:,:]
+      combined[pos+newParams.nPar:, pos+newParams.nPar:] = self.priorFisher[pos:, pos:]
       self.priorFisher = combined
       # increase the number of parameters
       self.nPar += newParams.nPar
 
-   def extractParams(self):
+
+
+   def extractParams(self, I, marg=True):
       '''Create new parameter class
       with only a subset of the current parameters.
+      I: indices of the parameters to keep
+      If marg is True, marginalize over the parameters that are not kept.
+      If marg is False, fix the parameters that are not kept
       '''
-      pass
+      newPar = Parameters()
+      newPar.nPar = len(I)
+      newPar.names = self.names[I]
+      newPar.namesLatex = self.namesLatex[I]
+      newPar.fiducial = self.fiducial[I]
+      newPar.high = self.high[I]
+      newPar.low = self.low[I]
+      # extract Fisher matrix, by marginalizing/fixing the other parameters
+      J = np.ix_(I,I)   # to extract the corresponding rows and columns
+      if marg:
+         inv = np.linalg.inv(self.priorFisher)
+         newPar.priorFisher = np.linalg.inv(inv[J])
+      else:
+         newPar.priorFisher = self.priorFisher[J]
+      return newPar
+
+
+   def reorderParams(self, I):
+      '''Reorders the parameters.
+      I should be a permutation of range(self.nPar).
+      '''
+      newPar = Parameters()
+      newPar.nPar = self.nPar
+      newPar.names = self.names[I]
+      newPar.namesLatex = self.namesLatex[I]
+      newPar.fiducial = self.fiducial[I]
+      newPar.high = self.high[I]
+      newPar.low = self.low[I]
+      J = np.ix_(I,I)
+      newPar.priorFisher = self.priorFisher[J]
+      return newPar
+
+
+   def convertParamsFisher(self, D):
+      '''D should be the nPar*nPar Jacobian matrix:
+      D_{i,j} = \partial old[i] / \partial new[j]
+      '''
+      newFisher = np.dot(self.priorFisher, D)
+      newFisher = np.dot(D.transpose(), newFisher)
+      return newFisher
 
 
    def plotParams(self, IPar=None):
@@ -186,7 +255,7 @@ class GalaxyBiasParams(Parameters):
 
 class CosmoParams(Parameters):
 
-   def __init__(self, massiveNu=False, wCDM=False, curvature=False):
+   def __init__(self, massiveNu=False, wCDM=False, curvature=False, PlanckPrior=False):
       '''Step sizes inspired from Allison+15
       '''
       # base cosmology
@@ -326,7 +395,11 @@ class CosmoParams(Parameters):
                                  'Omega_k': 0.-0.01,
                                  })
 
-      self.priorFisher = np.zeros((self.nPar, self.nPar))
+      # load Planck priors if requested
+      if PlanckPrior:
+         self.loadPlanckPrior()
+      else:
+         self.priorFisher = np.zeros((self.nPar, self.nPar))
       return
 
 
@@ -348,7 +421,97 @@ class CosmoParams(Parameters):
       return result
 
 
+   def loadPlanckPrior(self, test=True):
+      # read Planck priors from Pat McDonald
+      patPlanck = PatPlanckParams()
+      if test:
+         print "initial parameters"
+         print patPlanck.names
+      
+      # reorder the params to more closely match my order
+      #I = [0, 1, 8, 9, where_h_should_be, 13, 6, 3, 4, 5, 2, 7, 10, 11, 12]
+      I = [0, 1, 8, 9, 13, 6, 3, 4, 5, 2, 7, 10, 11, 12]
+      newPar = patPlanck.reorderParams(I)
+      if test:
+         print "reordered parameters"
+         print newPar.names
+
+      # add hubble parameter
+      H = Parameters()
+      H.nPar = 1
+      H.names = np.array(['h'])
+      H.namesLatex = np.array([r'$h$'])
+      H.fiducial = np.array([0.067])
+      H.low = np.array([0.])
+      H.high = np.array([0.])
+#!!! what to put for the Planck h uncertainty?
+      H.priorFisher = np.array([[1.]])
+
+      # insert it at the right spot
+      newPar.addParams(H, pos=4)
+      if test:
+         print "adding h"
+         print newPar.names
+
+      # remove the extra parameters
+      I = range(10)
+      newPar = newPar.extractParams(I, marg=True)
+      if test:
+         print "remove extra parameters"
+         print newPar.names
+
+      # convert units and logs in the Fisher matrix
+      D = np.diagflat(np.ones(10))
+      D[0,0] = 0.067**2 # dOmh2/dOm = h^2
+      D[0,1] = 0.067**2 # dOmh2/dOb = h^2
+      D[0,2] = 1./93.# dOmh2 / dMnu = h^2 dOnu/dMnu = 1/93., in 1/eV
+      D[1,1] = 0.067**2 # dObh2/dOb = h^2
+      D[2,2] = 1./(np.log(10.) * 2.3e-9)  # dlog10As/dAs = 1/(ln10 * A_S)
+
+      newPar.priorFisher = newPar.convertParamsFisher(D)
+      self.priorFisher = newPar.priorFisher.copy()
+      return
+
+
 ##################################################################################
+
+class PatPlanckParams(Parameters):
+   '''Fisher matrix for Planck parameters from Pat McDonald, private communication
+   '''
+   
+   def __init__(self):
+      # read Planck fisher matrix from Pat
+      path = "./input/fullP.tau0.066.r1.lT2_1400.lP8_2500_3_1_0.2_fish.txt"
+      self.priorFisher = np.genfromtxt(path)
+      
+      self.nPar = 14
+      self.names = np.array(['omega_m_h2', 'omega_b_h2', 'theta_s', 'w_0', 'w_a', 'Omega_k', 'M_nu', 'N_nueff', 'log10A_S', 'n_S', 'alpha_S', 'beta_S', 'r', 'tau'])
+      self.namesLatex = np.array([r'$\omega_m h^2$', r'$\omega_b h^2$', r'$\theta_s$', r'$w_0$', r'$w_a$', r'$\Omega_k$', r'$M_\nu$', r'$N_{\nu, \text{eff}}$', r'$\log_{10}A_S$', r'$n_S$', r'$\alpha_S$', r'$\beta_S$', r'$r$', r'$\tau$'])
+      self.fiducial = np.array([0.141745, 0.0223, 0.595417, -1., 0., 0., 0.06, 3.046, -8.66918, 0.9667, 0., 0., 0., 0.066])
+      self.high = np.zeros_like(self.fiducial)
+      self.low = np.zeros_like(self.fiducial)
+
+
+##################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
