@@ -476,7 +476,7 @@ class CosmoParams(Parameters):
 ##################################################################################
 
 class PatPlanckParams(Parameters):
-   '''Fisher matrix for Planck parameters from Pat McDonald, private communication
+   '''Fisher matrix for Planck parameters from Pat McDonald, private communication.
    '''
    
    def __init__(self):

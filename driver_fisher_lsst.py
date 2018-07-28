@@ -21,7 +21,7 @@ name = "lcdm_mnu_curv_w0wa"
 ##################################################################################
 # Parameter classes
 
-cosmoPar = CosmoParams(massiveNu=massiveNu, wCDM=wCDM, curvature=curvature, PlanckPrior=True)
+cosmoPar = CosmoParams(massiveNu=massiveNu, wCDM=wCDM, curvature=curvature, PlanckPrior=False)
 #cosmoPar.plotParams()
 galaxyBiasPar = GalaxyBiasParams(nBins=nBins)
 #galaxyBiasPar.plotParams()
