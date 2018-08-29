@@ -76,14 +76,10 @@ class P2d(object):
       self.Ptot = self.P + self.Pnoise
       #
       # interpolate power spectra
-      forP1h = UnivariateSpline(self.L,self.P1h,k=1,s=0)
-      self.fP1hinterp = lambda l: forP1h(l)*(l>=min(self.L))*(l<=max(self.L))
-      forP2h = UnivariateSpline(self.L,self.P2h,k=1,s=0)
-      self.fP2hinterp = lambda l: forP2h(l)*(l>=min(self.L))*(l<=max(self.L))
-      forP = UnivariateSpline(self.L,self.P,k=1,s=0)
-      self.fPinterp = lambda l: forP(l)*(l>=min(self.L))*(l<=max(self.L))
-      forPtot = UnivariateSpline(self.L,self.Ptot,k=1,s=0)
-      self.fPtotinterp = lambda l: forPtot(l)*(l>=min(self.L))*(l<=max(self.L))
+      self.fP1hinterp = interp1d(self.L, self.P1h, kind='cubic', bounds_error=False, fill_value=0.)
+      self.fP2hinterp = interp1d(self.L, self.P2h, kind='cubic', bounds_error=False, fill_value=0.)
+      self.fPinterp = interp1d(self.L, self.P, kind='cubic', bounds_error=False, fill_value=0.)
+      self.fPtotinterp = interp1d(self.L, self.Ptot, kind='cubic', bounds_error=False, fill_value=0.)
    
    def SaveT(self):
       print "precomputing t2d "+self.name
@@ -109,18 +105,13 @@ class P2d(object):
       self.Ttot = self.T + self.Tnoise
       #
       # interpolate trispectra
-      forT1h = UnivariateSpline(self.L,self.T1h,k=1,s=0)
-      self.fT1hinterp = lambda l: forT1h(l)*(l>=min(self.L))*(l<=max(self.L))
-      forT2h = UnivariateSpline(self.L,self.T2h,k=1,s=0)
-      self.fT2hinterp = lambda l: forT1h(l)*(l>=min(self.L))*(l<=max(self.L))
-      forT4h = UnivariateSpline(self.L,self.T2h,k=1,s=0)
-      self.fT4hinterp = lambda l: forT4h(l)*(l>=min(self.L))*(l<=max(self.L))
-      forTssv = UnivariateSpline(self.L,self.Tssv,k=1,s=0)
-      self.fTssvinterp = lambda l: forTssv(l)*(l>=min(self.L))*(l<=max(self.L))
-      forT = UnivariateSpline(self.L,self.T,k=1,s=0)
-      self.fTinterp = lambda l: forT(l)*(l>=min(self.L))*(l<=max(self.L))
-      forTtot = UnivariateSpline(self.L,self.Ttot,k=1,s=0)
-      self.fTtotinterp = lambda l: forTtot(l)*(l>=min(self.L))*(l<=max(self.L))
+      self.fT1hinterp = interp1d(self.L, self.T1h, kind='linear', bounds_error=False, fill_value=0.)
+      self.fT2hinterp = interp1d(self.L, self.T2h, kind='linear', bounds_error=False, fill_value=0.)
+      self.fT4hinterp = interp1d(self.L, self.T2h, kind='linear', bounds_error=False, fill_value=0.)
+      self.fTssvinterp = interp1d(self.L, self.Tssv, kind='linear', bounds_error=False, fill_value=0.)
+      self.fTinterp = interp1d(self.L, self.T, kind='linear', bounds_error=False, fill_value=0.)
+      self.fTtotinterp = interp1d(self.L, self.Ttot, kind='linear', bounds_error=False, fill_value=0.)
+      
 
    ##################################################################################
    # power spectrum
@@ -129,15 +120,16 @@ class P2d(object):
       '''dP2d/da, to be integrated wrt a
       '''
       z = 1./a-1.
-      chi = self.U.bg.comoving_distance(1./a-1.)
+      chi = self.U.bg.comoving_distance(z)
+      chi_transverse = self.U.bg.comoving_transverse_distance(z)
       #
-      result = 3.e5/( self.U.hubble(1./a-1.) * a**2 )
+      result = 3.e5/( self.U.hubble(z) * a**2 )
       if self.Weight2 is None:
          result *= self.Weight1.f(a)**2
       else:
          result *= self.Weight1.f(a) * self.Weight2.f(a)
-      result /= chi**2
-      result *= fP(l/chi, z)
+      result /= chi_transverse**2
+      result *= fP(l/chi_transverse, z)
       return result
 
    
@@ -242,15 +234,16 @@ class P2d(object):
 
    def integrandT(self, a, fP, l):
       z = 1./a-1.
-      chi = self.U.bg.comoving_distance(1./a-1.)
+      chi = self.U.bg.comoving_distance(z)
+      chi_transverse = self.U.bg.comoving_transverse_distance(z)
       #
-      result = 3.e5/( self.U.hubble(1./a-1.) * a**2 )
+      result = 3.e5/( self.U.hubble(z) * a**2 )
       if self.Weight2 is None:
          result *= self.Weight1.f(a)**4
       else:
          result *= self.Weight1.f(a)**2 * self.Weight2.f(a)**2
-      result /= chi**6
-      result *= fP(l/chi, z)
+      result /= chi_transverse**6
+      result *= fP(l/chi_transverse, z)
       return result
 
    def fT_1h(self, l):
@@ -295,12 +288,13 @@ class P2d(object):
 
    def integrandTNonDiag(self, a, fP, l1, l2):
       z = 1./a-1.
-      chi = self.U.bg.comoving_distance(1./a-1.)
+      chi = self.U.bg.comoving_distance(z)
+      chi = self.U.bg.comoving_distance(z)
       #
-      result = 3.e5/( self.U.hubble(1./a-1.) * a**2 )
+      result = 3.e5/( self.U.hubble(z) * a**2 )
       result *= self.Weight.f(a)**4
-      result /= chi**6
-      result *= fP(l1/chi, l2/chi, z)
+      result /= chi_transverse**6
+      result *= fP(l1/chi_transverse, l2/chi_transverse, z)
       return result
 
    def fTnondiag(self, l1, l2):

@@ -28,25 +28,6 @@ class Parameters(object):
       newPar.priorFisher = self.priorFisher
       return newPar
 
-#   def addParams(self, newParams, pos=-1):
-#      '''Adds new parameters to the parameter set.
-#      The new parameters are inserted at position pos.
-#      '''
-#      # concatenate parameter names and values
-#      self.names = np.concatenate((self.names, newParams.names))
-#      self.namesLatex = np.concatenate((self.namesLatex, newParams.namesLatex))
-#      self.fiducial = np.concatenate((self.fiducial, newParams.fiducial))
-#      self.high = np.concatenate((self.high, newParams.high))
-#      self.low = np.concatenate((self.low, newParams.low))
-#      # combine the Fisher priors
-#      combined = np.zeros((self.nPar+newParams.nPar, self.nPar+newParams.nPar))
-##      print self.nPar, newParams.nPar
-##      print shape(combined[:self.nPar, :self.nPar])
-#      combined[:self.nPar, :self.nPar] = self.priorFisher[:,:]
-#      combined[self.nPar:, self.nPar:] = newParams.priorFisher[:,:]
-#      self.priorFisher = combined
-#      # increase the number of parameters
-#      self.nPar += newParams.nPar
 
 
    def addParams(self, newParams, pos=None):
@@ -259,12 +240,12 @@ class CosmoParams(Parameters):
       '''Step sizes inspired from Allison+15
       '''
       # base cosmology
-      self.nPar = 5#6
-      self.names = np.array(['Omega_cdm', 'Omega_b', 'A_s', 'n_s', 'h'])#, 'tau_reio'])
-      self.namesLatex = np.array([r'$\Omega^0_\text{CDM}$', r'$\Omega^0_\text{b}$', r'$A_\text{s}$', r'$n_\text{s}$', r'$h_0$'])#, r'$\tau$'])
-      self.fiducial = np.array([0.267, 0.0493, 2.3e-9, 0.9624, 0.6712])#, 0.06])
-      self.high = np.array([0.267 + 0.0066, 0.0493 + 0.0018, 2.3e-9 + 1.e-10, 0.9624 + 0.01, 0.6712 + 0.067])#, 0.06 + 0.02])
-      self.low = np.array([0.267 - 0.0066, 0.0493 - 0.0018, 2.3e-9 - 1.e-10, 0.9624 - 0.01, 0.6712 - 0.067])#, 0.06 - 0.02])
+      self.nPar = 6
+      self.names = np.array(['Omega_cdm', 'Omega_b', 'A_s', 'n_s', 'h', 'tau_reio'])
+      self.namesLatex = np.array([r'$\Omega^0_\text{CDM}$', r'$\Omega^0_\text{b}$', r'$A_\text{s}$', r'$n_\text{s}$', r'$h_0$', r'$\tau$'])
+      self.fiducial = np.array([0.267, 0.0493, 2.3e-9, 0.9624, 0.6712, 0.06])
+      self.high = np.array([0.267 + 0.0066, 0.0493 + 0.0018, 2.3e-9 + 1.e-10, 0.9624 + 0.01, 0.6712 + 0.067, 0.06 + 0.02])
+      self.low = np.array([0.267 - 0.0066, 0.0493 - 0.0018, 2.3e-9 - 1.e-10, 0.9624 - 0.01, 0.6712 - 0.067, 0.06 - 0.02])
       self.paramsClassy = {
                            # Cosmological parameters
                            'Omega_cdm': 0.267,
@@ -421,56 +402,64 @@ class CosmoParams(Parameters):
       return result
 
 
-   def loadPlanckPrior(self, test=True):
-      # read Planck priors from Pat McDonald
-      patPlanck = PatPlanckParams()
-      if test:
-         print "initial parameters"
-         print patPlanck.names
-      
-      # reorder the params to more closely match my order
-      #I = [0, 1, 8, 9, where_h_should_be, 13, 6, 3, 4, 5, 2, 7, 10, 11, 12]
-      I = [0, 1, 8, 9, 13, 6, 3, 4, 5, 2, 7, 10, 11, 12]
-      newPar = patPlanck.reorderParams(I)
-      if test:
-         print "reordered parameters"
-         print newPar.names
+#   def loadPlanckPrior(self, test=True):
+#      # read Planck priors from Pat McDonald
+#      patPlanck = PatPlanckParams()
+#      if test:
+#         print "initial parameters"
+#         print patPlanck.names
+#
+#      # reorder the params to more closely match my order
+#      #I = [0, 1, 8, 9, where_h_should_be, 13, 6, 3, 4, 5, 2, 7, 10, 11, 12]
+#      I = [0, 1, 8, 9, 13, 6, 3, 4, 5, 2, 7, 10, 11, 12]
+#      newPar = patPlanck.reorderParams(I)
+#      if test:
+#         print "reordered parameters"
+#         print newPar.names
+#
+#      # add hubble parameter
+#      H = Parameters()
+#      H.nPar = 1
+#      H.names = np.array(['h'])
+#      H.namesLatex = np.array([r'$h$'])
+#      H.fiducial = np.array([0.067])
+#      H.low = np.array([0.])
+#      H.high = np.array([0.])
+##!!! what to put for the Planck h uncertainty?
+#      H.priorFisher = np.array([[1.]])
+#
+#      # insert it at the right spot
+#      newPar.addParams(H, pos=4)
+#      if test:
+#         print "adding h"
+#         print newPar.names
+#
+#      # remove the extra parameters
+#      I = range(10)
+#      newPar = newPar.extractParams(I, marg=True)
+#      if test:
+#         print "remove extra parameters"
+#         print newPar.names
+#
+#      # convert units and logs in the Fisher matrix
+#      D = np.diagflat(np.ones(10))
+#      D[0,0] = 0.067**2 # dOmh2/dOm = h^2
+#      D[0,1] = 0.067**2 # dOmh2/dOb = h^2
+#      D[0,2] = 1./93.# dOmh2 / dMnu = h^2 dOnu/dMnu = 1/93., in 1/eV
+#      D[1,1] = 0.067**2 # dObh2/dOb = h^2
+#      D[2,2] = 1./(np.log(10.) * 2.3e-9)  # dlog10As/dAs = 1/(ln10 * A_S)
+#
+#      newPar.priorFisher = newPar.convertParamsFisher(D)
+#      self.priorFisher = newPar.priorFisher.copy()
+#      return
 
-      # add hubble parameter
-      H = Parameters()
-      H.nPar = 1
-      H.names = np.array(['h'])
-      H.namesLatex = np.array([r'$h$'])
-      H.fiducial = np.array([0.067])
-      H.low = np.array([0.])
-      H.high = np.array([0.])
-#!!! what to put for the Planck h uncertainty?
-      H.priorFisher = np.array([[1.]])
 
-      # insert it at the right spot
-      newPar.addParams(H, pos=4)
-      if test:
-         print "adding h"
-         print newPar.names
+   def loadPlanckPrior(self):
+      path = "./input/parameters/Fisher_Planck_TT_TE_EE_lowP.txt"
+      self.priorFisher = np.genfromtxt(path)
 
-      # remove the extra parameters
-      I = range(10)
-      newPar = newPar.extractParams(I, marg=True)
-      if test:
-         print "remove extra parameters"
-         print newPar.names
 
-      # convert units and logs in the Fisher matrix
-      D = np.diagflat(np.ones(10))
-      D[0,0] = 0.067**2 # dOmh2/dOm = h^2
-      D[0,1] = 0.067**2 # dOmh2/dOb = h^2
-      D[0,2] = 1./93.# dOmh2 / dMnu = h^2 dOnu/dMnu = 1/93., in 1/eV
-      D[1,1] = 0.067**2 # dObh2/dOb = h^2
-      D[2,2] = 1./(np.log(10.) * 2.3e-9)  # dlog10As/dAs = 1/(ln10 * A_S)
 
-      newPar.priorFisher = newPar.convertParamsFisher(D)
-      self.priorFisher = newPar.priorFisher.copy()
-      return
 
 
 ##################################################################################
@@ -481,7 +470,7 @@ class PatPlanckParams(Parameters):
    
    def __init__(self):
       # read Planck fisher matrix from Pat
-      path = "./input/fullP.tau0.066.r1.lT2_1400.lP8_2500_3_1_0.2_fish.txt"
+      path = "./input/parameters/fullP.tau0.066.r1.lT2_1400.lP8_2500_3_1_0.2_fish.txt"
       self.priorFisher = np.genfromtxt(path)
       
       self.nPar = 14

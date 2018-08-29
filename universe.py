@@ -5,14 +5,15 @@ from headers import *
 class Universe(object):
 
    def __init__(self, params=None):
-   
-      # neutrino masses
-      self.Mnu = 0.06 # eV, minimum possible masses
-      self.normalHierarchy = True
-      self.nuMasses = self.computeNuMasses(self.Mnu, normal=self.normalHierarchy)
+
 
       # all cosmological parameters
       if params is None:
+         # neutrino masses
+         self.Mnu = 0.06 # eV, minimum possible masses
+         self.normalHierarchy = True
+         self.nuMasses = self.computeNuMasses(self.Mnu, normal=self.normalHierarchy)
+
          self.params = {
                   'output': 'dTk vTk mPk',#'lCl tCl pCl mPk',
 #                  'l_max_scalars': 2000,
@@ -187,14 +188,33 @@ class Universe(object):
    
    ##################################################################################
 
+   def fK(self, chi):
+      """Comoving transverse distance, as a function of the comoving radial distance chi.
+      Input and output in Mpc/h
+      """
+      if self.bg.Omega0_k == 0.:
+         result = chi
+      # negative Om0_k corresponds to positive curvature
+      elif self.bg.Omega0_k < 0.:
+         Rk = 3.e3 / np.sqrt(-self.bg.Omega0_k) # (c/H0) / sqrt(|Omega0_k|), in Mpc/h
+         result = Rk * np.sin(chi / Rk)
+      # positive Om0_k corresponds to negative curvature
+      elif self.bg.Omega0_k > 0.:
+         Rk = 3.e3 / np.sqrt(self.bg.Omega0_k) # (c/H0) / sqrt(|Omega0_k|), in Mpc/h
+         result = Rk * np.sinh(chi / Rk)
+      return result
+
    def plotDistances(self, zMax=2.):
       z = np.linspace(0., zMax, 512)
       
       # comoving radial distance
-      plt.plot(z, self.bg.comoving_distance(z), label=r"$d_C$")
+      plt.plot(z, self.bg.comoving_distance(z), label=r"$\chi$")
       # comoving angular diameter distance
-      plt.plot(z, self.bg.angular_diameter_distance(z)*(1.+z), ls='--', label=r"$d_A$")
-      plt.plot(z, self.bg.comoving_transverse_distance(z), ls='-.', label=r"$d_A$ other")
+      plt.plot(z, self.bg.comoving_transverse_distance(z), ls='-.', label=r"$d_A$")
+      # comoving angular diameter distance 2
+      plt.plot(z, self.bg.angular_diameter_distance(z)*(1.+z), ls='--', label=r"$d_A=D_A/a$")
+      # comoving angular diameter distance 2
+      plt.plot(z, self.fK(self.bg.comoving_distance(z)), '.', label=r"$d_A=f_K(\chi)$")
       # luminosity distance
       plt.plot(z, self.bg.luminosity_distance(z), label=r"$d_L$")
       # physical angular diameter distance
@@ -884,9 +904,6 @@ class UnivPlanck15(Universe):
                'Omega_cdm': 0.267,
                'Omega_k': 0.,
                'P_k_max_1/Mpc': 10.,
-#                  'N_ncdm': 3,
-#                  'm_ncdm': str(self.nuMasses[0])+','+str(self.nuMasses[1])+','+str(self.nuMasses[2]),
-#                  'deg_ncdm': '1, 1, 1',
                'non linear': 'halofit',
                'z_max_pk': 100.
                }

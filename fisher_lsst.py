@@ -817,7 +817,6 @@ class FisherLsst(object):
          invFisher = np.linalg.inv(newFisherPosterior)
          std = np.sqrt(np.diag(invFisher))
          sigmas[:, iPhotoz] = std
-         print np.shape(sigmas)
       
       # cosmological parameters
       IPar = range(self.cosmoPar.nPar)

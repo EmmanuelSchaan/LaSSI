@@ -14,6 +14,9 @@ massiveNu = True  #False
 wCDM = True #False
 curvature = True #False
 
+# priors to include
+PlanckPrior = True
+
 # forecast name
 #name = "lcdm"
 name = "lcdm_mnu_curv_w0wa"
@@ -21,7 +24,7 @@ name = "lcdm_mnu_curv_w0wa"
 ##################################################################################
 # Parameter classes
 
-cosmoPar = CosmoParams(massiveNu=massiveNu, wCDM=wCDM, curvature=curvature, PlanckPrior=False)
+cosmoPar = CosmoParams(massiveNu=massiveNu, wCDM=wCDM, curvature=curvature, PlanckPrior=PlanckPrior)
 #cosmoPar.plotParams()
 galaxyBiasPar = GalaxyBiasParams(nBins=nBins)
 #galaxyBiasPar.plotParams()
@@ -34,10 +37,12 @@ photoZPar = PhotoZParams(nBins=nBins)
 #pat = PatPlanckParams()
 #pat.printParams()
 
+#u = Universe(cosmoPar.paramsClassy)
+
 ##################################################################################
 # Fisher calculation
 
-fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, name=name, magBias=False, save=False)
+fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, name=name, magBias=False, save=True)
 
 
 #fisherLsst.plotDndz()

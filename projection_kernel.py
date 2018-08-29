@@ -159,8 +159,6 @@ class Projection(object):
 
 
 
-
-
 ##################################################################################
 ##################################################################################
 
@@ -188,23 +186,35 @@ class WeightLensSingle(Projection):
    
    def __init__(self, U, z_source=1., name='lens'):
       # a for mass func, biases, and projection
+      self.z_source = z_source
       a_source = 1./(1.+z_source)
       #
-      self.z_source = z_source
-      self.dist_source = self.U.bg.comoving_distance(1./a_source-1.)
-      self.aMin = max(a_source, 1./11.)   # don't go further than z=10
+      self.aMin = max(self.a_source, 1./11.)   # don't go further than z=10
       epsilon = 1.e-5
       self.aMax = 1.-epsilon
       super(WeightLensSingle, self).__init__(U, name=name)
    
+   
    def fForInterp(self, a):
       """lensing projection kernel
-      for single source
+      for a single source
       a is dimless, Wlensing(a) in (h Mpc^-1)
       """
-      d_a = self.U.bg.comoving_distance(1./a-1.)
-      wlensing = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
-      wlensing *= 1. - d_a/self.dist_source
+#      # Expression for flat cosmology
+#      d_a = self.U.bg.comoving_distance(1./a-1.)
+#      wlensing = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
+#      wlensing *= 1. - d_a/self.dist_source
+
+      # Expression for flat/curved cosmology
+      z = 1./a - 1.
+      d_L = self.U.bg.comoving_transverse_distance(z)
+      d_S = self.U.bg.comoving_transverse_distance(self.z_source)
+      chi_L = self.U.bg.comoving_distance(z)
+      chi_S = self.U.bg.comoving_distance(self.z_source)
+      d_LS = self.U.fK(chi_S - chi_L)
+      #
+      wlensing = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m
+      wlensing *= d_L/a * d_LS / d_S
       return wlensing
    
    def testHandEtAl13_fig1(self):
@@ -264,11 +274,28 @@ class WeightLensOguriTakada11(Projection):
       return result
    
    
+   def fSingleSource(self, a, aSource):
+      """lensing projection kernel
+      for single source
+      a is dimless, Wlensing(a) in (h Mpc^-1)
+      """
+      # Expression valid for curved cosmology
+      z = 1./a - 1.
+      zSource = 1./aSource - 1.
+      d_L = self.U.bg.comoving_transverse_distance(z)
+      d_S = self.U.bg.comoving_transverse_distance(zSource)
+      chi_L = self.U.bg.comoving_distance(z)
+      chi_S = self.U.bg.comoving_distance(zSource)
+      d_LS = self.U.fK(chi_S - chi_L)
+      
+      wlensing = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m
+      wlensing *= d_L/a * d_LS / d_S
+      return wlensing
+
+
    def fForInterp(self, a):
-      d_a = self.U.bg.comoving_distance(1./a-1.)
-      result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
-      integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1))
-      result *= integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
       return result
 
 
@@ -296,11 +323,27 @@ class WeightLensHandEtAl13(Projection):
    
       super(WeightLensHandEtAl13, self).__init__(U, name=name)
 
+   def fSingleSource(self, a, aSource):
+      """lensing projection kernel
+      for single source
+      a is dimless, Wlensing(a) in (h Mpc^-1)
+      """
+      # Expression valid for curved cosmology
+      z = 1./a - 1.
+      zSource = 1./aSource - 1.
+      d_L = self.U.bg.comoving_transverse_distance(z)
+      d_S = self.U.bg.comoving_transverse_distance(zSource)
+      chi_L = self.U.bg.comoving_distance(z)
+      chi_S = self.U.bg.comoving_distance(zSource)
+      d_LS = self.U.fK(chi_S - chi_L)
+      
+      wlensing = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m
+      wlensing *= d_L/a * d_LS / d_S
+      return wlensing
+
    def fForInterp(self, a):
-      d_a = self.U.bg.comoving_distance(1./a-1.)
-      result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
-      integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1.))
-      result *= integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
       return result
 
    def testHandEtAl13_fig1(self):
@@ -368,11 +411,27 @@ class WeightLensDasEtAl13(Projection):
       self.aMax = 1.-epsilon
       super(WeightLensDasEtAl13, self).__init__(U, name=name)
    
+   def fSingleSource(self, a, aSource):
+      """lensing projection kernel
+      for single source
+      a is dimless, Wlensing(a) in (h Mpc^-1)
+      """
+      # Expression valid for curved cosmology
+      z = 1./a - 1.
+      zSource = 1./aSource - 1.
+      d_L = self.U.bg.comoving_transverse_distance(z)
+      d_S = self.U.bg.comoving_transverse_distance(zSource)
+      chi_L = self.U.bg.comoving_distance(z)
+      chi_S = self.U.bg.comoving_distance(zSource)
+      d_LS = self.U.fK(chi_S - chi_L)
+      
+      wlensing = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m
+      wlensing *= d_L/a * d_LS / d_S
+      return wlensing
+
    def fForInterp(self, a):
-      d_a = self.U.bg.comoving_distance(1./a-1.)
-      result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
-      integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1.))
-      result *= integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
       return result
 
    def plot(self):
@@ -430,15 +489,42 @@ class WeightLensCustom(Projection):
       super(WeightLensCustom, self).__init__(U, name=name)
 
    
+#   def fForInterp(self, a):
+#      if a<self.aMinG:
+#         return 0.
+#      else:
+#         d_a = self.U.bg.comoving_distance(1./a-1.)
+#         result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
+#         integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1.))
+#         result *= integrate.quad(integrand, self.aMinG, a, epsabs=0, epsrel=1.e-2)[0]
+#         result *= (1.+self.m(1./a-1.))  # shear multiplicative bias
+#         return result
+
+   def fSingleSource(self, a, aSource):
+      """lensing projection kernel
+      for single source
+      a is dimless, Wlensing(a) in (h Mpc^-1)
+      """
+      # Expression valid for curved cosmology
+      z = 1./a - 1.
+      zSource = 1./aSource - 1.
+      d_L = self.U.bg.comoving_transverse_distance(z)
+      d_S = self.U.bg.comoving_transverse_distance(zSource)
+      chi_L = self.U.bg.comoving_distance(z)
+      chi_S = self.U.bg.comoving_distance(zSource)
+      d_LS = self.U.fK(chi_S - chi_L)
+      
+      wlensing = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m
+      wlensing *= d_L/a * d_LS / d_S
+      return wlensing
+
+
    def fForInterp(self, a):
       if a<self.aMinG:
          return 0.
       else:
-         d_a = self.U.bg.comoving_distance(1./a-1.)
-         result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
-         integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1.))
-         result *= integrate.quad(integrand, self.aMinG, a, epsabs=0, epsrel=1.e-2)[0]
-         result *= (1.+self.m(1./a-1.))  # shear multiplicative bias
+         integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
+         result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
          return result
 
    def plot(self):
@@ -490,11 +576,29 @@ class WeightLensCIBSchmidt15(Projection):
       #
       super(WeightLensCIBSchmidt15, self).__init__(U, name=name)
    
+   
+   def fSingleSource(self, a, aSource):
+      """lensing projection kernel
+      for single source
+      a is dimless, Wlensing(a) in (h Mpc^-1)
+      """
+      # Expression valid for curved cosmology
+      z = 1./a - 1.
+      zSource = 1./aSource - 1.
+      d_L = self.U.bg.comoving_transverse_distance(z)
+      d_S = self.U.bg.comoving_transverse_distance(zSource)
+      chi_L = self.U.bg.comoving_distance(z)
+      chi_S = self.U.bg.comoving_distance(zSource)
+      d_LS = self.U.fK(chi_S - chi_L)
+      
+      wlensing = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m
+      wlensing *= d_L/a * d_LS / d_S
+      return wlensing
+
+
    def fForInterp(self, a):
-      d_a = self.U.bg.comoving_distance(1./a-1.)
-      result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
-      integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1.))
-      result *= integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
       return result
    
 
@@ -552,11 +656,28 @@ class WeightLensCIBPullen17(Projection):
       super(WeightLensCIBPullen17, self).__init__(U, name=name)
       
    
+   def fSingleSource(self, a, aSource):
+      """lensing projection kernel
+      for single source
+      a is dimless, Wlensing(a) in (h Mpc^-1)
+      """
+      # Expression valid for curved cosmology
+      z = 1./a - 1.
+      zSource = 1./aSource - 1.
+      d_L = self.U.bg.comoving_transverse_distance(z)
+      d_S = self.U.bg.comoving_transverse_distance(zSource)
+      chi_L = self.U.bg.comoving_distance(z)
+      chi_S = self.U.bg.comoving_distance(zSource)
+      d_LS = self.U.fK(chi_S - chi_L)
+      
+      wlensing = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m
+      wlensing *= d_L/a * d_LS / d_S
+      return wlensing
+
+
    def fForInterp(self, a):
-      d_a = self.U.bg.comoving_distance(1./a-1.)
-      result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
-      integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1.))
-      result *= integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
       return result
 
    def plot(self):
