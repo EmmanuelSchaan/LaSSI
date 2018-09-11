@@ -42,7 +42,7 @@ photoZPar = PhotoZParams(nBins=nBins)
 ##################################################################################
 # Fisher calculation
 
-fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, name=name, magBias=False, save=True)
+fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, name=name, magBias=False, save=False)
 
 
 #fisherLsst.plotDndz()
@@ -66,7 +66,7 @@ fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nB
 # Photo-z requirements
 
 
-#fisherLsst.photoZRequirements()
+fisherLsst.photoZRequirements()
 #fisherLsst.shearBiasRequirements()
 
 

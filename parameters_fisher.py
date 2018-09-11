@@ -102,7 +102,19 @@ class Parameters(object):
       newFisher = np.dot(self.priorFisher, D)
       newFisher = np.dot(D.transpose(), newFisher)
       return newFisher
-
+   
+   
+   def paramUncertainties(self, marg=True):
+      """Returns the marginalized 1-sigma uncertainties of the parameters.
+      """
+      if marg:
+         invFisher = np.linalg.inv(self.priorFisher)
+         std = np.sqrt(np.diag(invFisher))
+      else:
+         std = 1. / np.sqrt(np.diag(invFisher))
+      return std
+   
+   
 
    def plotParams(self, IPar=None):
       '''Show the parameter names, fiducial values and priors.
@@ -239,6 +251,14 @@ class CosmoParams(Parameters):
    def __init__(self, massiveNu=False, wCDM=False, curvature=False, PlanckPrior=False):
       '''Step sizes inspired from Allison+15
       '''
+      # indices to keep for various relevant combinations:
+      self.IFull = range(10)
+      self.ILCDMMnuW0Wa = range(9)
+      self.ILCDMMnu = range(7)
+      self.ILCDM = range(6)
+      self.ILCDMW0Wa = [0,1,2,3,4,5,7,8]
+      self.ILCDMMnuCurv = [0,1,2,3,4,5,6,9]
+      self.ILCDMW0WaCurv = [0,1,2,3,4,5,7,8,9]
       # base cosmology
       self.nPar = 6
       self.names = np.array(['Omega_cdm', 'Omega_b', 'A_s', 'n_s', 'h', 'tau_reio'])

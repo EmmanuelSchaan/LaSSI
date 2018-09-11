@@ -63,6 +63,11 @@ class FisherLsst(object):
          self.name += "_magbias"
       if name is not None:
          self.name += "_"+name
+      
+      # create folder for figures
+      self.figurePath = "./figures/"+self.name
+      if not os.path.exists(self.figurePath):
+         os.makedirs(self.figurePath)
 
 
       ##################################################################################
@@ -462,11 +467,11 @@ class FisherLsst(object):
          tStop = time()
          print "("+str(np.round(tStop-tStart,1))+" sec)"
       
-      path = "dDatadPar_"+self.name
+      path = "./output/dDatadPar/dDatadPar_"+self.name
       np.savetxt(path, derivative)
 
    def loadDerivativeDataVector(self):
-      path = "dDatadPar_"+self.name
+      path = "./output/dDatadPar/dDatadPar_"+self.name
       self.derivativeDataVector = np.genfromtxt(path)
 
 
@@ -800,7 +805,12 @@ class FisherLsst(object):
       Photoz = np.logspace(np.log10(1.e-5), np.log10(1.), nPhotoz, 10.)
       
       # posterior uncertainties
-      sigmas = np.zeros((self.fullPar.nPar, nPhotoz))
+      sigmasFull = np.zeros((len(self.cosmoPar.IFull), nPhotoz))
+      sigmasMnuW0Wa = np.zeros((len(self.cosmoPar.ILCDMMnuW0Wa), nPhotoz))
+      sigmasMnu = np.zeros((len(self.cosmoPar.ILCDMMnu), nPhotoz))
+      sigmasMnuCurv = np.zeros((len(self.cosmoPar.ILCDMMnuCurv), nPhotoz))
+      sigmasW0Wa = np.zeros((len(self.cosmoPar.ILCDMW0Wa), nPhotoz))
+      sigmasW0WaCurv = np.zeros((len(self.cosmoPar.ILCDMW0WaCurv), nPhotoz))
       
       for iPhotoz in range(nPhotoz):
          photoz = Photoz[iPhotoz]
@@ -811,64 +821,204 @@ class FisherLsst(object):
          newPar.addParams(self.galaxyBiasPar)
          newPar.addParams(self.shearMultBiasPar)
          newPar.addParams(newPhotoZPar)
-         # get the new posterior Fisher matrix
-         newFisherPosterior = self.fisherData + newPar.priorFisher
-         # compute uncertainties with prior
-         invFisher = np.linalg.inv(newFisherPosterior)
-         std = np.sqrt(np.diag(invFisher))
-         sigmas[:, iPhotoz] = std
+         # get the new posterior Fisher matrix, including the prior
+         newPar.priorFisher += self.fisherData
+         # extract cosmo only, marginalizing over nuisances
+         newCosmoPar = newPar.extractParams(self.cosmoPar.IFull, marg=True)
+         
+         # Extract parameter combinations:
+         # marginalize over nuisances, but fix cosmo params that are left out
+         # Full: LCDM + Mnu + curv + w0,wa
+         parFull = newCosmoPar.copy()
+         sigmasFull[:, iPhotoz] = parFull.paramUncertainties(marg=True)
+         # LCDM + Mnu
+         parLCDMMnu = newCosmoPar.extractParams(self.cosmoPar.ILCDMMnu, marg=False)
+         sigmasMnu[:, iPhotoz] = parLCDMMnu.paramUncertainties(marg=True)
+         # LCDM + Mnu + w0,wa
+         parLCDMMnuW0Wa = newCosmoPar.extractParams(self.cosmoPar.ILCDMMnuW0Wa, marg=False)
+         sigmasMnuW0Wa[:, iPhotoz] = parLCDMMnuW0Wa.paramUncertainties(marg=True)
+         # LCDM + Mnu + curv
+         parLCDMMnuCurv = newCosmoPar.extractParams(self.cosmoPar.ILCDMMnuCurv, marg=False)
+         sigmasMnuCurv[:, iPhotoz] = parLCDMMnuCurv.paramUncertainties(marg=True)
+         # LCDM + w0,wa
+         parLCDMW0Wa = newCosmoPar.extractParams(self.cosmoPar.ILCDMW0Wa, marg=False)
+         sigmasW0Wa[:, iPhotoz] = parLCDMW0Wa.paramUncertainties(marg=True)
+         # LCDM + w0,wa + curvature
+         parLCDMW0WaCurv = newCosmoPar.extractParams(self.cosmoPar.ILCDMW0WaCurv, marg=False)
+         sigmasW0WaCurv[:, iPhotoz] = parLCDMW0WaCurv.paramUncertainties(marg=True)
+
       
-      # cosmological parameters
-      IPar = range(self.cosmoPar.nPar)
+      ##################################################################################
+      # Cosmo. par. dependence on photo-z prior
+
+      # Full: LCDM + Mnu + curv + w0,wa
       fig=plt.figure(0)
       ax=fig.add_subplot(111)
       #
       # fiducial prior
       ax.axvline(0.002, color='gray')
       #
-      for iPar in IPar:
-         ax.plot(Photoz, sigmas[iPar, :] / sigmas[iPar, 0], label=self.fullPar.namesLatex[iPar])
+      for iPar in range(parFull.nPar):
+         ax.plot(Photoz, sigmasFull[iPar, :] / sigmasFull[iPar, 0], label=parFull.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
       ax.legend(loc=2)
       ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect photo-z}$')
       ax.set_xlabel(r'Photo-z prior')
+      #
+      fig.savefig(self.figurePath+"/photozreq_cosmo_full.pdf")
 
-      # photo-z parameters
+      # LCDM + Mnu
       fig=plt.figure(1)
       ax=fig.add_subplot(111)
       #
       # fiducial prior
       ax.axvline(0.002, color='gray')
       #
-      # photo-z shifts
-      IPar = self.cosmoPar.nPar+self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar
-      IPar += np.arange(self.nBins)
-      # add legend entry
-      color = 'r'
-      ax.plot([], [], color=color, label=r'$\delta z$')
-      for iPar in IPar:
-         color = 'r'
-         ax.plot(Photoz, sigmas[iPar, :], color=color)#, label=self.fullPar.namesLatex[iPar])
-      #
-      # photo-z scatter
-      IPar = self.cosmoPar.nPar+self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar + self.nBins
-      IPar += np.arange(self.nBins)
-      # add legend entry
-      color = 'b'
-      ax.plot([], [], color=color, label=r'$\sigma_z / (1+z)$')
-      for iPar in IPar:
-         color = 'b'
-         ax.plot(Photoz, sigmas[iPar, :], color=color)#, label=self.fullPar.namesLatex[iPar])
+      for iPar in range(parLCDMMnu.nPar):
+         ax.plot(Photoz, sigmasMnu[iPar, :] / sigmasMnu[iPar, 0], label=parLCDMMnu.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
-      ax.set_yscale('log', nonposx='clip')
       ax.legend(loc=2)
-      ax.set_ylabel(r'$\sigma_\text{Param}$')
+      ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect photo-z}$')
       ax.set_xlabel(r'Photo-z prior')
+      #
+      fig.savefig(self.figurePath+"/photozreq_cosmo_lcdmmnu.pdf")
+
+      # LCDM + Mnu + w0,wa
+      fig=plt.figure(2)
+      ax=fig.add_subplot(111)
+      #
+      # fiducial prior
+      ax.axvline(0.002, color='gray')
+      #
+      for iPar in range(parLCDMMnuW0Wa.nPar):
+         ax.plot(Photoz, sigmasMnuW0Wa[iPar, :] / sigmasMnuW0Wa[iPar, 0], label=parLCDMMnuW0Wa.namesLatex[iPar])
+      #
+      ax.set_xscale('log', nonposx='clip')
+      ax.legend(loc=2)
+      ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect photo-z}$')
+      ax.set_xlabel(r'Photo-z prior')
+      #
+      fig.savefig(self.figurePath+"/photozreq_cosmo_lcdmmnuw0wa.pdf")
+
+      # LCDM + Mnu + curv
+      fig=plt.figure(3)
+      ax=fig.add_subplot(111)
+      #
+      # fiducial prior
+      ax.axvline(0.002, color='gray')
+      #
+      for iPar in range(parLCDMMnuCurv.nPar):
+         ax.plot(Photoz, sigmasMnuCurv[iPar, :] / sigmasMnuCurv[iPar, 0], label=parLCDMMnuCurv.namesLatex[iPar])
+      #
+      ax.set_xscale('log', nonposx='clip')
+      ax.legend(loc=2)
+      ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect photo-z}$')
+      ax.set_xlabel(r'Photo-z prior')
+      #
+      fig.savefig(self.figurePath+"/photozreq_cosmo_lcdmmnucurv.pdf")
+
+      # LCDM + w0,wa
+      fig=plt.figure(4)
+      ax=fig.add_subplot(111)
+      #
+      # fiducial prior
+      ax.axvline(0.002, color='gray')
+      #
+      for iPar in range(parLCDMW0Wa.nPar):
+         ax.plot(Photoz, sigmasW0Wa[iPar, :] / sigmasW0Wa[iPar, 0], label=parLCDMW0Wa.namesLatex[iPar])
+      #
+      ax.set_xscale('log', nonposx='clip')
+      ax.legend(loc=2)
+      ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect photo-z}$')
+      ax.set_xlabel(r'Photo-z prior')
+      #
+      fig.savefig(self.figurePath+"/photozreq_cosmo_lcdmw0wa.pdf")
+
+      # LCDM + w0,wa + curvature
+      fig=plt.figure(5)
+      ax=fig.add_subplot(111)
+      #
+      # fiducial prior
+      ax.axvline(0.002, color='gray')
+      #
+      for iPar in range(parLCDMW0WaCurv.nPar):
+         ax.plot(Photoz, sigmasW0WaCurv[iPar, :] / sigmasW0WaCurv[iPar, 0], label=parLCDMW0WaCurv.namesLatex[iPar])
+      #
+      ax.set_xscale('log', nonposx='clip')
+      ax.legend(loc=2)
+      ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect photo-z}$')
+      ax.set_xlabel(r'Photo-z prior')
+      #
+      fig.savefig(self.figurePath+"/photozreq_cosmo_lcdmw0wacurv.pdf")
+
+
+      ##################################################################################
+      # Comparing various param combinations
+
+      fig=plt.figure(10)
+      ax=fig.add_subplot(111)
+      #
+      # fiducial prior
+      ax.axvline(0.002, color='gray')
+      #
+      for iPar in range(parLCDMMnuW0Wa.nPar):
+         ax.plot(Photoz, sigmasFull[iPar, :] / sigmasMnuW0Wa[iPar, :], label=parFull.namesLatex[iPar])
+      #
+      ax.set_xscale('log', nonposx='clip')
+      ax.legend(loc=2)
+      ax.set_ylabel(r'$\sigma_\text{Param}^\text{Full} / \sigma_\text{Param}^\text{no curv.}$')
+      ax.set_xlabel(r'Photo-z prior')
+      #
+      fig.savefig(self.figurePath+"/photozreq_cosmo_full_over_lcdmmnuw0wa.pdf")
+
+      
+      ##################################################################################
+
+#      # photo-z parameters
+#      fig=plt.figure(10)
+#      ax=fig.add_subplot(111)
+#      #
+#      # fiducial prior
+#      ax.axvline(0.002, color='gray')
+#      #
+#      # photo-z shifts
+#      IPar = self.cosmoPar.nPar+self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar
+#      IPar += np.arange(self.nBins)
+#      # add legend entry
+#      color = 'r'
+#      ax.plot([], [], color=color, label=r'$\delta z$')
+#      for iPar in IPar:
+#         color = 'r'
+#         ax.plot(Photoz, sigmasFull[iPar, :], color=color)#, label=self.fullPar.namesLatex[iPar])
+#      #
+#      # photo-z scatter
+#      IPar = self.cosmoPar.nPar+self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar + self.nBins
+#      IPar += np.arange(self.nBins)
+#      # add legend entry
+#      color = 'b'
+#      ax.plot([], [], color=color, label=r'$\sigma_z / (1+z)$')
+#      for iPar in IPar:
+#         color = 'b'
+#         ax.plot(Photoz, sigmasFull[iPar, :], color=color)#, label=self.fullPar.namesLatex[iPar])
+#      #
+#      ax.set_xscale('log', nonposx='clip')
+#      ax.set_yscale('log', nonposx='clip')
+#      ax.legend(loc=2)
+#      ax.set_ylabel(r'$\sigma_\text{Param}$')
+#      ax.set_xlabel(r'Photo-z prior')
+#      #
+#      fig.savefig(self.figurePath+"/photozreq_photoz_full.pdf")
+
+      ##################################################################################
 
       plt.show()
 
+
+
+   ##################################################################################
+   ##################################################################################
 
 
    def shearBiasRequirements(self):
@@ -877,7 +1027,7 @@ class FisherLsst(object):
       M = np.logspace(np.log10(1.e-5), np.log10(1.), nM, 10.)
       
       # parameters to plot
-      sigmas = np.zeros((self.fullPar.nPar, nM))
+      sigmasFull = np.zeros((self.fullPar.nPar, nM))
       
       for iM in range(nM):
          m = M[iM]
@@ -890,11 +1040,16 @@ class FisherLsst(object):
          newPar.addParams(shearMultBiasPar)
          newPar.addParams(self.photoZPar)
          # get the new posterior Fisher matrix
-         newFisherPosterior = self.fisherData + newPar.priorFisher
+         newPar.priorFisher += self.fisherData
+         
+         # LCDM + Mnu + curvature + w0, wa
          # compute uncertainties with prior
-         invFisher = np.linalg.inv(newFisherPosterior)
+         invFisher = np.linalg.inv(newPar.priorFisher)
+         # get marginalized uncertainties
          std = np.sqrt(np.diag(invFisher))
-         sigmas[:, iM] = std
+         sigmasFull[:, iM] = std
+
+
 
       # cosmological parameters
       IPar = range(self.cosmoPar.nPar)
@@ -905,7 +1060,7 @@ class FisherLsst(object):
       ax.axvline(0.005, color='gray', alpha=0.5)
       #
       for iPar in IPar:
-         ax.plot(M, sigmas[iPar, :] / sigmas[iPar, 0], label=self.fullPar.namesLatex[iPar])
+         ax.plot(M, sigmasFull[iPar, :] / sigmasFull[iPar, 0], label=self.fullPar.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
       ax.legend(loc=2)
@@ -923,7 +1078,7 @@ class FisherLsst(object):
       IPar += np.arange(self.nBins)
       for iPar in IPar:
          color = plt.cm.autumn((iPar-IPar[0])/(len(IPar)-1.))
-         ax.plot(M, sigmas[iPar, :], color=color, label=self.fullPar.namesLatex[iPar])
+         ax.plot(M, sigmasFull[iPar, :], color=color, label=self.fullPar.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
       ax.set_yscale('log', nonposy='clip')

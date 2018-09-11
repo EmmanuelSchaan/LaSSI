@@ -129,7 +129,7 @@ class P2d(object):
       else:
          result *= self.Weight1.f(a) * self.Weight2.f(a)
       result /= chi_transverse**2
-      result *= fP(l/chi_transverse, z)
+      result *= fP((l + 0.5) / chi_transverse, z)
       return result
 
    
@@ -170,7 +170,7 @@ class P2d(object):
 #      result /= Chi**2
 #      #
 #      p = np.vectorize(self.Pn.fPinterp)
-#      result *= p(l/Chi, Z)
+#      result *= p((l + 0.5)/Chi, Z)
 #      # integrate with trapezium method
 #      result = np.trapz(result, A)
 #      return result
@@ -194,7 +194,7 @@ class P2d(object):
 #         result /= chi(a)**2
 ##         print p(l/chi, z)
 ##         print result
-#         result *= p(l/chi(a), z)
+#         result *= p((l + 0.5)/chi(a), z)
 #         return result
 #      # compute integral
 #      result = integrate.quad(integrand, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
@@ -243,7 +243,7 @@ class P2d(object):
       else:
          result *= self.Weight1.f(a)**2 * self.Weight2.f(a)**2
       result /= chi_transverse**6
-      result *= fP(l/chi_transverse, z)
+      result *= fP((l + 0.5)/chi_transverse, z)
       return result
 
    def fT_1h(self, l):
