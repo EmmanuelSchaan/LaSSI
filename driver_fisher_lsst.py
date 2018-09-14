@@ -38,15 +38,21 @@ photoZPar = PhotoZParams(nBins=nBins)
 #pat.printParams()
 
 #u = Universe(cosmoPar.paramsClassy)
+#u.plotDistances()
 
 ##################################################################################
 # Fisher calculation
 
-fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, name=name, magBias=False, save=False)
+fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, name=name, magBias=False, save=True)
+
+
+
+#fisherLsst.hackCurvature()
 
 
 #fisherLsst.plotDndz()
 #fisherLsst.plotPowerSpectra()
+#fisherLsst.plotUncertaintyPowerSpectra()
 #fisherLsst.plotCovMat()
 #fisherLsst.plotDerivativeDataVector()
 
@@ -66,7 +72,7 @@ fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nB
 # Photo-z requirements
 
 
-fisherLsst.photoZRequirements()
+#fisherLsst.photoZRequirements()
 #fisherLsst.shearBiasRequirements()
 
 

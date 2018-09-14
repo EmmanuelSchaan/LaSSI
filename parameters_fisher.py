@@ -381,19 +381,19 @@ class CosmoParams(Parameters):
          self.namesLatex = np.concatenate((self.namesLatex, np.array([r'$\Omega_\text{k}$'])))
          self.fiducial = np.concatenate((self.fiducial, np.array([0.])))
 
-         self.high = np.concatenate((self.high, np.array([0.+0.01])))
-         self.low = np.concatenate((self.low, np.array([0.-0.01])))
+         self.high = np.concatenate((self.high, np.array([0.+0.02])))
+         self.low = np.concatenate((self.low, np.array([0.-0.02])))
          self.paramsClassy.update({
                                  # Curvature
                                  'Omega_k': 0.,
                                  })
          self.paramsClassyHigh.update({
                                  # Curvature
-                                 'Omega_k': 0.+0.01,
+                                 'Omega_k': 0.+0.02,
                                  })
          self.paramsClassyLow.update({
                                  # Curvature
-                                 'Omega_k': 0.-0.01,
+                                 'Omega_k': 0.-0.02,
                                  })
 
       # load Planck priors if requested

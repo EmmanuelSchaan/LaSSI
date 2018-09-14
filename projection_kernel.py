@@ -295,7 +295,7 @@ class WeightLensOguriTakada11(Projection):
 
    def fForInterp(self, a):
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
-      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-3)[0]
       return result
 
 
@@ -313,7 +313,7 @@ class WeightLensHandEtAl13(Projection):
       b = 7.810
       c = 0.517
       fdpdz_nonorm = lambda z: A*(z**a + z**(a*b))/(z**b + c)
-      norm = integrate.quad(fdpdz_nonorm, 0., np.inf, epsabs=0, epsrel=1.e-2)[0]
+      norm = integrate.quad(fdpdz_nonorm, 0., np.inf, epsabs=0, epsrel=1.e-3)[0]
       self.fdpdz = lambda z: fdpdz_nonorm(z) / norm
       
       # a for mass func, biases, and projection
@@ -343,7 +343,7 @@ class WeightLensHandEtAl13(Projection):
 
    def fForInterp(self, a):
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
-      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-3)[0]
       return result
 
    def testHandEtAl13_fig1(self):
@@ -431,7 +431,7 @@ class WeightLensDasEtAl13(Projection):
 
    def fForInterp(self, a):
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
-      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-3)[0]
       return result
 
    def plot(self):
@@ -496,7 +496,7 @@ class WeightLensCustom(Projection):
 #         d_a = self.U.bg.comoving_distance(1./a-1.)
 #         result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
 #         integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1.))
-#         result *= integrate.quad(integrand, self.aMinG, a, epsabs=0, epsrel=1.e-2)[0]
+#         result *= integrate.quad(integrand, self.aMinG, a, epsabs=0, epsrel=1.e-3)[0]
 #         result *= (1.+self.m(1./a-1.))  # shear multiplicative bias
 #         return result
 
@@ -524,7 +524,7 @@ class WeightLensCustom(Projection):
          return 0.
       else:
          integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
-         result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+         result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-3)[0]
          return result
 
    def plot(self):
@@ -598,7 +598,7 @@ class WeightLensCIBSchmidt15(Projection):
 
    def fForInterp(self, a):
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
-      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-3)[0]
       return result
    
 
@@ -677,7 +677,7 @@ class WeightLensCIBPullen17(Projection):
 
    def fForInterp(self, a):
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
-      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-3)[0]
       return result
 
    def plot(self):
@@ -1140,7 +1140,7 @@ class WeightCIBPenin12(Projection):
       """
       integrand = lambda a: (3.e5/self.U.hubble(1./a-1.)) / a**2 *\
                            self.U.bg.comoving_distance(1./a-1., 1.)**2 * self.jNu2(a)
-      result = integrate.quad(integrand, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, self.aMax, epsabs=0, epsrel=1.e-3)[0]
       return result
 
    def fTshotNoise(self, l):
@@ -1148,7 +1148,7 @@ class WeightCIBPenin12(Projection):
       """
       integrand = lambda a: (3.e5/self.U.hubble(1./a-1.)) / a**2 *\
                            self.U.bg.comoving_distance(1./a-1., 1.)**2 * self.jNu4(a)
-      result = integrate.quad(integrand, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, self.aMax, epsabs=0, epsrel=1.e-3)[0]
       return result
    
    def plotFig1Penin14(self):

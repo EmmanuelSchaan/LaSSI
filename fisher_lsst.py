@@ -169,7 +169,7 @@ class FisherLsst(object):
          # true dn/dz_true from dn/dz_phot
          p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
          f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
-         dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-2)[0]
+         dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-3)[0]
          # interpolate it for speed (for lensing kernel calculation)
          Z = np.linspace(zMin, zMax, 101)
          F = np.array(map(dndz_tForInterp, Z))
@@ -427,6 +427,11 @@ class FisherLsst(object):
 #         # derivative
 #         derivative[iPar,:] = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
          derivative[iPar,:] = (dataVectorHigh-self.dataVector) / (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
+         
+#         print "all zero?"
+#         print np.mean(dataVectorHigh-self.dataVector) / np.std(self.dataVector)
+#         print self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar]
+
          # check that all went well
          if not all(np.isfinite(derivative[iPar,:])):
             print "########"
@@ -524,8 +529,10 @@ class FisherLsst(object):
       #
       ax.set_xlabel(r'$z$')
       ax.set_ylabel(r'$dN / d\Omega\; dz$ [arcmin$^{-2}$]')
-      
-      plt.show()
+      #
+      fig.savefig(self.figurePath+"/dndz.pdf")
+      fig.clf()
+
    
    
    def plotCovMat(self):
@@ -542,17 +549,17 @@ class FisherLsst(object):
       #
       ax.plot(np.arange(self.nData+1)-0.5, np.arange(self.nData+1)-0.5, 'k', lw=1)
       #
+      # 2-pt function delimiters
+      for i in range(1, self.nGG+self.nGS+self.nSS):
+         ax.axhline(self.nL*i-0.5, xmin=(self.nL*i-0.5)/self.nData, c='gray', lw=0.25, ls='-')
+         ax.axvline(self.nL*i-0.5, ymin=1.-(self.nL*i-0.5)/self.nData, c='gray', lw=0.25, ls='-')
+      #
       # block delimiters
       ax.axhline(self.nL*self.nGG-0.5, xmin=(self.nL*self.nGG-0.5)/self.nData, c='k', lw=1.5)
       ax.axhline(self.nL*(self.nGG+self.nGS)-0.5, xmin=(self.nL*(self.nGG+self.nGS)-0.5)/self.nData, c='k', lw=1.5)
       #
       ax.axvline(self.nL*self.nGG-0.5, ymin=1.-(self.nL*self.nGG-0.5)/self.nData, c='k', lw=1.5)
       ax.axvline(self.nL*(self.nGG+self.nGS)-0.5, ymin=1.-(self.nL*(self.nGG+self.nGS)-0.5)/self.nData, c='k', lw=1.5)
-      #
-      # 2-pt function delimiters
-      for i in range(1, self.nGG+self.nGS+self.nSS):
-         ax.axhline(self.nL*i-0.5, xmin=(self.nL*i-0.5)/self.nData, c='gray', lw=0.5, ls='--')
-         ax.axvline(self.nL*i-0.5, ymin=1.-(self.nL*i-0.5)/self.nData, c='gray', lw=0.5, ls='--')
       #
       plt.colorbar()
       ax.set_xlim((-0.5, (self.nData-1)+0.5))
@@ -564,41 +571,54 @@ class FisherLsst(object):
       #ax.grid(True)
       #ax.set_title(r'Full cor: '+infile)
       #
-      #fig.savefig(pathFig+"cor_small.pdf", bbox_inches='tight', format='pdf', dpi=1000)
-      #fig.clf()
+      fig.savefig(self.figurePath+"/cor_mat.pdf", bbox_inches='tight', format='pdf', dpi=2400)
+      fig.clf()
 
-      plt.show()
+
+
+
+#   def hackCurvature(self):
+#      """Extremely dangerous! Don't, you're crazy!
+#      """
+#      # vary only the curvature
+#      iPar = 9 # cosmo par Omega0_k
+#      print "Dangerous hack, you're crazy!"
+#      print "wow wow"
+#      print "Derivative wrt "+self.cosmoPar.names[iPar]
+#
+#      print "param diff=", (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
+#
+#
+#      tStart = time()
+#      # high
+#      name = self.name+self.cosmoPar.names[iPar]+"high"
+#      cosmoParClassy = self.cosmoPar.paramsClassy.copy()
+#      print cosmoParClassy
+#      print "#"
+#      cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyHigh[self.cosmoPar.names[iPar]]
+#      print cosmoParClassy
+#      u = Universe(cosmoParClassy)
+#      w_g, w_s, zBounds = self.generateBins(u, self.nuisancePar.fiducial)
+#      p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
+#      dataVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
+#
+#      # scary: modify the main data vector
+##      self.dataVector -= dataVectorHigh
+#
+#      print "param diff=", (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
+#
+#      self.dataVector = (dataVectorHigh-self.dataVector) / (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
+#      self.dataVector *= self.cosmoPar.fiducial[iPar] / self.dataVector
+#      self.dataVector = np.abs(self.dataVector)
+#      self.plotPowerSpectra()
+#
+##      self.dataVector += dataVectorHigh
+
+
+
 
 
    def plotPowerSpectra(self):
-
-      '''
-      # gg: all on same plot
-      fig=plt.figure(0)
-      ax=fig.add_subplot(111)
-      #
-      Colors = plt.cm.jet(1.*np.arange(self.nBins)/(5.))
-      i1 = 0
-      for iBin1 in range(self.nBins):
-         # add entry to caption
-         color = Colors[iBin1]
-         ax.plot([], [], c=color, label=r'$\langle g_{i} g_{i+'+str(iBin1)+r'}\rangle$')
-         for iBin2 in range(iBin1, self.nBins):
-            d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
-            std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-            #
-            color = Colors[iBin2-iBin1]
-            ax.errorbar(self.L*(1.+0.01*i1/self.nGG), d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
-            # move to next row
-            i1 += 1
-      #
-      ax.legend(loc=1, labelspacing=0.05, handlelength=0.4, borderaxespad=0.01)
-      ax.set_xscale('log')
-      ax.set_yscale('log', nonposy='clip')
-      ax.set_xlabel(r'$\ell$')
-      ax.set_ylabel(r'$C_\ell^{gg}$')
-      '''
-      
       
       # gg: panels
       Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
@@ -623,7 +643,7 @@ class FisherLsst(object):
       ax0.set_yscale('log', nonposy='clip')
       plt.setp(ax0.get_xticklabels(), visible=False)
       #
-      ax0.set_title(r'Clustering: $C_\ell^{gg}$')
+      ax0.set_title(r'Clustering')
       ax0.set_ylabel(r'$\langle g_i g_i\rangle$', fontsize=18)
 
       # cross i,i+1
@@ -661,6 +681,9 @@ class FisherLsst(object):
       #
       ax2.set_ylabel(r'$\langle g_i g_{i+2}\rangle$', fontsize=18)
       ax2.set_xlabel(r'$\ell$')
+      #
+      fig.savefig(self.figurePath+"/p2d_gg.pdf")
+      fig.clf()
       
 
       
@@ -685,6 +708,9 @@ class FisherLsst(object):
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$C_\ell^{g\gamma}$')
       ax.set_title(r'Galaxy - galaxy lensing')
+      #
+      fig.savefig(self.figurePath+"/p2d_gs.pdf")
+      fig.clf()
       
       
       # ss: all on same plot
@@ -713,80 +739,243 @@ class FisherLsst(object):
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$C_\ell^{\gamma\gamma}$')
       ax.set_title(r'Shear tomography')
+      #
+      fig.savefig(self.figurePath+"/p2d_ss.pdf")
+      fig.clf()
       
+
+
+
+   def plotUncertaintyPowerSpectra(self):
+
+      # gg: panels
+      Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
+      #
+      fig=plt.figure(0)
+      gs = gridspec.GridSpec(3, 1)#, height_ratios=[1, 1, 1])
+      gs.update(hspace=0.)
       
-      plt.show()
+      # auto
+      ax0=plt.subplot(gs[0])
+      i1 = 0
+      for iBin1 in range(self.nBins):
+         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+         #
+         color = Colors[iBin1]
+         ax0.plot(self.L, std / d, '.-', lw=2, color=color)
+         # advance counter in data vector
+         i1 += self.nBins - iBin1
+      #
+      ax0.set_xscale('log')
+      ax0.set_yscale('log', nonposy='clip')
+      plt.setp(ax0.get_xticklabels(), visible=False)
+      #
+      ax0.set_title(r'Clustering: $\sigma\left( C_\ell^{gg} \right) / C_\ell^{gg}$')
+      ax0.set_ylabel(r'$g_i g_i$', fontsize=18)
+
+      # cross i,i+1
+      ax1=plt.subplot(gs[1])
+      i1 = 1
+      for iBin1 in range(self.nBins-1):
+         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+         #
+         color = Colors[iBin1]
+         ax1.plot(self.L, std / d, '-', lw=2, color=color)
+         # advance counter in data vector
+         i1 += self.nBins - iBin1
+      #
+      ax1.set_xscale('log')
+      ax1.set_yscale('log', nonposy='clip')
+      plt.setp(ax1.get_xticklabels(), visible=False)
+      #
+      ax1.set_ylabel(r'$g_i g_{i+1}$', fontsize=18)
+
+      # cross i,i+2
+      ax2=plt.subplot(gs[2])
+      i1 = 2
+      for iBin1 in range(self.nBins-2):
+         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+         #
+         color = Colors[iBin1]
+         ax2.plot(self.L, std / d, '.-', lw=2, color=color)
+         # advance counter in data vector
+         i1 += self.nBins - iBin1
+      #
+      ax2.set_xscale('log')
+      ax2.set_yscale('log', nonposy='clip')
+      #
+      ax2.set_ylabel(r'$g_i g_{i+2}$', fontsize=18)
+      ax2.set_xlabel(r'$\ell$')
+      #
+      fig.savefig(self.figurePath+"/sp2d_gg.pdf")
+      fig.clf()
       
+
+
+      # gs
+      Colors = plt.cm.winter(1.*np.arange(self.nBins)/(self.nBins-1.))
+      fig=plt.figure(1)
+      ax=fig.add_subplot(111)
+      #
+      i1 = self.nGG
+      for iBin1 in range(self.nBins):
+         color = Colors[iBin1]
+         for iBin2 in range(self.nBins):
+            d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+            std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+            ax.plot(self.L*(1.+0.01*i1/self.nGS), std / d, '.-', lw=1, color=color)
+            # move to next row
+            i1 += 1
+      #
+      ax.legend(loc=1)
+      ax.set_xscale('log')
+      ax.set_yscale('log', nonposy='clip')
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$\sigma\left( C_\ell^{g\gamma} \right) / C_\ell^{g\gamma}$')
+      ax.set_title(r'Galaxy-galaxy lensing')
+      #
+      fig.savefig(self.figurePath+"/sp2d_gs.pdf")
+      fig.clf()
+
+
+      # ss: all on same plot
+      Colors = plt.cm.jet(1.*np.arange(self.nBins)/(self.nBins-1.))
+      fig=plt.figure(2)
+      ax=fig.add_subplot(111)
+      #
+      i1 = self.nGG + self.nGS
+      for iBin1 in range(self.nBins):
+         # add entry to caption
+         color = Colors[iBin1]
+         ax.plot([], [], c=color, label=r'$\langle\gamma_{i} \gamma_{i+'+str(iBin1)+r'} \rangle $')
+         for iBin2 in range(iBin1, self.nBins):
+            d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+            #
+            color = Colors[iBin2-iBin1]
+            #
+            std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+            ax.plot(self.L*(1.+0.01*i1/self.nSS), std / d, '.-', lw=1, color=color)
+            # move to next row
+            i1 += 1
+      #
+      ax.legend(loc=1, labelspacing=0.05, handlelength=0.4, borderaxespad=0.01)
+      ax.set_xscale('log')
+      ax.set_yscale('log', nonposy='clip')
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$\sigma\left( C_\ell^{\gamma\gamma} \right) / C_\ell^{\gamma\gamma}$')
+      ax.set_title(r'Shear tomography')
+      #
+      fig.savefig(self.figurePath+"/sp2d_ss.pdf")
+      fig.clf()
+
+
+
+
+
 
    def plotDerivativeDataVector(self):
       # one color per cosmo param
-      Colors = plt.cm.jet(1.*np.arange(self.cosmoPar.nPar)/self.cosmoPar.nPar)
+#      Colors = plt.cm.jet(1.*np.arange(self.cosmoPar.nPar)/self.cosmoPar.nPar)
+
+#      purple, darkmagenta, darkviolet
+#      orange
+#      lime, mediumspringgreen
+#      darkolivegreen, darkgreen
+#      r
+#      royalblue, cornflowerblue
+#      navy, midnightblue
+#      gold, yellow
+#      silver, gray, darkgray
+#      saddlebrown, sienna, brown
+
+      Colors = ['purple', 'orange', 'lime', 'darkolivegreen', 'r', 'royalblue', 'navy', 'gold', 'silver', 'saddlebrown']
       
       # gg
       fig=plt.figure(0)
       ax=fig.add_subplot(111)
       #
       # for each cosmo parameter
-      for iPar in range(self.cosmoPar.nPar):
+      for iPar in range(self.cosmoPar.nPar)[::-1]:
+#      for iPar in [6]:  # Mnu
+#      for iPar in [9]:  # curvature
          # plot all the 2pt functions
          for i2pt in range(self.nGG):
-            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] * self.cosmoPar.fiducial[iPar] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            if self.cosmoPar.fiducial[iPar] <> 0.:
+               dlnDdlnP *= self.cosmoPar.fiducial[iPar]
             color = Colors[iPar]
-            color = darkerLighter(color, amount=-0.8*i2pt/self.nGG)
+            color = darkerLighter(color, amount=-0.5*i2pt/self.nGG)
             ax.plot(self.L, dlnDdlnP, c=color, lw=3)
          ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
       #
       ax.grid()
-      ax.legend(loc=4, ncol=4, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
       ax.set_xscale('log', nonposx='clip')
-      ax.set_ylim((-3., 4.))
+      ax.set_ylim((-4., 4.))
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$d\ln C_\ell^{gg} / d\ln \text{Param.}$')
-
+      #
+      fig.savefig(self.figurePath+"/dp2d_gg.pdf")
+      fig.clf()
 
       # gs
       fig=plt.figure(1)
       ax=fig.add_subplot(111)
       #
       # for each cosmo parameter
-      for iPar in range(self.cosmoPar.nPar):
+      for iPar in range(self.cosmoPar.nPar)[::-1]:
+#      for iPar in range(self.cosmoPar.nPar):
+#      for iPar in [9]:  # curvature
          # plot all the 2pt functions
          for i2pt in range(self.nGG, self.nGG+self.nGS):
-            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] * self.cosmoPar.fiducial[iPar] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            if self.cosmoPar.fiducial[iPar] <> 0.:
+               dlnDdlnP *= self.cosmoPar.fiducial[iPar]
             color = Colors[iPar]
-            color = darkerLighter(color, amount=-0.8*(i2pt-self.nGG)/self.nGS)
+            color = darkerLighter(color, amount=-0.5*(i2pt-self.nGG)/self.nGS)
             ax.plot(self.L, dlnDdlnP, c=color, lw=3)
          ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
       #
       ax.grid()
-      ax.legend(loc=4, ncol=4, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
       ax.set_xscale('log', nonposx='clip')
-      ax.set_ylim((-3., 4.))
+      ax.set_ylim((-4., 4.))
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$d\ln C_\ell^{gs} / d\ln \text{Param.}$')
+      #
+      fig.savefig(self.figurePath+"/dp2d_gs.pdf")
+      fig.clf()
 
       # ss
       fig=plt.figure(2)
       ax=fig.add_subplot(111)
       #
       # for each cosmo parameter
-      for iPar in range(self.cosmoPar.nPar):
+      for iPar in range(self.cosmoPar.nPar)[::-1]:
+#      for iPar in range(self.cosmoPar.nPar):
+#      for iPar in [9]:  # curvature
          # plot all the 2pt functions
          for i2pt in range(self.nGG+self.nGS, self.nGG+self.nGS+self.nSS):
-            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] * self.cosmoPar.fiducial[iPar] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            if self.cosmoPar.fiducial[iPar] <> 0.:
+               dlnDdlnP *= self.cosmoPar.fiducial[iPar]
             color = Colors[iPar]
-            color = darkerLighter(color, amount=-0.8*(i2pt-(self.nGG+self.nGS))/self.nSS)
+            color = darkerLighter(color, amount=-0.5*(i2pt-(self.nGG+self.nGS))/self.nSS)
             ax.plot(self.L, dlnDdlnP, c=color, lw=3)
          ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
       #
       ax.grid()
-      ax.legend(loc=4, ncol=4, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
       ax.set_xscale('log', nonposx='clip')
-      ax.set_ylim((-3., 4.))
+      ax.set_ylim((-4., 4.))
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$d\ln C_\ell^{ss} / d\ln \text{Param.}$')
-
-      plt.show()
+      #
+      fig.savefig(self.figurePath+"/dp2d_ss.pdf")
+      fig.clf()
 
 
 
@@ -867,6 +1056,7 @@ class FisherLsst(object):
       ax.set_xlabel(r'Photo-z prior')
       #
       fig.savefig(self.figurePath+"/photozreq_cosmo_full.pdf")
+      fig.clf()
 
       # LCDM + Mnu
       fig=plt.figure(1)
@@ -884,6 +1074,7 @@ class FisherLsst(object):
       ax.set_xlabel(r'Photo-z prior')
       #
       fig.savefig(self.figurePath+"/photozreq_cosmo_lcdmmnu.pdf")
+      fig.clf()
 
       # LCDM + Mnu + w0,wa
       fig=plt.figure(2)
@@ -901,6 +1092,7 @@ class FisherLsst(object):
       ax.set_xlabel(r'Photo-z prior')
       #
       fig.savefig(self.figurePath+"/photozreq_cosmo_lcdmmnuw0wa.pdf")
+      fig.clf()
 
       # LCDM + Mnu + curv
       fig=plt.figure(3)
@@ -918,6 +1110,7 @@ class FisherLsst(object):
       ax.set_xlabel(r'Photo-z prior')
       #
       fig.savefig(self.figurePath+"/photozreq_cosmo_lcdmmnucurv.pdf")
+      fig.clf()
 
       # LCDM + w0,wa
       fig=plt.figure(4)
@@ -935,6 +1128,7 @@ class FisherLsst(object):
       ax.set_xlabel(r'Photo-z prior')
       #
       fig.savefig(self.figurePath+"/photozreq_cosmo_lcdmw0wa.pdf")
+      fig.clf()
 
       # LCDM + w0,wa + curvature
       fig=plt.figure(5)
@@ -952,6 +1146,7 @@ class FisherLsst(object):
       ax.set_xlabel(r'Photo-z prior')
       #
       fig.savefig(self.figurePath+"/photozreq_cosmo_lcdmw0wacurv.pdf")
+      fig.clf()
 
 
       ##################################################################################
@@ -972,6 +1167,7 @@ class FisherLsst(object):
       ax.set_xlabel(r'Photo-z prior')
       #
       fig.savefig(self.figurePath+"/photozreq_cosmo_full_over_lcdmmnuw0wa.pdf")
+      fig.clf()
 
       
       ##################################################################################
@@ -1011,9 +1207,7 @@ class FisherLsst(object):
 #      #
 #      fig.savefig(self.figurePath+"/photozreq_photoz_full.pdf")
 
-      ##################################################################################
 
-      plt.show()
 
 
 

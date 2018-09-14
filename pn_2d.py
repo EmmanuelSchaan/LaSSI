@@ -135,19 +135,19 @@ class P2d(object):
    
    def fP_1h(self, l):
       f = lambda a: self.integrandP(a, self.Pn.fP1hinterp, l)
-      result = integrate.quad(f, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(f, self.aMin, self.aMax, epsabs=0, epsrel=1.e-3)[0]
       #print "done ell=",l
       return result
 
    def fP_2h(self, l):
       f = lambda a: self.integrandP(a, self.Pn.fP2hinterp, l)
-      result = integrate.quad(f, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(f, self.aMin, self.aMax, epsabs=0, epsrel=1.e-3)[0]
       #print "done ell=",l
       return result
 
    def fP(self, l):
       f = lambda a: self.integrandP(a, self.Pn.fPinterp, l)
-      result = integrate.quad(f, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(f, self.aMin, self.aMax, epsabs=0, epsrel=1.e-3)[0]
       #print "done ell=",l
       return result
 
@@ -197,7 +197,7 @@ class P2d(object):
 #         result *= p((l + 0.5)/chi(a), z)
 #         return result
 #      # compute integral
-#      result = integrate.quad(integrand, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
+#      result = integrate.quad(integrand, self.aMin, self.aMax, epsabs=0, epsrel=1.e-3)[0]
 #      #print "done ell=",l
 #      return result
 
