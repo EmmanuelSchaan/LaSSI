@@ -525,6 +525,7 @@ class WeightLensCustom(Projection):
       else:
          integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
          result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-3)[0]
+         result *= (1.+self.m(1./a-1.))  # shear multiplicative bias
          return result
 
    def plot(self):

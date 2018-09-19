@@ -68,11 +68,13 @@ class FisherLsst(object):
          self.name += "_fullcross"
       if name is not None:
          self.name += "_"+name
+      print "Ouput file name:", self.name
       
       # create folder for figures
       self.figurePath = "./figures/"+self.name
       if not os.path.exists(self.figurePath):
          os.makedirs(self.figurePath)
+      print "Figures folder:", self.figurePath
 
 
       ##################################################################################
@@ -166,10 +168,10 @@ class FisherLsst(object):
 #!!!! I am using a loose mean redshift
          dz = photoZPar[iBin]
          sz = photoZPar[self.nBins+iBin] * (1.+0.5*(zMinP+zMaxP))
-         # true z bounds: truncate at 3 sigma
+         # true z bounds: truncate at 5 sigma
          # careful for the first and last bin
-         zMin = max(zMinP - 3.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
-         zMax = min(zMaxP + 3.*sz, 1./w_glsst.aMin-1.)   # 1./w_glsst.aMin-1.
+         zMin = max(zMinP - 5.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
+         zMax = min(zMaxP + 5.*sz, 1./w_glsst.aMin-1.)   # 1./w_glsst.aMin-1.
          
          # true dn/dz_true from dn/dz_phot
          p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
@@ -883,10 +885,12 @@ class FisherLsst(object):
 
 
 
-   def plotDerivativeDataVector(self):
-      # one color per cosmo param
+   def plotDerivativeDataVectorCosmo(self):
+      """Derivative of the data vector wrt cosmo parameters.
+      """
+#      # one color per cosmo param
 #      Colors = plt.cm.jet(1.*np.arange(self.cosmoPar.nPar)/self.cosmoPar.nPar)
-
+#      #
 #      purple, darkmagenta, darkviolet
 #      orange
 #      lime, mediumspringgreen
@@ -925,7 +929,7 @@ class FisherLsst(object):
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$d\ln C_\ell^{gg} / d\ln \text{Param.}$')
       #
-      fig.savefig(self.figurePath+"/dp2d_gg.pdf")
+      fig.savefig(self.figurePath+"/dp2d_gg_cosmo.pdf")
       fig.clf()
 
       # gs
@@ -953,7 +957,7 @@ class FisherLsst(object):
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$d\ln C_\ell^{gs} / d\ln \text{Param.}$')
       #
-      fig.savefig(self.figurePath+"/dp2d_gs.pdf")
+      fig.savefig(self.figurePath+"/dp2d_gs_cosmo.pdf")
       fig.clf()
 
       # ss
@@ -981,8 +985,47 @@ class FisherLsst(object):
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$d\ln C_\ell^{ss} / d\ln \text{Param.}$')
       #
-      fig.savefig(self.figurePath+"/dp2d_ss.pdf")
+      fig.savefig(self.figurePath+"/dp2d_ss_cosmo.pdf")
       fig.clf()
+
+
+
+   def plotSingleDerivative(self, ab, i2pt, iPar):
+      """Derivative of the desired 2pt function wrt the desired parameter.
+      """
+      print "2-pt function:", ab, i2pt
+      print "Parameter:", self.fullPar.names[iPar]
+      
+      if ab=='gg':
+         i2pt += 0
+      elif ab=='gs':
+         i2pt += self.nGG
+      elif ab=='ss':
+         i2pt += self.nGG+self.nGS
+      else:
+         return
+      
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+      if self.fullPar.fiducial[iPar] <> 0.:
+         dlnDdlnP *= self.fullPar.fiducial[iPar]
+#      color = Colors[iPar]
+      ax.plot(self.L, dlnDdlnP, 'b', lw=3)
+      ax.plot([],[], 'b', label=self.fullPar.namesLatex[iPar])
+      #
+      ax.grid()
+      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.set_xscale('log', nonposx='clip')
+#      ax.set_ylim((-4., 4.))
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$d\ln C_\ell / d\ln \text{Param.}$')
+#      ax.set_title()
+      #
+#      fig.savefig(self.figurePath+"/dp2d_gg_cosmo.pdf")
+#      fig.clf()
+      plt.show()
 
 
 
