@@ -17,6 +17,12 @@ curvature = True #False
 # priors to include
 PlanckPrior = True
 
+# include null crosses
+fullCross = True #False # True
+
+# include a known magnification bias
+magBias = False
+
 # forecast name
 #name = "lcdm"
 name = "lcdm_mnu_curv_w0wa"
@@ -43,11 +49,7 @@ photoZPar = PhotoZParams(nBins=nBins)
 ##################################################################################
 # Fisher calculation
 
-fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, name=name, magBias=False, save=True)
-
-
-
-#fisherLsst.hackCurvature()
+fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, fullCross=fullCross, name=name, save=False)
 
 
 #fisherLsst.plotDndz()
@@ -65,7 +67,7 @@ fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nB
 #fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar+photoZPar.nPar))
 
 
-#fisherLsst.posteriorPar.plotParamStd(IPar=range(cosmoPar.nPar))
+
 
 
 ##################################################################################

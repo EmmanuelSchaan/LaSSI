@@ -23,7 +23,7 @@ from covp_2d import *
 
 class FisherLsst(object):
    
-   def __init__(self, cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=2, nL=20, fsky=1., magBias=False, fullCross=True, name=None, save=True):
+   def __init__(self, cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=2, nL=20, fsky=1., name=None, magBias=False, save=True):
       self.save = save
       
       # sky fraction
@@ -57,15 +57,10 @@ class FisherLsst(object):
       # include known magnification bias or not
       self.magBias = magBias
       
-      # include null crosses
-      self.fullCross = fullCross
-      
       # output file names
       self.name = "lsst_gg_gs_ss_nBins"+str(self.nBins)+"_nL"+str(self.nL)
       if self.magBias:
          self.name += "_magbias"
-      if fullCross:
-         self.name += "_fullcross"
       if name is not None:
          self.name += "_"+name
       
@@ -260,14 +255,12 @@ class FisherLsst(object):
       # gg
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            if (iBin2==iBin1) or self.fullCross:
-               dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gg[iBin1, iBin2].fPinterp, self.L))
+            dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gg[iBin1, iBin2].fPinterp, self.L))
             iData += 1
       # gs
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
-            if (iBin2>=iBin1) or self.fullCross:
-               dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gs[iBin1, iBin2].fPinterp, self.L))
+            dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gs[iBin1, iBin2].fPinterp, self.L))
             iData += 1
       # ss
       for iBin1 in range(self.nBins):
