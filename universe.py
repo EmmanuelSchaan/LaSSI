@@ -132,7 +132,7 @@ class Universe(object):
       from Henry 2000, from Nakamura & Suto 1997
       usual 3.*(12.*pi)**(2./3.) / 20. = 1.686 if OmM=1.
       """
-      x = ( 1./self.OmM - 1. )**(1./3.)
+      x = ( 1./self.bg.Omega0_m - 1. )**(1./3.)
       x /= 1.+z
       dc = 3.*(12.*np.pi)**(2./3.) / 20.
       dc *= 1. - 0.0123* np.log( 1. + x**3 )
@@ -147,8 +147,8 @@ class Universe(object):
       gives 337 at z=0 for OmM= 0.3
       Omega = rhocrit(z)/rho_matter(z)
       """
-      Omega = self.OmM*(1.+z)**3
-      Omega /= self.OmM*(1.+z)**3 + (1. - self.OmM)
+      Omega = self.bg.Omega0_m*(1.+z)**3
+      Omega /= self.bg.Omega0_m*(1.+z)**3 + (1. - self.bg.Omega0_m)
       x = Omega - 1.
       Dvir = 18*np.pi**2 + 82.*x - 39.*x**2
       # convert between rho_m(z) and rho_crit(z)
@@ -161,7 +161,7 @@ class Universe(object):
       from Henry 2000, from Nakamura & Suto 1997
       usual 18*pi**2 if OmM=1.
       """
-      x = ( 1./self.OmM - 1. )**(1./3.)
+      x = ( 1./self.bg.Omega0_m - 1. )**(1./3.)
       x /= 1.+z
       Dvir = 18*np.pi**2 * ( 1. + 0.4093* x**2.71572 )
       return Dvir
@@ -174,7 +174,7 @@ class Universe(object):
       usual 18*pi**2 if OmM=1.
       Omega = rhocrit(z)/rho_matter(z).
       """
-      f = self.OmM * (1.+z)**3 / ( self.OmM * (1.+z)**3 + (1. - self.OmM) )
+      f = self.bg.Omega0_m * (1.+z)**3 / ( self.bg.Omega0_m * (1.+z)**3 + (1. - self.bg.Omega0_m) )
       return 18.*np.pi**2 + 82.*(f-1.) - 39.*(f-1.)**2
 
 
@@ -182,7 +182,7 @@ class Universe(object):
       """Comoving virial and scale radii (Mpc/h)
       input mass is mvir (Msun/h)
       """
-      Rvir = ( 3.*m / (4*np.pi*self.rhocrit_z(z)*self.Deltacrit_z(z)) )**(1./3.)  # in h^-1 Mpc
+      Rvir = ( 3.*m / (4*np.pi*self.rho_crit(z)*self.Deltacrit_z(z)) )**(1./3.)  # in h^-1 Mpc
       return Rvir
    
    
@@ -312,15 +312,26 @@ class Universe(object):
       plt.ylabel(r"$t(z)$ [Gyr]")
       plt.show()
 
-   def plotLinearGrowth(self, zMax=10.):
+   def plotLinearGrowthFactor(self, zMax=10.):
       z = np.linspace(0., zMax, 512)
-      plt.plot(1. + z, self.bg.scale_independent_growth_factor(z), '-', label=r'$D(a)$')
+      plt.plot(1. + z, self.bg.scale_independent_growth_factor(z), '-', label=r'$D(z)$')
       plt.plot(1. + z, 1./(1.+z), '--', label=r'$a(z)$')
       plt.legend(loc=1)
       plt.xscale('log')
       plt.yscale('log')
       plt.xlabel(r"$1+z$")
-      plt.ylabel(r"Linear growth rate")
+      plt.ylabel(r"Linear growth factor $D$")
+      plt.show()
+
+   def plotLinearGrowthRate(self, zMax=10.):
+      z = np.linspace(0., zMax, 512)
+      plt.plot(1. + z, self.bg.scale_independent_growth_rate(z), '-', label=r'$f(z)$')
+      plt.plot(1. + z, self.bg.Omega_m(z)**(5./9.), '--', label=r'$\Omega_m(z)^{5/9}$')
+      plt.legend(loc=4)
+      plt.xscale('log')
+      plt.yscale('log')
+      plt.xlabel(r"$1+z$")
+      plt.ylabel(r"Linear growth rate $f$")
       plt.show()
 
    def plotThermo(self):
@@ -561,19 +572,39 @@ class Universe(object):
    ##################################################################################
    # Velocity fluctuations
 
-   def RMSVelocity(self, R, z, W3d):
-      """Computes |v|_RMS in km/s.
+   
+   def v3dRms(self, R, z, W3d):
+      """RMS of the 3d velocity: |v^{3d}|_{RMS} in km/s.
       Input R in Mpc/h comoving.
-      Assumes linear (Zel'dovich) relation between velocity and density,
-      and uses the linear matter power spectrum.
+      Assumes linear (Zel'dovich) relation between velocity and density:
+      v = a H(a) f(a) delta(k) / k
+      Uses the linear matter power spectrum.
       """
       def integrand(lnk):
          k = np.exp(lnk)
          result = k**3 / (2* np.pi**2) # d^3k/(2pi)^3 = dlnk*k^3/(2 pi^2) [(h/Mpc)^3]
          result *= np.abs(W3d(k*R))**2 # window function [dimless]
          result *= self.sp.get_pklin(k, z)  / k**2 # velocity power spectrum [(Mpc/h)^5]
-         result *= self.bg.Omega_m(z)**(2.*5./9.) # f**2, with f = Omega_m(z)**5/9
+         result *= self.bg.scale_independent_growth_rate(z)**2 # f**2
          result *= (self.hubble(z) / (1.+z))**2 # (a*H(a))**2 [(km/s/(Mpc/h))^2]
+         return result
+      result = integrate.quad(integrand, np.log(self.kMin), np.log(self.kMax), epsabs=0., epsrel=1.e-3)[0]
+      result = np.sqrt(result)
+      return result
+
+
+   def disp3dRms(self, R, z, W3d):
+      """RMS of the 3d Lagrangian displacement: |\psi^{3d}|_{RMS} in Mpc/h.
+      Input R in Mpc/h comoving.
+      Assumes linear (Zel'dovich) relation between displacement and density:
+      psi = delta(k) / k
+      Uses the linear matter power spectrum.
+      """
+      def integrand(lnk):
+         k = np.exp(lnk)
+         result = k**3 / (2* np.pi**2) # d^3k/(2pi)^3 = dlnk*k^3/(2 pi^2) [(h/Mpc)^3]
+         result *= np.abs(W3d(k*R))**2 # window function [dimless]
+         result *= self.sp.get_pklin(k, z)  / k**2 # velocity power spectrum [(Mpc/h)^5]
          return result
       result = integrate.quad(integrand, np.log(self.kMin), np.log(self.kMax), epsabs=0., epsrel=1.e-3)[0]
       result = np.sqrt(result)
@@ -587,14 +618,11 @@ class Universe(object):
 #      F = (self.K**3) * ( np.array(map(W3d, self.K * R))**2 ) / (2* np.pi**2)  # dimensionless
 #      F *= self.Plin_z(z) / self.K**2
 #      F *= 2.* (1. - CorrCoeff)
-#      F *= ( self.OmM*(1.+z)**3 / (self.Hubble(1./(1.+z))/self.Hubble(1.))**2 )**(2.*5./9.)   # f**2, where f = Omega_m(z)**5/9
+#      F *= ( self.bg.Omega0_m*(1.+z)**3 / (self.Hubble(1./(1.+z))/self.Hubble(1.))**2 )**(2.*5./9.)   # f**2, where f = Omega_m(z)**5/9
 #      F *= ( self.Hubble(1./(1.+z))/(1.+z) )**2
 #      dlnK = ( (self.K[1:]-self.K[:-1]) / self.K[:-1] )   # dimensionless
 #      Itrap = np.sum( dlnK * ( F[:-1] + F[1:] ) ) * 0.5
 #      return np.sqrt(Itrap)
-#
-#   def growthLogDerivativeF(self, z):
-#      return ( self.OmM*(1.+z)**3 / (self.OmM*(1.+z)**3+(1. - self.OmM)) )**(5./9.)
 #
 #   def convertVelToDisp(self, z):
 #      """multiply a velocity at redshift z by this factor to get the displacement at that redshift
@@ -602,13 +630,7 @@ class Universe(object):
 #      """
 #      factor = self.Hubble(z)/(1.+z)*self.growthLogDerivativeF(z)
 #      return 1./factor
-#
-#   def RMSDisplacement(self, R, z, W3d):
-#      """R in h^-1 Mpc, comoving scale, output is the rms displacement in (Mpc/h)
-#      """
-#      result = self.RMSVelocity(R, z, W3d)
-#      result *= self.convertVelToDisp(z)
-#      return result
+
 #
 ##   # variance of vRadial_RMS^2, the average vRadial^2 on a spherical volume
 ##   # with radius R in comoving Mpc/h
@@ -623,7 +645,7 @@ class Universe(object):
 ##         result = self.fPlin_z(k, z) / k**2
 ##         result *= self.fPlin_z(k*np.sqrt(1 - 2.*x*mu + x**2), z) / (k*np.sqrt(1 - 2.*x*mu + x**2))**2
 ##
-##         factor = ( self.OmM*(1.+z)**3 / (self.Hubble(1./(1.+z))/self.Hubble(1.))**2 )**(2.*5./9.)   # f**2, where f = Omega_m(z)**5/9
+##         factor = ( self.bg.Omega0_m*(1.+z)**3 / (self.Hubble(1./(1.+z))/self.Hubble(1.))**2 )**(2.*5./9.)   # f**2, where f = Omega_m(z)**5/9
 ##         factor *= ( self.Hubble(1./(1.+z))/(1.+z) )**2 # (a*H)**2
 ##
 ##         result *= factor**2
@@ -655,7 +677,7 @@ class Universe(object):
 #         result = self.fPlin_z(k, z) / k**2
 #         result *= self.fPlin_z(np.sqrt(k**2 - 2.*k*K*mu + K**2), z) / (k**2 - 2.*k*K*mu + K**2)
 #
-#         factor = ( self.OmM*(1.+z)**3 / (self.Hubble(1./(1.+z))/self.Hubble(1.))**2 )**(2.*5./9.)   # f**2, where f = Omega_m(z)**5/9
+#         factor = ( self.bg.Omega0_m*(1.+z)**3 / (self.Hubble(1./(1.+z))/self.Hubble(1.))**2 )**(2.*5./9.)   # f**2, where f = Omega_m(z)**5/9
 #         factor *= ( self.Hubble(1./(1.+z))/(1.+z) )**2 # (a*H)**2
 #
 #         result *= factor**2

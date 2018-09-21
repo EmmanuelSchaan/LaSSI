@@ -425,18 +425,18 @@ class FisherLsst(object):
          w_g, w_s, zBounds = self.generateBins(u, self.nuisancePar.fiducial)
          p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
          dataVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
-#         # low
-#         name = self.name+self.cosmoPar.names[iPar]+"low"
-#         cosmoParClassy = self.cosmoPar.paramsClassy.copy()
-#         cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyLow[self.cosmoPar.names[iPar]]
-#         u = Universe(cosmoParClassy)
-#         w_g, w_s, zBounds = self.generateBins(u, self.nuisancePar.fiducial)
-#         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
-#         dataVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
-#         # derivative
-#         derivative[iPar,:] = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
-         derivative[iPar,:] = (dataVectorHigh-self.dataVector) / (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
-         
+         # low
+         name = self.name+self.cosmoPar.names[iPar]+"low"
+         cosmoParClassy = self.cosmoPar.paramsClassy.copy()
+         cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyLow[self.cosmoPar.names[iPar]]
+         u = Universe(cosmoParClassy)
+         w_g, w_s, zBounds = self.generateBins(u, self.nuisancePar.fiducial)
+         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
+         dataVectorLow = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
+         # derivative
+         derivative[iPar,:] = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
+#         derivative[iPar,:] = (dataVectorHigh-self.dataVector) / (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
+
 #         print "all zero?"
 #         print np.mean(dataVectorHigh-self.dataVector) / np.std(self.dataVector)
 #         print self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar]
@@ -462,15 +462,15 @@ class FisherLsst(object):
          w_g, w_s, zBounds = self.generateBins(self.u, params)
          p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_g, w_s, name=name, save=True)
          dataVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
-#         # low
-#         name = self.name+self.nuisancePar.names[iPar]+"low"
-#         params[iPar] = self.nuisancePar.low[iPar]
-#         w_g, w_s, zBounds = self.generateBins(self.u, params)
-#         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_g, w_s, name=name, save=True)
-#         dataVectorLow = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
-#         # derivative
-#         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-dataVectorLow) / (self.nuisancePar.high[iPar]-self.nuisancePar.low[iPar])
-         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-self.dataVector) / (self.nuisancePar.high[iPar]-self.nuisancePar.fiducial[iPar])
+         # low
+         name = self.name+self.nuisancePar.names[iPar]+"low"
+         params[iPar] = self.nuisancePar.low[iPar]
+         w_g, w_s, zBounds = self.generateBins(self.u, params)
+         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_g, w_s, name=name, save=True)
+         dataVectorLow = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
+         # derivative
+         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-dataVectorLow) / (self.nuisancePar.high[iPar]-self.nuisancePar.low[iPar])
+#         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-self.dataVector) / (self.nuisancePar.high[iPar]-self.nuisancePar.fiducial[iPar])
          # check that all went well
          if not all(np.isfinite(derivative[self.cosmoPar.nPar+iPar,:])):
             print "########"
@@ -496,16 +496,17 @@ class FisherLsst(object):
       # Fisher from the data
       for i in range(self.fullPar.nPar):
          for j in range(self.fullPar.nPar):
-            result = np.dot(self.invCov, self.derivativeDataVector[j,:])
+#            result = np.dot(self.invCov, self.derivativeDataVector[j,:])
+            result = np.linalg.solve(self.covMat, self.derivativeDataVector[j,:])
             result = np.dot(self.derivativeDataVector[i,:].transpose(), result)
             self.fisherData[i,j] = result
       # Fisher from the prior
-      self.fisherPrior = self.fullPar.priorFisher.copy()
+      self.fisherPrior = self.fullPar.fisher.copy()
       # Fisher from data and prior
       self.fisherPosterior = self.fisherData + self.fisherPrior
       # create posterior parameter object
       self.posteriorPar = self.fullPar.copy()
-      self.posteriorPar.priorFisher = self.fisherPosterior.copy()
+      self.posteriorPar.fisher = self.fisherPosterior.copy()
    
 
    ##################################################################################
@@ -1061,7 +1062,7 @@ class FisherLsst(object):
          newPar.addParams(self.shearMultBiasPar)
          newPar.addParams(newPhotoZPar)
          # get the new posterior Fisher matrix, including the prior
-         newPar.priorFisher += self.fisherData
+         newPar.fisher += self.fisherData
          # extract cosmo only, marginalizing over nuisances
          newCosmoPar = newPar.extractParams(self.cosmoPar.IFull, marg=True)
          
@@ -1284,11 +1285,11 @@ class FisherLsst(object):
          newPar.addParams(shearMultBiasPar)
          newPar.addParams(self.photoZPar)
          # get the new posterior Fisher matrix
-         newPar.priorFisher += self.fisherData
+         newPar.fisher += self.fisherData
          
          # LCDM + Mnu + curvature + w0, wa
          # compute uncertainties with prior
-         invFisher = np.linalg.inv(newPar.priorFisher)
+         invFisher = np.linalg.inv(newPar.fisher)
          # get marginalized uncertainties
          std = np.sqrt(np.diag(invFisher))
          sigmasFull[:, iM] = std

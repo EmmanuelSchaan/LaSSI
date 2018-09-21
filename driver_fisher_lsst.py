@@ -18,14 +18,15 @@ curvature = True #False
 PlanckPrior = True
 
 # include null crosses
-fullCross = True #False # True
+fullCross = False #False # True
 
 # include a known magnification bias
 magBias = False
 
 # forecast name
 #name = "lcdm"
-name = "lcdm_mnu_curv_w0wa"
+#name = "lcdm_mnu_curv_w0wa"
+name = "lcdm_mnu_curv_w0wa_smallerphotozstep"
 
 ##################################################################################
 # Parameter classes
@@ -61,17 +62,29 @@ fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nB
 
 #fisherLsst.plotSingleDerivative("gg", 0, 0)
 #fisherLsst.plotSingleDerivative("ss", 0, 15)
-#fisherLsst.plotSingleDerivative("gg", 1, 20)
+#fisherLsst.plotSingleDerivative("gg", 0, 20)
 
-
-#fisherLsst.fullPar.printParams()
-#fisherLsst.posteriorPar.printParams()
+cosmoPar.printParams()
+fisherLsst.fullPar.printParams()
+fisherLsst.posteriorPar.printParams()
 
 #fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar))
 #fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar))
 #fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar))
 #fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar+photoZPar.nPar))
 
+
+
+
+# Check eigenvalues of Fisher matrix
+eigenValPar, eigenVecPar = np.linalg.eigh(fisherLsst.covMat)
+plt.semilogy(eigenValPar, '.')
+plt.show()
+
+eigenValPar, eigenVecPar = np.linalg.eigh(fisherLsst.fisherData)
+plt.semilogy(1./np.sqrt(eigenValPar), '.')
+#plt.semilogy(eigenValPar, '.')
+plt.show()
 
 
 

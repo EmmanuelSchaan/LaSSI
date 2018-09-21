@@ -12,7 +12,7 @@ class Parameters(object):
       self.fiducial: array of fiducial parameter values
       self.high: high values for the numerical derivative
       self.low: low values for the numerical derivative
-      self.priorFisher: nPar*nPar Fisher matrix of priors on parameters
+      self.fisher: nPar*nPar Fisher matrix of parameters
       '''
       pass
 
@@ -25,7 +25,7 @@ class Parameters(object):
       newPar.fiducial = self.fiducial
       newPar.high = self.high
       newPar.low = self.low
-      newPar.priorFisher = self.priorFisher
+      newPar.fisher = self.fisher
       return newPar
 
 
@@ -46,10 +46,10 @@ class Parameters(object):
       self.low = np.concatenate((self.low[:pos], newParams.low, self.low[pos:]))
       # combine the Fisher priors
       combined = np.zeros((self.nPar+newParams.nPar, self.nPar+newParams.nPar))
-      combined[:pos, :pos] = self.priorFisher[:pos, :pos]
-      combined[pos:pos+newParams.nPar, pos:pos+newParams.nPar] = newParams.priorFisher[:,:]
-      combined[pos+newParams.nPar:, pos+newParams.nPar:] = self.priorFisher[pos:, pos:]
-      self.priorFisher = combined
+      combined[:pos, :pos] = self.fisher[:pos, :pos]
+      combined[pos:pos+newParams.nPar, pos:pos+newParams.nPar] = newParams.fisher[:,:]
+      combined[pos+newParams.nPar:, pos+newParams.nPar:] = self.fisher[pos:, pos:]
+      self.fisher = combined
       # increase the number of parameters
       self.nPar += newParams.nPar
 
@@ -72,10 +72,10 @@ class Parameters(object):
       # extract Fisher matrix, by marginalizing/fixing the other parameters
       J = np.ix_(I,I)   # to extract the corresponding rows and columns
       if marg:
-         inv = np.linalg.inv(self.priorFisher)
-         newPar.priorFisher = np.linalg.inv(inv[J])
+         inv = np.linalg.inv(self.fisher)
+         newPar.fisher = np.linalg.inv(inv[J])
       else:
-         newPar.priorFisher = self.priorFisher[J]
+         newPar.fisher = self.fisher[J]
       return newPar
 
 
@@ -91,7 +91,7 @@ class Parameters(object):
       newPar.high = self.high[I]
       newPar.low = self.low[I]
       J = np.ix_(I,I)
-      newPar.priorFisher = self.priorFisher[J]
+      newPar.fisher = self.fisher[J]
       return newPar
 
 
@@ -99,7 +99,7 @@ class Parameters(object):
       '''D should be the nPar*nPar Jacobian matrix:
       D_{i,j} = \partial old[i] / \partial new[j]
       '''
-      newFisher = np.dot(self.priorFisher, D)
+      newFisher = np.dot(self.fisher, D)
       newFisher = np.dot(D.transpose(), newFisher)
       return newFisher
    
@@ -108,7 +108,7 @@ class Parameters(object):
       """Returns the marginalized 1-sigma uncertainties of the parameters.
       """
       if marg:
-         invFisher = np.linalg.inv(self.priorFisher)
+         invFisher = np.linalg.inv(self.fisher)
          std = np.sqrt(np.diag(invFisher))
       else:
          std = 1. / np.sqrt(np.diag(invFisher))
@@ -128,7 +128,7 @@ class Parameters(object):
       #
       # if a Fisher prior is available, plot it
       try:
-         invFisher = np.linalg.inv(self.priorFisher)
+         invFisher = np.linalg.inv(self.fisher)
          std = np.sqrt(np.diag(invFisher))
          ax.errorbar(range(len(IPar)), self.fiducial[IPar], yerr=std[IPar], fmt='o')
       # otherwise, just show the fiducial values
@@ -150,7 +150,7 @@ class Parameters(object):
 
       # if a Fisher prior is available, print the uncertainties
       try:
-         invFisher = np.linalg.inv(self.priorFisher)
+         invFisher = np.linalg.inv(self.fisher)
          std = np.sqrt(np.diag(invFisher))
          for iPar in IPar:
             print self.names[iPar]+" = "+str(self.fiducial[iPar])+" +/- "+str(std[iPar])
@@ -183,7 +183,7 @@ class ShearMultBiasParams(Parameters):
       self.high = np.array([0.05 for iBin in range(self.nPar)])
       self.low = np.array([-0.05 for iBin in range(self.nPar)])
       self.priorStd = np.array([mStd for iBin in range(self.nPar)])
-      self.priorFisher = np.diagflat(1./self.priorStd**2)
+      self.fisher = np.diagflat(1./self.priorStd**2)
 
 ##################################################################################
 
@@ -207,13 +207,22 @@ class PhotoZParams(Parameters):
       sz = np.array([szFid for iBin in range(nBins)])
       self.fiducial = np.concatenate((dz, sz))
 
+#      # high values
+#      dz = np.array([dzFid+0.05 for iBin in range(nBins)])
+#      sz = np.array([szFid+0.01 for iBin in range(nBins)])
+#      self.high = np.concatenate((dz, sz))
+#      # low values
+#      dz = np.array([dzFid-0.05 for iBin in range(nBins)])
+#      sz = np.array([szFid-0.01 for iBin in range(nBins)])
+#      self.low = np.concatenate((dz, sz))
+
       # high values
-      dz = np.array([dzFid+0.05 for iBin in range(nBins)])
-      sz = np.array([szFid+0.01 for iBin in range(nBins)])
+      dz = np.array([dzFid+0.002 for iBin in range(nBins)])
+      sz = np.array([szFid+0.003 for iBin in range(nBins)])
       self.high = np.concatenate((dz, sz))
       # low values
-      dz = np.array([dzFid-0.05 for iBin in range(nBins)])
-      sz = np.array([szFid-0.01 for iBin in range(nBins)])
+      dz = np.array([dzFid-0.002 for iBin in range(nBins)])
+      sz = np.array([szFid-0.003 for iBin in range(nBins)])
       self.low = np.concatenate((dz, sz))
 
       # std dev of parameter prior
@@ -221,7 +230,7 @@ class PhotoZParams(Parameters):
       sz = np.array([szStd for iBin in range(nBins)])
       self.priorStd = np.concatenate((dz, sz))
       # corresponding Fisher matrix of priors
-      self.priorFisher = np.diagflat(1./self.priorStd**2)
+      self.fisher = np.diagflat(1./self.priorStd**2)
 
 
 
@@ -241,7 +250,7 @@ class GalaxyBiasParams(Parameters):
       self.high = self.fiducial * 1.05
       self.low = self.fiducial * 0.95
 
-      self.priorFisher = np.zeros((self.nPar, self.nPar))
+      self.fisher = np.zeros((self.nPar, self.nPar))
 
 
 ##################################################################################
@@ -400,7 +409,7 @@ class CosmoParams(Parameters):
       if PlanckPrior:
          self.loadPlanckPrior()
       else:
-         self.priorFisher = np.zeros((self.nPar, self.nPar))
+         self.fisher = np.zeros((self.nPar, self.nPar))
       return
 
 
@@ -446,7 +455,7 @@ class CosmoParams(Parameters):
 #      H.low = np.array([0.])
 #      H.high = np.array([0.])
 ##!!! what to put for the Planck h uncertainty?
-#      H.priorFisher = np.array([[1.]])
+#      H.fisher = np.array([[1.]])
 #
 #      # insert it at the right spot
 #      newPar.addParams(H, pos=4)
@@ -469,14 +478,14 @@ class CosmoParams(Parameters):
 #      D[1,1] = 0.067**2 # dObh2/dOb = h^2
 #      D[2,2] = 1./(np.log(10.) * 2.3e-9)  # dlog10As/dAs = 1/(ln10 * A_S)
 #
-#      newPar.priorFisher = newPar.convertParamsFisher(D)
-#      self.priorFisher = newPar.priorFisher.copy()
+#      newPar.fisher = newPar.convertParamsFisher(D)
+#      self.fisher = newPar.fisher.copy()
 #      return
 
 
    def loadPlanckPrior(self):
       path = "./input/parameters/Fisher_Planck_TT_TE_EE_lowP.txt"
-      self.priorFisher = np.genfromtxt(path)
+      self.fisher = np.genfromtxt(path)
 
 
 
@@ -491,7 +500,7 @@ class PatPlanckParams(Parameters):
    def __init__(self):
       # read Planck fisher matrix from Pat
       path = "./input/parameters/fullP.tau0.066.r1.lT2_1400.lP8_2500_3_1_0.2_fish.txt"
-      self.priorFisher = np.genfromtxt(path)
+      self.fisher = np.genfromtxt(path)
       
       self.nPar = 14
       self.names = np.array(['omega_m_h2', 'omega_b_h2', 'theta_s', 'w_0', 'w_a', 'Omega_k', 'M_nu', 'N_nueff', 'log10A_S', 'n_S', 'alpha_S', 'beta_S', 'r', 'tau'])
