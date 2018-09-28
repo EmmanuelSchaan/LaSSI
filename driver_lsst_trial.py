@@ -35,6 +35,7 @@ zBounds = w_glsst.splitBins(nBins)
 
 # generate the corresponding tracer and shear bins
 print "Generate tracer and shear bins"
+tStart = time()
 w_g = {}
 w_s = {}
 for iBin in range(nBins):
@@ -42,8 +43,9 @@ for iBin in range(nBins):
    zMax = zBounds[iBin+1]
    w_g[iBin] = WeightTracerLSSTSources(u, zMin=zMin, zMax=zMax, ngal=w_glsst.ngal_per_arcmin2/nBins, name='g'+str(iBin))
    w_s[iBin] = WeightLensCustom(u, w_glsst.dndz, zMinG=zMin, zMaxG=zMax, name='s'+str(iBin))
-   print "- done "+str(iBin+1)+" of "+str(nBins)
 print "total ngal="+str(np.sum([w_g[i].ngal_per_arcmin2 for i in range(nBins)]))+"/arcmin2, should be "+str(w_glsst.ngal_per_arcmin2)
+tStop = time()
+print "took "+str(tStop-tStart)+" sec"
 
 # gg
 print "Compute p_gg"

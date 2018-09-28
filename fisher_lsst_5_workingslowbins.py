@@ -146,7 +146,7 @@ class FisherLsst(object):
    ##################################################################################
 
 
-   def generateBins(self, u, nuisancePar, save=True):
+   def generateBins(self, u, nuisancePar):
       # split the nuisance parameters
       galaxyBiasPar = nuisancePar[:self.galaxyBiasPar.nPar]
       shearMultBiasPar = nuisancePar[self.galaxyBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar]
@@ -173,8 +173,6 @@ class FisherLsst(object):
          zMin = max(zMinP - 5.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
          zMax = min(zMaxP + 5.*sz, 1./w_glsst.aMin-1.)   # 1./w_glsst.aMin-1.
          
-         
-#         tStart = time()
          # true dn/dz_true from dn/dz_phot
          p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
          f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
@@ -183,12 +181,8 @@ class FisherLsst(object):
          Z = np.linspace(zMin, zMax, 101)
          F = np.array(map(dndz_tForInterp, Z))
          dndz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
-#         tStop = time()
-#         print "-- dndz_t took", tStop-tStart, "sec"
 
-
-#!!!!!!!!! Bottleneck is clearly the shear bin, by a factor 100 compared to lens bin and getting dndz_t
-#         tStart = time()
+         
          # shear bin
          w_s[iBin] = WeightLensCustom(u,
                                       dndz_t, # dn/dz_true
@@ -196,11 +190,7 @@ class FisherLsst(object):
                                       zMinG=zMin,
                                       zMaxG=zMax,
                                       name='s'+str(iBin))
-#         tStop = time()
-#         print "-- shear bin took", tStop-tStart, "sec"
 
-
-#         tStart = time()
          # tracer bin
          w_g[iBin] = WeightTracerCustom(u,
                                         lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
@@ -208,9 +198,6 @@ class FisherLsst(object):
                                         zMin=zMin,
                                         zMax=zMax,
                                         name='g'+str(iBin))
-#         tStop = time()
-#         print "-- clustering bin took", tStop-tStart, "sec"
-
          
          # add magnification bias, if requested
          if self.magBias:

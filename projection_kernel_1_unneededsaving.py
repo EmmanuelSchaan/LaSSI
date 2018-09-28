@@ -3,18 +3,34 @@ from headers import *
 
 class Projection(object):
 
-   def __init__(self, U, name=''):
+   def __init__(self, U, name='', save=True):
       # copy U
       self.U = U
       self.name=name
       #self.aMin
       #self.aMax
 
-      # interpolate the projection kernel, for speed
-      nA = 101
-      A = np.linspace(self.aMin, self.aMax, nA)
-      F = np.array(map(self.fForInterp, A))
-      self.f = interp1d(A, F, kind='linear', bounds_error=False, fill_value=0.)
+#      # interpolate the projection kernel, for speed
+#      nA = 101
+#      A = np.linspace(self.aMin, self.aMax, nA)
+#      F = np.array(map(self.fForInterp, A))
+#      self.f = interp1d(A, F, kind='linear', bounds_error=False, fill_value=0.)
+
+   
+      if save:
+         # interpolate the projection kernel, for speed
+         nA = 101
+         A = np.linspace(self.aMin, self.aMax, nA)
+         F = np.array(map(self.fForInterp, A))
+         data = np.zeros((nA, 2))
+         data[:,0] = A
+         data[:,1] = F
+         np.savetxt("./projection/"+self.name+".txt")
+      data = np.genfromtxt("./projection/"+self.name+".txt")
+      self.f = interp1d(data[:,0], data[:,1], kind='linear', bounds_error=False, fill_value=0.)
+   
+   
+   
 
    def __str__(self):
       return self.name
@@ -37,7 +53,7 @@ class Projection(object):
       measured between aMin and aMax
       """
       integrand = lambda a: 3.e5/(self.U.hubble(1./a-1.) * a**2) * self.f(a)
-      result = integrate.quad(integrand, aMin, aMax, epsabs=0., epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, aMin, aMax, epsabs=0., epsrel=1.e-3)[0]
       return result
 
    ##################################################################################
@@ -295,7 +311,7 @@ class WeightLensOguriTakada11(Projection):
 
    def fForInterp(self, a):
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
-      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-3)[0]
       return result
 
 
@@ -313,7 +329,7 @@ class WeightLensHandEtAl13(Projection):
       b = 7.810
       c = 0.517
       fdpdz_nonorm = lambda z: A*(z**a + z**(a*b))/(z**b + c)
-      norm = integrate.quad(fdpdz_nonorm, 0., np.inf, epsabs=0, epsrel=1.e-2)[0]
+      norm = integrate.quad(fdpdz_nonorm, 0., np.inf, epsabs=0, epsrel=1.e-3)[0]
       self.fdpdz = lambda z: fdpdz_nonorm(z) / norm
       
       # a for mass func, biases, and projection
@@ -343,7 +359,7 @@ class WeightLensHandEtAl13(Projection):
 
    def fForInterp(self, a):
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
-      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-3)[0]
       return result
 
    def testHandEtAl13_fig1(self):
@@ -431,7 +447,7 @@ class WeightLensDasEtAl13(Projection):
 
    def fForInterp(self, a):
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
-      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-3)[0]
       return result
 
    def plot(self):
@@ -464,7 +480,7 @@ class WeightLensDasEtAl13(Projection):
 
 class WeightLensCustom(Projection):
    
-   def __init__(self, U, fdndz, m=lambda z: 0., zMinG=1.e-4, zMaxG=2., name='lens'):
+   def __init__(self, U, fdndz, m=lambda z: 0., zMinG=1.e-4, zMaxG=2., name='lens', save=True):
       '''Here zMinG and zMaxG are those of the galaxy sample,
       not those of the resulting lensing kernel.
       m is the shear multiplicative bias.
@@ -482,11 +498,11 @@ class WeightLensCustom(Projection):
       
       # fdndz doesn't need to be normalized to anything, for lensing purposes
       self.fdndz = lambda z: fdndz(z) * (z>=zMinG) * (z<=zMaxG)
-      self.ngal = integrate.quad(self.fdndz, zMinG, zMaxG, epsabs=0., epsrel=1.e-2)[0]
+      self.ngal = integrate.quad(self.fdndz, zMinG, zMaxG, epsabs=0., epsrel=1.e-3)[0]
       # dpdz normalized such that int dz dpdz = 1
       self.fdpdz = lambda z: self.fdndz(z) / self.ngal
    
-      super(WeightLensCustom, self).__init__(U, name=name)
+      super(WeightLensCustom, self).__init__(U, name=name, save=save)
 
    
 #   def fForInterp(self, a):
@@ -496,7 +512,7 @@ class WeightLensCustom(Projection):
 #         d_a = self.U.bg.comoving_distance(1./a-1.)
 #         result = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m * d_a / a
 #         integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * (1. - d_a/self.U.bg.comoving_distance(1./a_s-1.))
-#         result *= integrate.quad(integrand, self.aMinG, a, epsabs=0, epsrel=1.e-2)[0]
+#         result *= integrate.quad(integrand, self.aMinG, a, epsabs=0, epsrel=1.e-3)[0]
 #         result *= (1.+self.m(1./a-1.))  # shear multiplicative bias
 #         return result
 
@@ -524,9 +540,10 @@ class WeightLensCustom(Projection):
          return 0.
       else:
          integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
-         result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+         result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-3)[0]
          result *= (1.+self.m(1./a-1.))  # shear multiplicative bias
          return result
+
 
    def plot(self):
       Na = 101
@@ -599,7 +616,7 @@ class WeightLensCIBSchmidt15(Projection):
 
    def fForInterp(self, a):
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
-      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-3)[0]
       return result
    
 
@@ -678,7 +695,7 @@ class WeightLensCIBPullen17(Projection):
 
    def fForInterp(self, a):
       integrand = lambda a_s: self.fdpdz(1./a_s-1.) /a_s**2 * self.fSingleSource(a, a_s)
-      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, a, epsabs=0, epsrel=1.e-3)[0]
       return result
 
    def plot(self):
@@ -742,7 +759,7 @@ class WeightTracer(Projection):
    
    def __init__(self, U, name='d'):
       # normalization of dn/dz, ie number of galaxies per unit steradian
-      self.ngal = integrate.quad(self.dndz, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-2)[0]
+      self.ngal = integrate.quad(self.dndz, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-3)[0]
       # convert to number of galaxies per square arcmin
       self.ngal_per_arcmin2 = self.ngal * (np.pi/180./60.)**2
 
@@ -794,7 +811,7 @@ class WeightTracer(Projection):
       
       def cumulZDist(zMax):
          f = lambda z: self.dndz(z) / self.ngal
-         result = integrate.quad(f, 1./self.aMax-1., zMax, epsabs=0., epsrel=1.e-2)[0]
+         result = integrate.quad(f, 1./self.aMax-1., zMax, epsabs=0., epsrel=1.e-3)[0]
          return result
       
       # fill an array with the z-bounds of the bins
@@ -811,10 +828,10 @@ class WeightTracer(Projection):
       '''Computes the dn/dz weighted galaxy bias.
       '''
       f = lambda z: self.dndz(z) / self.ngal * self.b(z)
-      result = integrate.quad(f, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-2)[0]
+      result = integrate.quad(f, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-3)[0]
       # the normalization should be 1, but just in case:
       f = lambda z: self.dndz(z) / self.ngal
-      result /= integrate.quad(f, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-2)[0]
+      result /= integrate.quad(f, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-3)[0]
       return result
 
 
@@ -955,7 +972,7 @@ class WeightTracerLSSTSources(WeightTracer):
       self.beta = 1.02
       f = lambda z: z**self.alpha * np.exp(-(z/self.z0)**self.beta)
       # normalization
-      norm = integrate.quad(f, self.zMin, self.zMax, epsabs=0., epsrel=1.e-2)[0]
+      norm = integrate.quad(f, self.zMin, self.zMax, epsabs=0., epsrel=1.e-3)[0]
       # dn/dz, normalized such that int dz dn/dz = ngal
       # where ngal = number of gals per unit steradian
       self.dndz = lambda z: self.ngal * f(z) / norm
@@ -1141,7 +1158,7 @@ class WeightCIBPenin12(Projection):
       """
       integrand = lambda a: (3.e5/self.U.hubble(1./a-1.)) / a**2 *\
                            self.U.bg.comoving_distance(1./a-1., 1.)**2 * self.jNu2(a)
-      result = integrate.quad(integrand, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, self.aMax, epsabs=0, epsrel=1.e-3)[0]
       return result
 
    def fTshotNoise(self, l):
@@ -1149,7 +1166,7 @@ class WeightCIBPenin12(Projection):
       """
       integrand = lambda a: (3.e5/self.U.hubble(1./a-1.)) / a**2 *\
                            self.U.bg.comoving_distance(1./a-1., 1.)**2 * self.jNu4(a)
-      result = integrate.quad(integrand, self.aMin, self.aMax, epsabs=0, epsrel=1.e-2)[0]
+      result = integrate.quad(integrand, self.aMin, self.aMax, epsabs=0, epsrel=1.e-3)[0]
       return result
    
    def plotFig1Penin14(self):

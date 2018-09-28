@@ -55,16 +55,16 @@ class P2d(object):
          self.LoadT()
       
       
-#   def SaveP(self):
-##      print "precomputing p2d "+self.name
-#      data = np.zeros((len(self.L), 5))
-#      data[:,0] = self.L.copy()
-##      pool = Pool(ncpus=self.nProc)
-##      data[:,1] = np.array(map(self.fP_1h, self.L))
-##      data[:,2] = np.array(map(self.fP_2h, self.L))
-#      data[:,3] = np.array(map(self.fP, self.L))
-#      data[:,4] = np.array(map(self.fPnoise, self.L))
-#      np.savetxt("./output/pn_2d/p2d_"+self.name+".txt", data)
+   def SaveP(self):
+#      print "precomputing p2d "+self.name
+      data = np.zeros((len(self.L), 5))
+      data[:,0] = self.L.copy()
+#      pool = Pool(ncpus=self.nProc)
+#      data[:,1] = np.array(map(self.fP_1h, self.L))
+#      data[:,2] = np.array(map(self.fP_2h, self.L))
+      data[:,3] = np.array(map(self.fP, self.L))
+      data[:,4] = np.array(map(self.fPnoise, self.L))
+      np.savetxt("./output/pn_2d/p2d_"+self.name+".txt", data)
 
    def LoadP(self):
       data = np.genfromtxt("./output/pn_2d/p2d_"+self.name+".txt")
@@ -200,53 +200,6 @@ class P2d(object):
 #      result = integrate.quad(integrand, self.aMin, self.aMax, epsabs=0, epsrel=1.e-3)[0]
 #      #print "done ell=",l
 #      return result
-
-
-   def SaveP(self):
-      '''Way faster implementation (factor 10)! But maybe less accurate...
-      The bottleneck was looking up the projection kernel function from the projection class.
-      The function itself is super fast, because interpolated, but the lookup is slow.
-      By evaluating it on an array, do the lookup only once. Gain factor ~10 in speed.
-      '''
-#      print "precomputing p2d "+self.name
-      data = np.zeros((len(self.L), 5))
-      data[:,0] = self.L.copy()
-
-      # Save the power spectrum
-      # evaluate array of integrand
-      A = np.linspace(self.aMin, self.aMax, 101)
-      Z = 1./A-1.
-      Chi = self.U.bg.comoving_distance(1./A-1.)
-      #
-      result = 3.e5/( self.U.hubble(1./A-1.) * A**2 )
-      if self.Weight2 is None:
-         result *= self.Weight1.f(A)**2
-      else:
-         result *= self.Weight1.f(A) * self.Weight2.f(A)
-      result /= Chi**2
-      #
-      p = np.vectorize(self.Pn.fPinterp)
-      #
-      def fP(l):
-         return np.trapz(result * p((l + 0.5)/Chi, Z), A)
-      #
-      data[:,3] = np.array(map(fP, self.L))
-
-      # Noise power spectrum
-      data[:,4] = np.array(map(self.fPnoise, self.L))
-      np.savetxt("./output/pn_2d/p2d_"+self.name+".txt", data)
-
-
-
-
-
-
-
-
-
-
-
-
 
 
    ##################################################################################
