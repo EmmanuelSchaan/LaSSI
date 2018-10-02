@@ -98,3 +98,65 @@ def floatExpForm(input):
       return mantissa + 'e' + exponent
 
 
+##################################################################################
+# Matrix inversion for ill-conditioned matrices, with SVD
+
+def invertMatrixSvdTruncated(matrix, epsilon=1.e-5, keepLow=True):
+   '''Invert a matrix by inverting its SVD,
+   and setting to zero the singular values that are too small/large.
+   epsilon sets the tolerance for discarding singular values.
+   keepLow=True: for inverting a cov matrix, want to keep the modes with lowest variance.
+   keepLow=False: for inverting a Fisher maytrix, want to keep the modes with highest Fisher information.
+   '''
+   # Perform SVD on matrix
+   U, s, Vh = scipy.linalg.svd(matrix)
+   # invert the singular values
+   sInv = 1./s
+   # remove the super poorly constrained modes, that lead to numerical instabilities
+   if keepLow:
+      sInvMax = np.max(sInv)
+      sInv[sInv<=sInvMax*epsilon] = 0.
+   else:
+      sInvMin = np.min(sInv)
+      sInv[sInv>=sInvMin/epsilon] = 0.
+   # create diagonal matrix
+   sInv = np.diag(sInv)
+   # invert the hermitian matrices
+   V = np.conj(Vh.transpose())
+   Uh = np.conj(U.transpose())
+   # generate the inverse
+   result = np.dot(V, np.dot(sInv, Uh))
+   return result
+
+
+##################################################################################
+# Generating ell bins with constant number of modes
+
+
+def generateEllBins(lMin, lMax, nL, fsky=1.):
+   '''Generates nL bins between lMin and lMax,
+   such that the number of 2d modes in each bin is identical.
+   Returns the bin centers, the bin edges, the bin widths, and the number of modes per bin.
+   '''
+   # area in ell space between lMin and l,
+   # normalized to 1 when l=lMax
+   farea = lambda l: (l**2 - lMin**2) / (lMax**2 - lMin**2)
+
+   # find the bin edges,
+   # such that each bin has equal number of modes
+   Le = np.zeros(nL+1)
+   for iL in range(nL+1):
+      f = lambda l: farea(l) - float(iL) / nL
+      Le[iL] = optimize.brentq(f , lMin, lMax)
+   
+   # use the average ell in the bin, weighted by number of modes, as bin center
+   Lc =  2./3. * (Le[1:]**3 - Le[:-1]**3) / (Le[1:]**2 - Le[:-1]**2)
+   # bin spacing
+   dL = Le[1:] - Le[:-1]
+   # Number of modes
+   lF = 2.*np.pi / np.sqrt(4. * np.pi * fsky)
+   nModesTotal = np.pi * (lMax**2 - lMin**2) / lF**2
+   Nmodes = nModesTotal / nL * np.ones(nL)
+   return Lc, dL, Nmodes, Le
+
+

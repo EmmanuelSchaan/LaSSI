@@ -19,7 +19,6 @@ class Projection(object):
    def __str__(self):
       return self.name
    
-
    
    # projection kernel, such that, e.g.:
    # kappa = int dchi f(a) delta
@@ -490,6 +489,8 @@ class WeightLensCustom(Projection):
 
    
 #   def fForInterp(self, a):
+#      """Only valid in the absence of curvature.
+#      """
 #      if a<self.aMinG:
 #         return 0.
 #      else:
@@ -502,7 +503,8 @@ class WeightLensCustom(Projection):
 
    def fSingleSource(self, a, aSource):
       """lensing projection kernel
-      for single source
+      for single source,
+      valid even with curvature.
       a is dimless, Wlensing(a) in (h Mpc^-1)
       """
       # Expression valid for curved cosmology
@@ -520,6 +522,8 @@ class WeightLensCustom(Projection):
 
 
    def fForInterp(self, a):
+      """Valid even with curvature.
+      """
       if a<self.aMinG:
          return 0.
       else:

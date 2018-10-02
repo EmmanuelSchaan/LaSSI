@@ -23,8 +23,9 @@ from covp_2d import *
 
 class FisherLsst(object):
    
-   def __init__(self, cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=2, nL=20, fsky=1., magBias=False, fullCross=True, name=None, save=True):
+   def __init__(self, cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=2, nL=20, fsky=1., magBias=False, fullCross=True, name=None, nProc=3, save=True):
       self.save = save
+      self.nProc = nProc
       
       # sky fraction
       self.fsky = fsky
@@ -44,11 +45,13 @@ class FisherLsst(object):
       self.nL = nL
       self.lMin = 20.
       self.lMax = 1.e3
-      self.Le = np.logspace(np.log10(self.lMin), np.log10(self.lMax), self.nL+1, 10.)
-      self.dL = self.Le[1:] - self.Le[:-1]
-      # use the average ell in the bin as bin center
-      f = lambda i: 2./3. * (self.Le[i+1]**3 - self.Le[i]**3) / (self.Le[i+1]**2 - self.Le[i]**2)
-      self.L = np.array(map(f, range(self.nL)))
+#      self.Le = np.logspace(np.log10(self.lMin), np.log10(self.lMax), self.nL+1, 10.)
+#      self.dL = self.Le[1:] - self.Le[:-1]
+#      # use the average ell in the bin, weighted by number of modes, as bin center
+#      f = lambda i: 2./3. * (self.Le[i+1]**3 - self.Le[i]**3) / (self.Le[i+1]**2 - self.Le[i]**2)
+#      self.L = np.array(map(f, range(self.nL)))
+      self.L, self.dL, self.Nmodes, self.Le = generateEllBins(self.lMin, self.lMax, self.nL, self.fsky)
+      
       
       # size of data vector
       self.nData = (self.nGG + self.nGS + self.nSS) * self.nL
@@ -59,6 +62,13 @@ class FisherLsst(object):
       
       # include null crosses
       self.fullCross = fullCross
+      
+      # Improving the conditioning of the cov matrix
+      # Relative unit for shear
+      self.sUnit = 20.
+      # ell scaling so that ell^alpha * C_ell is relatively independent of ell
+      self.alpha = 1.
+
       
       # output file names
       self.name = "lsst_gg_gs_ss_nBins"+str(self.nBins)+"_nL"+str(self.nL)
@@ -75,6 +85,8 @@ class FisherLsst(object):
       if not os.path.exists(self.figurePath):
          os.makedirs(self.figurePath)
       print "Figures folder:", self.figurePath
+
+
 
 
       ##################################################################################
@@ -129,6 +141,7 @@ class FisherLsst(object):
       tStart = time()
       self.covMat = self.generateCov(self.p2d_gg, self.p2d_gs, self.p2d_ss)
       self.invCov = np.linalg.inv(self.covMat)
+#      self.invCov = invertMatrixSvdTruncated(self.covMat, epsilon=1.e-8, keepLow=True)
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
       
@@ -138,13 +151,16 @@ class FisherLsst(object):
       self.loadDerivativeDataVector()
       
       print "Fisher matrix"
+      tStart = time()
       self.loadFisher()
-      
+      tStop = time()
+      print "("+str(np.round(tStop-tStart,1))+" sec)"
+
       tStopFisher = time()
       print "Full calculation took "+str(np.round((tStopFisher-tStartFisher)/60.,1))+" min"
 
+   
    ##################################################################################
-
 
    def generateBins(self, u, nuisancePar, save=True):
       # split the nuisance parameters
@@ -270,6 +286,10 @@ class FisherLsst(object):
    ##################################################################################
 
    def generateDataVector(self, p2d_gg, p2d_gs, p2d_ss):
+      '''The data vector is made of the various power spectra,
+      with a choice of units that makes the covariance matrix for gg and ss more similar,
+      and with an ell^alpha factor that makes the covariance matrix more ell-independent.
+      '''
       dataVector = np.zeros(self.nData)
       iData = 0
       # gg
@@ -277,17 +297,20 @@ class FisherLsst(object):
          for iBin2 in range(iBin1, self.nBins):
             if (iBin2==iBin1) or self.fullCross:
                dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gg[iBin1, iBin2].fPinterp, self.L))
+               dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
             iData += 1
       # gs
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
             if (iBin2>=iBin1) or self.fullCross:
                dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gs[iBin1, iBin2].fPinterp, self.L))
+               dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
             iData += 1
       # ss
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ss[iBin1, iBin2].fPinterp, self.L))
+            dataVector[iData*self.nL:(iData+1)*self.nL] = 20.**2 * self.L * np.array(map(p2d_ss[iBin1, iBin2].fPinterp, self.L))
+            dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit**2 * self.L**self.alpha
             iData += 1
       return dataVector
 
@@ -310,8 +333,8 @@ class FisherLsst(object):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gg[iBin2,jBin2], p2d_gg[iBin1,jBin2], p2d_gg[iBin2,jBin1], fsky=self.fsky, L=self.L, dL=self.dL)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = covBlock.covMat
+                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gg[iBin2,jBin2], p2d_gg[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
                   # move to next column
                   i2 += 1
             # move to next row
@@ -328,8 +351,8 @@ class FisherLsst(object):
                for jBin2 in range(self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gg[iBin2,jBin1], fsky=self.fsky, L=self.L, dL=self.dL)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = covBlock.covMat
+                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit *self.L**(2*self.alpha) *  covBlock.covMat
                   # move to next column
                   i2 += 1
             # move to next row
@@ -346,8 +369,8 @@ class FisherLsst(object):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[iBin2,jBin1], fsky=self.fsky, L=self.L, dL=self.dL)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = covBlock.covMat
+                     covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
                   # move to next column
                   i2 += 1
             # move to next row
@@ -365,8 +388,8 @@ class FisherLsst(object):
                   # compute only upper diagonal
                   if i2>=i1:
                      # watch the order for gs
-                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[jBin1,iBin2], fsky=self.fsky, L=self.L, dL=self.dL)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = covBlock.covMat
+                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[jBin1,iBin2], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
                   # move to next column
                   i2 += 1
             # move to next row
@@ -383,8 +406,8 @@ class FisherLsst(object):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_ss[iBin2,jBin1], fsky=self.fsky, L=self.L, dL=self.dL)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = covBlock.covMat
+                     covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_ss[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock.covMat
                   # move to next column
                   i2 += 1
             # move to next row
@@ -401,8 +424,8 @@ class FisherLsst(object):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = CovP2d(p2d_ss[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_ss[iBin1,jBin2], p2d_ss[iBin2,jBin1], fsky=self.fsky, L=self.L, dL=self.dL)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = covBlock.covMat
+                     covBlock = CovP2d(p2d_ss[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_ss[iBin1,jBin2], p2d_ss[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**4 * self.L**(2*self.alpha) * covBlock.covMat
                   # move to next column
                   i2 += 1
             # move to next row
@@ -509,8 +532,7 @@ class FisherLsst(object):
       # Fisher from the data
       for i in range(self.fullPar.nPar):
          for j in range(self.fullPar.nPar):
-#            result = np.dot(self.invCov, self.derivativeDataVector[j,:])
-            result = np.linalg.solve(self.covMat, self.derivativeDataVector[j,:])
+            result = np.dot(self.invCov, self.derivativeDataVector[j,:])
             result = np.dot(self.derivativeDataVector[i,:].transpose(), result)
             self.fisherData[i,j] = result
       # Fisher from the prior
@@ -524,6 +546,24 @@ class FisherLsst(object):
 
    ##################################################################################
    ##################################################################################
+   
+   def checkConditionNumbers(self):
+      print "Cov matrix"
+      print "inverse condition number:", 1./np.linalg.cond(self.covMat)
+      print "number numerical precision:", np.finfo(self.covMat.dtype).eps
+      if 1./np.linalg.cond(self.covMat) > np.finfo(self.covMat.dtype).eps:
+         print "--> OK"
+      else:
+         print "--> Not OK"
+      #
+      print "Fisher matrix"
+      print "inverse condition number:", 1./np.linalg.cond(self.fisherPosterior)
+      print "number numerical precision:", np.finfo(self.fisherPosterior.dtype).eps
+      if 1./np.linalg.cond(self.fisherPosterior) > np.finfo(self.fisherPosterior.dtype).eps:
+         print "--> OK"
+      else:
+         print "--> Not OK"
+
    
    def plotDndz(self):
       fig=plt.figure(0)
@@ -641,6 +681,133 @@ class FisherLsst(object):
 
 
 
+#   def plotPowerSpectra(self):
+#
+#      # gg: panels
+#      Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
+#      #
+#      fig=plt.figure(0)
+#      gs = gridspec.GridSpec(3, 1)#, height_ratios=[1, 1, 1])
+#      gs.update(hspace=0.)
+#
+#      # auto
+#      ax0=plt.subplot(gs[0])
+#      i1 = 0
+#      for iBin1 in range(self.nBins):
+#         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+#         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+#         #
+#         color = Colors[iBin1]
+#         ax0.errorbar(self.L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
+#         # advance counter in data vector
+#         i1 += self.nBins - iBin1
+#      #
+#      ax0.set_xscale('log')
+#      ax0.set_yscale('log', nonposy='clip')
+#      plt.setp(ax0.get_xticklabels(), visible=False)
+#      #
+#      ax0.set_title(r'Clustering')
+#      ax0.set_ylabel(r'$\langle g_i g_i\rangle$', fontsize=18)
+#
+#      # cross i,i+1
+#      ax1=plt.subplot(gs[1])
+#      i1 = 1
+#      for iBin1 in range(self.nBins-1):
+#         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+#         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+#         #
+#         color = Colors[iBin1]
+#         ax1.errorbar(self.L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
+#         # advance counter in data vector
+#         i1 += self.nBins - iBin1
+#      #
+#      ax1.set_xscale('log')
+#      ax1.set_yscale('log', nonposy='clip')
+#      plt.setp(ax1.get_xticklabels(), visible=False)
+#      #
+#      ax1.set_ylabel(r'$\langle g_i g_{i+1}\rangle$', fontsize=18)
+#
+#      # cross i,i+2
+#      ax2=plt.subplot(gs[2])
+#      i1 = 2
+#      for iBin1 in range(self.nBins-2):
+#         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+#         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+#         #
+#         color = Colors[iBin1]
+#         ax2.errorbar(self.L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
+#         # advance counter in data vector
+#         i1 += self.nBins - iBin1
+#      #
+#      ax2.set_xscale('log')
+#      ax2.set_yscale('log', nonposy='clip')
+#      #
+#      ax2.set_ylabel(r'$\langle g_i g_{i+2}\rangle$', fontsize=18)
+#      ax2.set_xlabel(r'$\ell$')
+#      #
+#      fig.savefig(self.figurePath+"/p2d_gg.pdf")
+#      fig.clf()
+#
+#
+#
+#      # gs
+#      Colors = plt.cm.winter(1.*np.arange(self.nBins)/(self.nBins-1.))
+#      fig=plt.figure(1)
+#      ax=fig.add_subplot(111)
+#      #
+#      i1 = self.nGG
+#      for iBin1 in range(self.nBins):
+#         color = Colors[iBin1]
+#         for iBin2 in range(self.nBins):
+#            d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+#            std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+#            ax.errorbar(self.L*(1.+0.01*i1/self.nGS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)# label=r'$\langle g_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+r'}\rangle$')
+#            # move to next row
+#            i1 += 1
+#      #
+#      ax.legend(loc=1)
+#      ax.set_xscale('log')
+#      ax.set_yscale('log', nonposy='clip')
+#      ax.set_xlabel(r'$\ell$')
+#      ax.set_ylabel(r'$C_\ell^{g\gamma}$')
+#      ax.set_title(r'Galaxy - galaxy lensing')
+#      #
+#      fig.savefig(self.figurePath+"/p2d_gs.pdf")
+#      fig.clf()
+#
+#
+#      # ss: all on same plot
+#      Colors = plt.cm.jet(1.*np.arange(self.nBins)/(self.nBins-1.))
+#      fig=plt.figure(2)
+#      ax=fig.add_subplot(111)
+#      #
+#      i1 = self.nGG + self.nGS
+#      for iBin1 in range(self.nBins):
+#         # add entry to caption
+#         color = Colors[iBin1]
+#         ax.plot([], [], c=color, label=r'$\langle\gamma_{i} \gamma_{i+'+str(iBin1)+r'} \rangle $')
+#         for iBin2 in range(iBin1, self.nBins):
+#            d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+#            #
+#            color = Colors[iBin2-iBin1]
+#            #
+#            std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+#            ax.errorbar(self.L*(1.+0.01*i1/self.nSS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)#, label=r'$\gamma_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
+#            # move to next row
+#            i1 += 1
+#      #
+#      ax.legend(loc=1, labelspacing=0.05, handlelength=0.4, borderaxespad=0.01)
+#      ax.set_xscale('log')
+#      ax.set_yscale('log', nonposy='clip')
+#      ax.set_xlabel(r'$\ell$')
+#      ax.set_ylabel(r'$C_\ell^{\gamma\gamma}$')
+#      ax.set_title(r'Shear tomography')
+#      #
+#      fig.savefig(self.figurePath+"/p2d_ss.pdf")
+#      fig.clf()
+
+
+
    def plotPowerSpectra(self):
       
       # gg: panels
@@ -654,8 +821,8 @@ class FisherLsst(object):
       ax0=plt.subplot(gs[0])
       i1 = 0
       for iBin1 in range(self.nBins):
-         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
-         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+         d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
+         std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
          #
          color = Colors[iBin1]
          ax0.errorbar(self.L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
@@ -666,15 +833,15 @@ class FisherLsst(object):
       ax0.set_yscale('log', nonposy='clip')
       plt.setp(ax0.get_xticklabels(), visible=False)
       #
-      ax0.set_title(r'Clustering')
+      ax0.set_title(r'$\ell\; C_\ell^{gg}$')
       ax0.set_ylabel(r'$\langle g_i g_i\rangle$', fontsize=18)
 
       # cross i,i+1
       ax1=plt.subplot(gs[1])
       i1 = 1
       for iBin1 in range(self.nBins-1):
-         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
-         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+         d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
+         std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
          #
          color = Colors[iBin1]
          ax1.errorbar(self.L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
@@ -691,8 +858,8 @@ class FisherLsst(object):
       ax2=plt.subplot(gs[2])
       i1 = 2
       for iBin1 in range(self.nBins-2):
-         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
-         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+         d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
+         std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
          #
          color = Colors[iBin1]
          ax2.errorbar(self.L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
@@ -707,9 +874,9 @@ class FisherLsst(object):
       #
       fig.savefig(self.figurePath+"/p2d_gg.pdf")
       fig.clf()
-      
 
-      
+
+
       # gs
       Colors = plt.cm.winter(1.*np.arange(self.nBins)/(self.nBins-1.))
       fig=plt.figure(1)
@@ -719,9 +886,9 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          color = Colors[iBin1]
          for iBin2 in range(self.nBins):
-            d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
-            std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-            ax.errorbar(self.L*(1.+0.01*i1/self.nGS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)# label=r'$\langle g_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+r'}\rangle$')
+            d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
+            std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+            ax.errorbar(self.L*(1.+0.01*i1/self.nGS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)# label=r'$\ell \langle g_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+r'}\rangle$')
             # move to next row
             i1 += 1
       #
@@ -729,13 +896,13 @@ class FisherLsst(object):
       ax.set_xscale('log')
       ax.set_yscale('log', nonposy='clip')
       ax.set_xlabel(r'$\ell$')
-      ax.set_ylabel(r'$C_\ell^{g\gamma}$')
+      ax.set_ylabel(r'$\ell \; C_\ell^{g\gamma}$')
       ax.set_title(r'Galaxy - galaxy lensing')
       #
       fig.savefig(self.figurePath+"/p2d_gs.pdf")
       fig.clf()
-      
-      
+
+
       # ss: all on same plot
       Colors = plt.cm.jet(1.*np.arange(self.nBins)/(self.nBins-1.))
       fig=plt.figure(2)
@@ -747,11 +914,11 @@ class FisherLsst(object):
          color = Colors[iBin1]
          ax.plot([], [], c=color, label=r'$\langle\gamma_{i} \gamma_{i+'+str(iBin1)+r'} \rangle $')
          for iBin2 in range(iBin1, self.nBins):
-            d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+            d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
             #
             color = Colors[iBin2-iBin1]
             #
-            std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+            std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
             ax.errorbar(self.L*(1.+0.01*i1/self.nSS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)#, label=r'$\gamma_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
             # move to next row
             i1 += 1
@@ -760,12 +927,11 @@ class FisherLsst(object):
       ax.set_xscale('log')
       ax.set_yscale('log', nonposy='clip')
       ax.set_xlabel(r'$\ell$')
-      ax.set_ylabel(r'$C_\ell^{\gamma\gamma}$')
+      ax.set_ylabel(r'$\ell \; C_\ell^{\gamma\gamma}$')
       ax.set_title(r'Shear tomography')
       #
       fig.savefig(self.figurePath+"/p2d_ss.pdf")
       fig.clf()
-      
 
 
 
@@ -1243,6 +1409,7 @@ class FisherLsst(object):
          # fiducial prior
          ax.axvline(0.002, color='gray')
          ax.axhline(0.002, color='gray')
+         ax.plot(Photoz, Photoz, 'gray')
          #
          # photo-z shifts
          IPar = self.cosmoPar.nPar+self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar
@@ -1250,9 +1417,11 @@ class FisherLsst(object):
          # add legend entry
          color = 'r'
          ax.plot([], [], color=color, label=r'$\delta z$')
+         darkLight = 0.
          for iPar in IPar:
             color = 'r'
-            color = darkerLighter(color, amount=-0.5*iPar/len(IPar))
+            color = darkerLighter(color, amount=darkLight)
+            darkLight += -0.5 * 1./self.nBins
             ax.plot(Photoz, sigmas[iPar, :], color=color)
          #
          # photo-z scatter
@@ -1261,8 +1430,11 @@ class FisherLsst(object):
          # add legend entry
          color = 'b'
          ax.plot([], [], color=color, label=r'$\sigma_z / (1+z)$')
+         darkLight = 0.
          for iPar in IPar:
             color = 'b'
+            color = darkerLighter(color, amount=darkLight)
+            darkLight += -0.5 * 1./self.nBins
             ax.plot(Photoz, sigmas[iPar, :], color=color)
          #
          ax.set_xscale('log', nonposx='clip')

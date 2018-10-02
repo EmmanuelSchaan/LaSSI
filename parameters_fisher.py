@@ -141,23 +141,40 @@ class Parameters(object):
 
       plt.show()
 
-   def printParams(self, IPar=None):
+   def printParams(self, IPar=None, path=None):
       '''Show the parameter names, fiducial values and priors.
       IPar (optional): indices of parameters to show
       '''
       if IPar is None:
          IPar = range(self.nPar)
-
-      # if a Fisher prior is available, print the uncertainties
-      try:
-         invFisher = np.linalg.inv(self.fisher)
-         std = np.sqrt(np.diag(invFisher))
-         for iPar in IPar:
-            print self.names[iPar]+" = "+str(self.fiducial[iPar])+" +/- "+str(std[iPar])
-      # otherwise, just print the fiducial values
-      except:
-         for iPar in IPar:
-            print self.names[iPar]+" = "+str(self.fiducial[iPar])
+      
+      # if no path, print to standard output
+      if path is None:
+         # if a Fisher prior is available, print the uncertainties
+         try:
+            invFisher = np.linalg.inv(self.fisher)
+            std = np.sqrt(np.diag(invFisher))
+            for iPar in IPar:
+               print self.names[iPar]+" = "+str(self.fiducial[iPar])+" +/- "+str(std[iPar])
+         # otherwise, just print the fiducial values
+         except:
+            for iPar in IPar:
+               print self.names[iPar]+" = "+str(self.fiducial[iPar])
+         
+      # if a path is provided, save to file
+      else:
+         with open(path, 'w') as f:
+            # if a Fisher prior is available, print the uncertainties
+            try:
+               invFisher = np.linalg.inv(self.fisher)
+               std = np.sqrt(np.diag(invFisher))
+               for iPar in IPar:
+                  f.write(self.names[iPar]+" = "+str(self.fiducial[iPar])+" +/- "+str(std[iPar])+"\n")
+            # otherwise, just print the fiducial values
+            except:
+               for iPar in IPar:
+                  f.write(self.names[iPar]+" = "+str(self.fiducial[iPar])+"\n")
+      
 
 
    def plotContours(self, IPar=None):
@@ -243,7 +260,7 @@ class GalaxyBiasParams(Parameters):
       '''
       self.nPar = nBins
       self.names = np.array(['bg'+str(iBin) for iBin in range(self.nPar)])
-      self.namesLatex = np.array([r'$b_{g\;'+str(iBin)+'} / b_{g\;'+str(iBin)+r'}^\text{ fid}$' for iBin in range(self.nPar)])
+      self.namesLatex = np.array([r'$b_{g\;'+str(iBin)+'} / b_{g\;'+str(iBin)+r'}^\text{fid}$' for iBin in range(self.nPar)])
       
       self.fiducial = np.array([1. for iBin in range(self.nPar)])
       # high/low values for derivative
@@ -271,10 +288,10 @@ class CosmoParams(Parameters):
       # base cosmology
       self.nPar = 6
       self.names = np.array(['Omega_cdm', 'Omega_b', 'A_s', 'n_s', 'h', 'tau_reio'])
-      self.namesLatex = np.array([r'$\Omega^0_\text{CDM}$', r'$\Omega^0_\text{b}$', r'$A_\text{s}$', r'$n_\text{s}$', r'$h_0$', r'$\tau$'])
-      self.fiducial = np.array([0.267, 0.0493, 2.3e-9, 0.9624, 0.6712, 0.06])
-      self.high = np.array([0.267 + 0.0066, 0.0493 + 0.0018, 2.3e-9 + 1.e-10, 0.9624 + 0.01, 0.6712 + 0.067, 0.06 + 0.02])
-      self.low = np.array([0.267 - 0.0066, 0.0493 - 0.0018, 2.3e-9 - 1.e-10, 0.9624 - 0.01, 0.6712 - 0.067, 0.06 - 0.02])
+      self.namesLatex = np.array([r'$\Omega^0_\text{CDM}$', r'$\Omega^0_\text{b}$', r'$A_\text{s} / A_\text{s}^\text{fid}$', r'$n_\text{s}$', r'$h_0$', r'$\tau$'])
+      self.fiducial = np.array([0.267, 0.0493, 1., 0.9624, 0.6712, 0.06])
+      self.high = np.array([0.267 + 0.0066, 0.0493 + 0.0018, 1. + 1.e-10/2.3e-9, 0.9624 + 0.01, 0.6712 + 0.067, 0.06 + 0.02])
+      self.low = np.array([0.267 - 0.0066, 0.0493 - 0.0018, 1. - 1.e-10/2.3e-9, 0.9624 - 0.01, 0.6712 - 0.067, 0.06 - 0.02])
       self.paramsClassy = {
                            # Cosmological parameters
                            'Omega_cdm': 0.267,
@@ -285,8 +302,8 @@ class CosmoParams(Parameters):
                            'h': 0.6712,
                            # parameters
                            'reio_parametrization': 'reio_camb',
-                           'output': 'mPk dTk vTk',#'lCl tCl pCl mPk',
-                           'P_k_max_1/Mpc': 10.,
+                           'output': 'mPk',#'dTk vTk lCl tCl pCl mPk',
+                           'P_k_max_1/Mpc': 1.,  #10.,
                            'non linear': 'halofit',
                            'z_max_pk': 100.
                            }
@@ -300,8 +317,8 @@ class CosmoParams(Parameters):
                            'h': 0.6712 + 0.067,
                            # parameters
                            'reio_parametrization': 'reio_camb',
-                           'output': 'mPk dTk vTk',#'lCl tCl pCl mPk',
-                           'P_k_max_1/Mpc': 10.,
+                           'output': 'mPk',#'dTk vTk lCl tCl pCl mPk',
+                           'P_k_max_1/Mpc': 1.,  #10.,
                            'non linear': 'halofit',
                            'z_max_pk': 100.
                            }
@@ -315,8 +332,8 @@ class CosmoParams(Parameters):
                            'h': 0.6712 - 0.067,
                            # parameters
                            'reio_parametrization': 'reio_camb',
-                           'output': 'mPk dTk vTk',#'lCl tCl pCl mPk',
-                           'P_k_max_1/Mpc': 10.,
+                           'output': 'mPk',#'dTk vTk lCl tCl pCl mPk',
+                           'P_k_max_1/Mpc': 1.,  #10.,
                            'non linear': 'halofit',
                            'z_max_pk': 100.
                            }

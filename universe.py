@@ -36,11 +36,27 @@ class Universe(object):
          self.params = params
       
       # run CLASS
+#      tStart = time()
       self.engine = CLASS.ClassEngine(self.params)
+#      tStop = time()
+#      print "-- class engine:", tStop-tStart, "sec"
+#      tStart = time()
       self.bg = CLASS.Background(self.engine)
+#      tStop = time()
+#      print "-- class background:", tStop-tStart, "sec"
+#      tStart = time()
       self.sp = CLASS.Spectra(self.engine)
+#      tStop = time()
+#      print "-- class spectra:", tStop-tStart, "sec"
+      tStart = time()
       self.th = CLASS.Thermo(self.engine)
+#      tStop = time()
+#      print "-- class thermo:", tStop-tStart, "sec"
+#      tStart = time()
       self.pm = CLASS.Primordial(self.engine)
+#      tStop = time()
+#      print "-- class primordial:", tStop-tStart, "sec"
+#      tStart = time()
 
 
       # wave vectors computed for power spectrum (h/Mpc)

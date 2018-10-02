@@ -6,7 +6,7 @@ from headers import *
 class CovP2d(object):
    
    
-   def __init__(self, Pac, Pbd, Pad, Pbc, T2d=None, HSVP2d=None, fsky=1., npairs_id='log', L=None, dL=None):
+   def __init__(self, Pac, Pbd, Pad, Pbc, Npairs, T2d=None, HSVP2d=None):
       '''Cov[Pab, Pcd] = (PacPbd + PadPbc)^2/Nmodes + T/V + HSV
       '''
       # copy classes
@@ -15,38 +15,40 @@ class CovP2d(object):
       self.Pad = Pad
       self.Pbc = Pbc
       #
+      self.Npairs = Npairs
+      #
       self.HSVP2d = HSVP2d
       self.T2d = T2d
       #
-      self.fsky =  fsky
-      self.OmS = 4.*np.pi*fsky
-      
-      # values of ell to evaluate
-      if L is None or dL is None:
-         self.L = np.genfromtxt("./input/Lc.txt") # center of the bins for l
-         self.Nl = len(self.L)
-         self.dL = np.genfromtxt("./input/dL.txt")   # width of the bins for l
-      else:
-         self.L = L
-         self.Nl = len(self.L)
-         self.dL = dL
-
-      # load Npairs
-      self.LoadNpairs(npairs_id)
+#      self.fsky =  fsky
+#      self.OmS = 4.*np.pi*fsky
+#
+#      # values of ell to evaluate
+#      if L is None or dL is None:
+#         self.L = np.genfromtxt("./input/Lc.txt") # center of the bins for l
+#         self.Nl = len(self.L)
+#         self.dL = np.genfromtxt("./input/dL.txt")   # width of the bins for l
+#      else:
+#         self.L = L
+#         self.Nl = len(self.L)
+#         self.dL = dL
+#
+#      # load Npairs
+#      self.LoadNpairs(npairs_id)
       self.LoadAll()
    
    
    ##################################################################################
    
-   def LoadNpairs(self, npairs_id):
-      if npairs_id == "log":
-         # nb of pairs in bin for l, with width dl
-         Al = 2.*np.pi* self.L * self.dL + np.pi * self.dL**2
-         self.Npairs = self.OmS * Al / (2.*np.pi)**2
-      elif npairs_id == "lin":
-         self.Npairs = self.OmS/(4.*np.pi) * (2.*self.L+1.)
-      return
-   
+#   def LoadNpairs(self, npairs_id):
+#      if npairs_id == "log":
+#         # nb of pairs in bin for l, with width dl
+#         Al = 2.*np.pi* self.L * self.dL + np.pi * self.dL**2
+#         self.Npairs = self.OmS * Al / (2.*np.pi)**2
+#      elif npairs_id == "lin":
+#         self.Npairs = self.OmS/(4.*np.pi) * (2.*self.L+1.)
+#      return
+
 #   def LoadAll(self):
 #      # Gaussian covariance contributions
 #      # cosmic variance only

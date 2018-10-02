@@ -4,6 +4,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import scipy
 from scipy import special, optimize, integrate, stats
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline, interp1d, interp2d, BarycentricInterpolator
 from time import time
@@ -94,7 +95,7 @@ def darkerLighter(color, amount=0.):
 
 ##################################################################################
 
-import basic_functions
-reload(basic_functions)
-from basic_functions import *
+import utils
+reload(utils)
+from utils import *
 
