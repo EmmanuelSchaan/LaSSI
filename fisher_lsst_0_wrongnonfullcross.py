@@ -330,99 +330,91 @@ class FisherLsst(object):
       i1 = 0
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            if (iBin2==iBin1) or self.fullCross:
-               # considering gg[j1,j2]
-               i2 = 0
-               for jBin1 in range(self.nBins):
-                  for jBin2 in range(jBin1, self.nBins):
-                     if (jBin2>=jBin1) or self.fullCross:
-                        # compute only upper diagonal
-                        if i2>=i1:
-                           covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gg[iBin2,jBin2], p2d_gg[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
-                           covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-                        # move to next column
-                        i2 += 1
-               # move to next row
-               i1 += 1
+            # considering gg[j1,j2]
+            i2 = 0
+            for jBin1 in range(self.nBins):
+               for jBin2 in range(jBin1, self.nBins):
+                  # compute only upper diagonal
+                  if i2>=i1:
+                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gg[iBin2,jBin2], p2d_gg[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+                  # move to next column
+                  i2 += 1
+            # move to next row
+            i1 += 1
 
       #print "gg-gs"
       # considering gg[i1,i2]
       i1 = 0
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            if (iBin2==iBin1) or self.fullCross:
-               # considering gs[j1,j2]
-               i2 = self.nGG
-               for jBin1 in range(self.nBins):
-                  for jBin2 in range(self.nBins):
-                     if (jBin2>=jBin1) or self.fullCross:
-                        # compute only upper diagonal
-                        if i2>=i1:
-                           covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
-                           covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit *self.L**(2*self.alpha) *  covBlock.covMat
-                        # move to next column
-                        i2 += 1
-               # move to next row
-               i1 += 1
+            # considering gs[j1,j2]
+            i2 = self.nGG
+            for jBin1 in range(self.nBins):
+               for jBin2 in range(self.nBins):
+                  # compute only upper diagonal
+                  if i2>=i1:
+                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit *self.L**(2*self.alpha) *  covBlock.covMat
+                  # move to next column
+                  i2 += 1
+            # move to next row
+            i1 += 1
 
       #print "gg-ss"
       # considering gg[i1,i2]
       i1 = 0
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            if (iBin2==iBin1) or self.fullCross:
-               # considering ss[j1,j2]
-               i2 = self.nGG + self.nGS
-               for jBin1 in range(self.nBins):
-                  for jBin2 in range(jBin1, self.nBins):
-                     # compute only upper diagonal
-                     if i2>=i1:
-                        covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[iBin2,jBin1], self.Nmodes)
-                        covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
-                     # move to next column
-                     i2 += 1
-               # move to next row
-               i1 += 1
+            # considering ss[j1,j2]
+            i2 = self.nGG + self.nGS
+            for jBin1 in range(self.nBins):
+               for jBin2 in range(jBin1, self.nBins):
+                  # compute only upper diagonal
+                  if i2>=i1:
+                     covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+                  # move to next column
+                  i2 += 1
+            # move to next row
+            i1 += 1
 
       #print "gs-gs"
       # considering gs[i1,i2]
       i1 = self.nGG
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
-            if (iBin2>=iBin1) or self.fullCross:
-               # considering gs[j1,j2]
-               i2 = self.nGG
-               for jBin1 in range(self.nBins):
-                  for jBin2 in range(self.nBins):
-                     if (jBin2>=jBin1) or self.fullCross:
-                        # compute only upper diagonal
-                        if i2>=i1:
-                           # watch the order for gs
-                           covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[jBin1,iBin2], self.Nmodes)
-                           covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
-                        # move to next column
-                        i2 += 1
-               # move to next row
-               i1 += 1
+            # considering gs[j1,j2]
+            i2 = self.nGG
+            for jBin1 in range(self.nBins):
+               for jBin2 in range(self.nBins):
+                  # compute only upper diagonal
+                  if i2>=i1:
+                     # watch the order for gs
+                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[jBin1,iBin2], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+                  # move to next column
+                  i2 += 1
+            # move to next row
+            i1 += 1
 
       #print "gs-ss"
       # considering gs[i1,i2]
       i1 = self.nGG
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
-            if (iBin2>=iBin1) or self.fullCross:
-               # considering ss[j1,j2]
-               i2 = self.nGG + self.nGS
-               for jBin1 in range(self.nBins):
-                  for jBin2 in range(jBin1, self.nBins):
-                     # compute only upper diagonal
-                     if i2>=i1:
-                        covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_ss[iBin2,jBin1], self.Nmodes)
-                        covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock.covMat
-                     # move to next column
-                     i2 += 1
-               # move to next row
-               i1 += 1
+            # considering ss[j1,j2]
+            i2 = self.nGG + self.nGS
+            for jBin1 in range(self.nBins):
+               for jBin2 in range(jBin1, self.nBins):
+                  # compute only upper diagonal
+                  if i2>=i1:
+                     covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_ss[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock.covMat
+                  # move to next column
+                  i2 += 1
+            # move to next row
+            i1 += 1
 
       #print "ss-ss"
       # considering ss[i1,i2]
