@@ -18,7 +18,7 @@ curvature = True #False
 PlanckPrior = True
 
 # include null crosses
-fullCross = False #False # True
+fullCross = True #False # True
 
 # include a known magnification bias
 magBias = False
@@ -43,6 +43,7 @@ shearMultBiasPar = ShearMultBiasParams(nBins=nBins)
 photoZPar = PhotoZParams(nBins=nBins)
 #photoZPar.plotParams()
 
+#cosmoPar.plotContours()
 
 #pat = PatPlanckParams()
 #pat.printParams()
@@ -53,24 +54,35 @@ photoZPar = PhotoZParams(nBins=nBins)
 ##################################################################################
 # Fisher calculation
 
-fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, fullCross=fullCross, name=name, nProc=nProc, save=True)
+fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, fullCross=fullCross, name=name, nProc=nProc, save=False)
 
 
-fisherLsst.plotDndz()
-fisherLsst.plotPowerSpectra()
-fisherLsst.plotUncertaintyPowerSpectra()
-fisherLsst.plotCovMat()
-fisherLsst.plotDerivativeDataVectorCosmo()
+#fisherLsst.plotDndz()
+#fisherLsst.plotPowerSpectra()
+#fisherLsst.plotUncertaintyPowerSpectra()
+#fisherLsst.plotCovMat()
+fisherLsst.plotInvCovMat()
+
+fisherLsst.printSnrPowerSpectra(path=fisherLsst.figurePath+"/snr.txt")
+
+
+
+
+
+#fisherLsst.plotDerivativeDataVectorCosmo()
 
 
 #fisherLsst.plotSingleDerivative("gg", 0, 0)
 #fisherLsst.plotSingleDerivative("ss", 0, 15)
 #fisherLsst.plotSingleDerivative("gg", 0, 20)
 
-cosmoPar.printParams()
-fisherLsst.fullPar.printParams(path=fisherLsst.figurePath+"/prior_uncertainties.txt")
-fisherLsst.posteriorPar.printParams(path=fisherLsst.figurePath+"/posterior_uncertainties.txt")
-fisherLsst.posteriorPar.printParams()
+#cosmoPar.printParams()
+#fisherLsst.fullPar.printParams(path=fisherLsst.figurePath+"/prior_uncertainties.txt")
+#fisherLsst.posteriorPar.printParams(path=fisherLsst.figurePath+"/posterior_uncertainties.txt")
+#fisherLsst.posteriorPar.printParams()
+
+#cosmoPar.plotContours(path=fisherLsst.figurePath+"/contours_cosmo_prior.pdf")
+#fisherLsst.posteriorPar.plotContours(IPar=range(cosmoPar.nPar), path=fisherLsst.figurePath+"/contours_cosmo_posterior.pdf")
 
 
 fisherLsst.checkConditionNumbers()
@@ -85,7 +97,7 @@ fisherLsst.checkConditionNumbers()
 # Photo-z requirements
 
 
-fisherLsst.photoZRequirements()
+#fisherLsst.photoZRequirements()
 #fisherLsst.shearBiasRequirements()
 
 
@@ -120,20 +132,14 @@ plt.show()
 
 
 
-
-'''
-
-
-
-
-
-##################################################################################
-# Test inversions of cov and Fisher matrices
-
-
-
 import scipy
 from scipy.sparse import csc_matrix
+
+
+
+'''
+##################################################################################
+# Test inversions of cov and Fisher matrices
 
 
 # Check eigenvalues of cov matrix
@@ -242,7 +248,11 @@ plt.show()
 #inv4 = np.linalg.inv(fisherLsst.covMat + 1.e-27*np.diag(np.ones(fisherLsst.nData)))
 #print np.std(inv4-inv1)/np.std(inv1), np.std(inv4-inv1)/np.std(inv4)
 
+'''
 
+
+
+##################################################################################
 
 
 # Check eigenvalues of Fisher matrix
@@ -268,8 +278,25 @@ print "inverse condition number:", 1./np.linalg.cond(fisherLsst.fisherPosterior)
 print "number numerical precision:", np.finfo(fisherLsst.fisherPosterior.dtype).eps
 
 
-'''
 
+
+# look at specific eigenvectors
+
+fig=plt.figure(0)
+ax=fig.add_subplot(111)
+#
+
+#ax.plot(eigenVecPar[:,-1], 'b.')  # best constrained mode
+
+ax.plot(eigenVecPar[:,0], 'r.')  # worst constrained mode
+
+#
+ax.set_xticks(range(fisherLsst.fullPar.nPar))
+ax.set_xticklabels(fisherLsst.fullPar.namesLatex, fontsize=24)
+[l.set_rotation(45) for l in ax.get_xticklabels()]
+
+
+plt.show()
 
 
 

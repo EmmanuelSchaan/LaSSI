@@ -12,6 +12,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.ticker as ticker
 from matplotlib.colors import LogNorm
 import matplotlib.colors as mc
+from matplotlib.mlab import bivariate_normal
 import colorsys
 from timeit import timeit
 from time import time

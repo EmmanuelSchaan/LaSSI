@@ -156,7 +156,8 @@ def generateEllBins(lMin, lMax, nL, fsky=1.):
    # Number of modes
    lF = 2.*np.pi / np.sqrt(4. * np.pi * fsky)
    nModesTotal = np.pi * (lMax**2 - lMin**2) / lF**2
-   Nmodes = nModesTotal / nL * np.ones(nL)
+   Nmodes = nModesTotal / nL * np.ones(nL)   
+   
    return Lc, dL, Nmodes, Le
 
 

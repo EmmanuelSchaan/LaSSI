@@ -309,7 +309,7 @@ class FisherLsst(object):
       # ss
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            dataVector[iData*self.nL:(iData+1)*self.nL] = 20.**2 * self.L * np.array(map(p2d_ss[iBin1, iBin2].fPinterp, self.L))
+            dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ss[iBin1, iBin2].fPinterp, self.L))
             dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit**2 * self.L**self.alpha
             iData += 1
       return dataVector
@@ -440,6 +440,157 @@ class FisherLsst(object):
       return covMat
 
 
+   ##################################################################################
+   
+   def printSnrPowerSpectra(self, path):
+      with open(path, 'w') as f:
+         f.write("SNR\n\n")
+         
+         ###########################################################
+         # gg
+         
+         # gg: auto
+         f.write("GG\n")
+         f.write("auto\n")
+         i1 = 0
+         Itotal = []
+         for iBin1 in range(self.nBins):
+            I = range(i1*self.nL, (i1+1)*self.nL)
+            d = self.dataVector[I]
+            J = np.ix_(I,I)
+            cov = self.covMat[J]
+            invCov = np.linalg.inv(cov)
+            snr = np.dot(d.transpose(), np.dot(invCov, d))
+            snr = np.sqrt(snr)
+            f.write("   "+str(iBin1)+","+str(iBin1)+": "+str(snr)+"\n")
+            i1 += self.nBins - iBin1
+            Itotal += I
+         # gg: total auto
+         d = self.dataVector[Itotal]
+         J = np.ix_(Itotal,Itotal)
+         cov = self.covMat[J]
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("total auto: "+str(snr)+"\n")
+         
+         
+         # gg: cross i,i+1
+         f.write("cross i,i+1\n")
+         i1 = 1
+         Itotal = []
+         for iBin1 in range(self.nBins-1):
+            I = range(i1*self.nL, (i1+1)*self.nL)
+            d = self.dataVector[I]
+            J = np.ix_(I,I)
+            cov = self.covMat[J]
+            invCov = np.linalg.inv(cov)
+            snr = np.dot(d.transpose(), np.dot(invCov, d))
+            snr = np.sqrt(snr)
+            f.write("   "+str(iBin1)+","+str(iBin1+i1)+": "+str(snr)+"\n")
+            i1 += self.nBins - iBin1
+            Itotal += I
+         # gg: total i,i+1
+         d = self.dataVector[Itotal]
+         J = np.ix_(Itotal,Itotal)
+         cov = self.covMat[J]
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("total i,i+1: "+str(snr)+"\n")
+
+
+         # gg: cross i,i+2
+         f.write("cross i,i+2\n")
+         i1 = 2
+         Itotal = []
+         for iBin1 in range(self.nBins-2):
+            I = range(i1*self.nL, (i1+1)*self.nL)
+            d = self.dataVector[I]
+            J = np.ix_(I,I)
+            cov = self.covMat[J]
+            invCov = np.linalg.inv(cov)
+            snr = np.dot(d.transpose(), np.dot(invCov, d))
+            snr = np.sqrt(snr)
+            f.write("   "+str(iBin1)+","+str(iBin1+i1)+": "+str(snr)+"\n")
+            i1 += self.nBins - iBin1
+            Itotal += I
+         # gg: total i,i+2
+         d = self.dataVector[Itotal]
+         J = np.ix_(Itotal,Itotal)
+         cov = self.covMat[J]
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("total i,i+2: "+str(snr)+"\n")
+         
+
+         # gg: total
+         I = range(self.nGG*self.nL)
+         d = self.dataVector[I]
+         J = np.ix_(I,I)
+         cov = self.covMat[J]
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("total gg: "+str(snr)+"\n\n")
+
+         ###########################################################
+         # gs
+
+         # gs: all
+         f.write("GS\n")
+         i1 = self.nGG
+         for iBin1 in range(self.nBins):
+            for iBin2 in range(self.nBins):
+               I = range(i1*self.nL, (i1+1)*self.nL)
+               d = self.dataVector[I]
+               J = np.ix_(I,I)
+               cov = self.covMat[J]
+               invCov = np.linalg.inv(cov)
+               snr = np.dot(d.transpose(), np.dot(invCov, d))
+               snr = np.sqrt(snr)
+               f.write("   "+str(iBin1)+","+str(iBin2)+": "+str(snr)+"\n")
+               i1 += 1
+         # gs: total
+         I = range(self.nGG*self.nL, (self.nGG+self.nGS)*self.nL)
+         d = self.dataVector[I]
+         J = np.ix_(I,I)
+         cov = self.covMat[J]
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("total gs: "+str(snr)+"\n\n")
+
+         ###########################################################
+         # ss
+
+         # ss: all
+         f.write("SS\n")
+         i1 = self.nGG + self.nGS
+         for iBin1 in range(self.nBins):
+            for iBin2 in range(iBin1, self.nBins):
+               I = range(i1*self.nL, (i1+1)*self.nL)
+               d = self.dataVector[I]
+               J = np.ix_(I,I)
+               cov = self.covMat[J]
+               invCov = np.linalg.inv(cov)
+               snr = np.dot(d.transpose(), np.dot(invCov, d))
+               snr = np.sqrt(snr)
+               f.write("   "+str(iBin1)+","+str(iBin2)+": "+str(snr)+"\n")
+               i1 += 1
+         # ss: total
+         I = range((self.nGG+self.nGS)*self.nL, (self.nGG+self.nGS+self.nSS)*self.nL)
+         d = self.dataVector[I]
+         J = np.ix_(I,I)
+         cov = self.covMat[J]
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("total ss: "+str(snr)+"\n\n")
+
+   
+   
    ##################################################################################
 
    def saveDerivativeDataVector(self):
@@ -638,46 +789,38 @@ class FisherLsst(object):
       fig.clf()
 
 
-
-
-#   def hackCurvature(self):
-#      """Extremely dangerous! Don't, you're crazy!
-#      """
-#      # vary only the curvature
-#      iPar = 9 # cosmo par Omega0_k
-#      print "Dangerous hack, you're crazy!"
-#      print "wow wow"
-#      print "Derivative wrt "+self.cosmoPar.names[iPar]
-#
-#      print "param diff=", (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
-#
-#
-#      tStart = time()
-#      # high
-#      name = self.name+self.cosmoPar.names[iPar]+"high"
-#      cosmoParClassy = self.cosmoPar.paramsClassy.copy()
-#      print cosmoParClassy
-#      print "#"
-#      cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyHigh[self.cosmoPar.names[iPar]]
-#      print cosmoParClassy
-#      u = Universe(cosmoParClassy)
-#      w_g, w_s, zBounds = self.generateBins(u, self.nuisancePar.fiducial)
-#      p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
-#      dataVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
-#
-#      # scary: modify the main data vector
-##      self.dataVector -= dataVectorHigh
-#
-#      print "param diff=", (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
-#
-#      self.dataVector = (dataVectorHigh-self.dataVector) / (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
-#      self.dataVector *= self.cosmoPar.fiducial[iPar] / self.dataVector
-#      self.dataVector = np.abs(self.dataVector)
-#      self.plotPowerSpectra()
-#
-##      self.dataVector += dataVectorHigh
-
-
+   def plotInvCovMat(self):
+      fig=plt.figure(0, figsize=(12,8))
+      ax=fig.add_subplot(111)
+      #
+      upperDiag = np.triu(np.ones(self.nData))
+#      plt.imshow(self.invCov * upperDiag, interpolation='nearest', norm=LogNorm(vmin=1.e-4, vmax=1), cmap=cmaps.viridis_r)
+      plt.imshow(self.invCov * upperDiag, interpolation='nearest', norm=LogNorm(), cmap=cmaps.viridis_r)
+      #
+      ax.plot(np.arange(self.nData+1)-0.5, np.arange(self.nData+1)-0.5, 'k', lw=1)
+      #
+      # 2-pt function delimiters
+      for i in range(1, self.nGG+self.nGS+self.nSS):
+         ax.axhline(self.nL*i-0.5, xmin=(self.nL*i-0.5)/self.nData, c='gray', lw=0.25, ls='-')
+         ax.axvline(self.nL*i-0.5, ymin=1.-(self.nL*i-0.5)/self.nData, c='gray', lw=0.25, ls='-')
+      #
+      # block delimiters
+      ax.axhline(self.nL*self.nGG-0.5, xmin=(self.nL*self.nGG-0.5)/self.nData, c='k', lw=1.5)
+      ax.axhline(self.nL*(self.nGG+self.nGS)-0.5, xmin=(self.nL*(self.nGG+self.nGS)-0.5)/self.nData, c='k', lw=1.5)
+      #
+      ax.axvline(self.nL*self.nGG-0.5, ymin=1.-(self.nL*self.nGG-0.5)/self.nData, c='k', lw=1.5)
+      ax.axvline(self.nL*(self.nGG+self.nGS)-0.5, ymin=1.-(self.nL*(self.nGG+self.nGS)-0.5)/self.nData, c='k', lw=1.5)
+      #
+      plt.colorbar()
+      ax.set_xlim((-0.5, (self.nData-1)+0.5))
+      ax.set_ylim((-0.5, (self.nData-1)+0.5))
+      ax.invert_yaxis()
+      #ax.xaxis.tick_top()
+      ax.xaxis.set_ticks([])
+      ax.yaxis.set_ticks([])
+      #
+      fig.savefig(self.figurePath+"/invcov_mat.pdf", bbox_inches='tight', format='pdf', dpi=2400)
+      fig.clf()
 
 
 
@@ -1042,10 +1185,8 @@ class FisherLsst(object):
          ax.plot([], [], c=color, label=r'$\langle\gamma_{i} \gamma_{i+'+str(iBin1)+r'} \rangle $')
          for iBin2 in range(iBin1, self.nBins):
             d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
-            #
-            color = Colors[iBin2-iBin1]
-            #
             std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+            color = Colors[iBin2-iBin1]
             ax.plot(self.L*(1.+0.01*i1/self.nSS), std / d, '.-', lw=1, color=color)
             # move to next row
             i1 += 1
