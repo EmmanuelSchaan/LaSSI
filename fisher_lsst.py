@@ -335,7 +335,7 @@ class FisherLsst(object):
                i2 = 0
                for jBin1 in range(self.nBins):
                   for jBin2 in range(jBin1, self.nBins):
-                     if (jBin2>=jBin1) or self.fullCross:
+                     if (jBin2==jBin1) or self.fullCross:
                         # compute only upper diagonal
                         if i2>=i1:
                            covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gg[iBin2,jBin2], p2d_gg[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
@@ -454,6 +454,9 @@ class FisherLsst(object):
    ##################################################################################
    
    def printSnrPowerSpectra(self, path):
+      if not self.fullCross:
+         print "(function only implemented for fullCross)"
+         return
       with open(path, 'w') as f:
          f.write("SNR\n\n")
          
@@ -806,7 +809,7 @@ class FisherLsst(object):
       #
       upperDiag = np.triu(np.ones(self.nData))
 #      plt.imshow(self.invCov * upperDiag, interpolation='nearest', norm=LogNorm(vmin=1.e-4, vmax=1), cmap=cmaps.viridis_r)
-      plt.imshow(self.invCov * upperDiag, interpolation='nearest', norm=SymLogNorm(), cmap=cmaps.bwr)
+      plt.imshow(np.abs(self.invCov) * upperDiag, interpolation='nearest', norm=LogNorm(), cmap=cmaps.bwr)
       #
       ax.plot(np.arange(self.nData+1)-0.5, np.arange(self.nData+1)-0.5, 'k', lw=1)
       #
@@ -963,6 +966,9 @@ class FisherLsst(object):
 
 
    def plotPowerSpectra(self):
+      if not self.fullCross:
+         print "(function only implemented for fullCross)"
+         return
       
       # gg: panels
       Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
@@ -1090,6 +1096,9 @@ class FisherLsst(object):
 
 
    def plotUncertaintyPowerSpectra(self):
+      if not self.fullCross:
+         print "(function only implemented for fullCross)"
+         return
 
       # gg: panels
       Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))

@@ -54,14 +54,14 @@ photoZPar = PhotoZParams(nBins=nBins)
 ##################################################################################
 # Fisher calculation
 
-fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, fullCross=fullCross, name=name, nProc=nProc, save=True)
+fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, fullCross=fullCross, name=name, nProc=nProc, save=False)
 
 
 fisherLsst.plotDndz()
 fisherLsst.plotPowerSpectra()
 fisherLsst.plotUncertaintyPowerSpectra()
 fisherLsst.plotCovMat()
-fisherLsst.plotInvCovMat()
+#fisherLsst.plotInvCovMat()
 
 fisherLsst.printSnrPowerSpectra(path=fisherLsst.figurePath+"/snr.txt")
 
@@ -81,16 +81,16 @@ fisherLsst.fullPar.printParams(path=fisherLsst.figurePath+"/prior_uncertainties.
 fisherLsst.posteriorPar.printParams(path=fisherLsst.figurePath+"/posterior_uncertainties.txt")
 #fisherLsst.posteriorPar.printParams()
 
-cosmoPar.plotContours(path=fisherLsst.figurePath+"/contours_cosmo_prior.pdf")
-fisherLsst.posteriorPar.plotContours(IPar=range(cosmoPar.nPar), path=fisherLsst.figurePath+"/contours_cosmo_posterior.pdf")
+#cosmoPar.plotContours(path=fisherLsst.figurePath+"/contours_cosmo_prior.pdf")
+#fisherLsst.posteriorPar.plotContours(IPar=range(cosmoPar.nPar), path=fisherLsst.figurePath+"/contours_cosmo_posterior.pdf")
 
 
 fisherLsst.checkConditionNumbers()
 
-fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar))
-fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar))
-fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar))
-fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar+photoZPar.nPar))
+#fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar))
+#fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar))
+#fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar))
+#fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar+photoZPar.nPar))
 
 
 ##################################################################################
