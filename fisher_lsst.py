@@ -603,7 +603,14 @@ class FisherLsst(object):
          snr = np.sqrt(snr)
          f.write("total ss: "+str(snr)+"\n\n")
 
-   
+         ###########################################################
+         # gg, gs, ss
+
+         snr = np.dot(self.dataVector.transpose(), np.dot(self.invCov, self.dataVector))
+         snr = np.sqrt(snr)
+         f.write("total gg, gs, ss: "+str(snr)+"\n\n")
+
+
    
    ##################################################################################
 
@@ -1402,14 +1409,21 @@ class FisherLsst(object):
       # Posterior uncertainties on all parameters
       sFull = np.zeros((self.fullPar.nPar, nPhotoz))
       
-      # posterior uncertainties on cosmological parameters,
-      # for various combinations
+      # posterior uncertainties for various combinations,
+      # cosmology
       sCosmoFull = np.zeros((len(self.cosmoPar.IFull), nPhotoz))
-      sCosmoMnuW0Wa = np.zeros((len(self.cosmoPar.ILCDMMnuW0Wa), nPhotoz))
-      sCosmoMnu = np.zeros((len(self.cosmoPar.ILCDMMnu), nPhotoz))
-      sCosmoMnuCurv = np.zeros((len(self.cosmoPar.ILCDMMnuCurv), nPhotoz))
-      sCosmoW0Wa = np.zeros((len(self.cosmoPar.ILCDMW0Wa), nPhotoz))
-      sCosmoW0WaCurv = np.zeros((len(self.cosmoPar.ILCDMW0WaCurv), nPhotoz))
+      sCosmoLCDMMnuW0Wa = np.zeros((len(self.cosmoPar.ILCDMMnuW0Wa), nPhotoz))
+      sCosmoLCDMMnu = np.zeros((len(self.cosmoPar.ILCDMMnu), nPhotoz))
+      sCosmoLCDMMnuCurv = np.zeros((len(self.cosmoPar.ILCDMMnuCurv), nPhotoz))
+      sCosmoLCDMW0Wa = np.zeros((len(self.cosmoPar.ILCDMW0Wa), nPhotoz))
+      sCosmoLCDMW0WaCurv = np.zeros((len(self.cosmoPar.ILCDMW0WaCurv), nPhotoz))
+      # photo-z
+      sPhotozFull = np.zeros((self.photoZPar.nPar, nPhotoz))
+      sPhotozLCDMMnuW0Wa = np.zeros((self.photoZPar.nPar, nPhotoz))
+      sPhotozLCDMMnu = np.zeros((self.photoZPar.nPar, nPhotoz))
+      sPhotozLCDMMnuCurv = np.zeros((self.photoZPar.nPar, nPhotoz))
+      sPhotozLCDMW0Wa = np.zeros((self.photoZPar.nPar, nPhotoz))
+      sPhotozLCDMW0WaCurv = np.zeros((self.photoZPar.nPar, nPhotoz))
       
       for iPhotoz in range(nPhotoz):
          photoz = Photoz[iPhotoz]
@@ -1427,26 +1441,85 @@ class FisherLsst(object):
          sFull[:,iPhotoz] = newPar.paramUncertainties(marg=True)
          
          # Extract parameter combinations:
-         # marginalize over nuisances, but fix cosmo params that are left out
-         newCosmoPar = newPar.extractParams(self.cosmoPar.IFull, marg=True)
+         #
          # Full: LCDM + Mnu + curv + w0,wa
-         parFull = newCosmoPar.copy()
-         sCosmoFull[:, iPhotoz] = parFull.paramUncertainties(marg=True)
+         # reject unwanted cosmo params
+         I = self.cosmoPar.IFull + range(self.cosmoPar.nPar, self.fullPar.nPar)
+         par = newPar.extractParams(I, marg=False)
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:
+            par.printParams(path=self.figurePath+"/posterior_full_photozprior_"+floatExpForm(photoz)+".txt")
+         # cosmology
+         parCosmoFull = par.extractParams(self.cosmoPar.IFull, marg=True)
+         sCosmoFull[:, iPhotoz] = parCosmoFull.paramUncertainties(marg=True)
+         # photo-z
+         parPhotozFull = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
+         sPhotozFull[:, iPhotoz] = parPhotozFull.paramUncertainties(marg=True)
+         #
          # LCDM + Mnu
-         parLCDMMnu = newCosmoPar.extractParams(self.cosmoPar.ILCDMMnu, marg=False)
-         sCosmoMnu[:, iPhotoz] = parLCDMMnu.paramUncertainties(marg=True)
+         # reject unwanted cosmo params
+         I = self.cosmoPar.ILCDMMnu + range(self.cosmoPar.nPar, self.fullPar.nPar)
+         par = newPar.extractParams(I, marg=False)
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:
+            par.printParams(path=self.figurePath+"/posterior_ldcmmnu_photozprior_"+floatExpForm(photoz)+".txt")
+         # cosmology
+         parCosmoLCDMMnu = par.extractParams(self.cosmoPar.ILCDMMnu, marg=True)
+         sCosmoLCDMMnu[:, iPhotoz] = parCosmoLCDMMnu.paramUncertainties(marg=True)
+         # photo-z
+         parPhotozLCDMMnu = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
+         sPhotozLCDMMnu[:, iPhotoz] = parPhotozLCDMMnu.paramUncertainties(marg=True)
+         #
          # LCDM + Mnu + w0,wa
-         parLCDMMnuW0Wa = newCosmoPar.extractParams(self.cosmoPar.ILCDMMnuW0Wa, marg=False)
-         sCosmoMnuW0Wa[:, iPhotoz] = parLCDMMnuW0Wa.paramUncertainties(marg=True)
+         # reject unwanted cosmo params
+         I = self.cosmoPar.ILCDMMnuW0Wa + range(self.cosmoPar.nPar, self.fullPar.nPar)
+         par = newPar.extractParams(I, marg=False)
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:
+            par.printParams(path=self.figurePath+"/posterior_lcdmmnuw0wa_photozprior_"+floatExpForm(photoz)+".txt")
+         # cosmology
+         parCosmoLCDMMnuW0Wa = par.extractParams(self.cosmoPar.ILCDMMnuW0Wa, marg=True)
+         sCosmoLCDMMnuW0Wa[:, iPhotoz] = parCosmoLCDMMnuW0Wa.paramUncertainties(marg=True)
+         # photo-z
+         parPhotozLCDMMnuW0Wa = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
+         sPhotozLCDMMnuW0Wa[:, iPhotoz] = parPhotozLCDMMnuW0Wa.paramUncertainties(marg=True)
+         #
          # LCDM + Mnu + curv
-         parLCDMMnuCurv = newCosmoPar.extractParams(self.cosmoPar.ILCDMMnuCurv, marg=False)
-         sCosmoMnuCurv[:, iPhotoz] = parLCDMMnuCurv.paramUncertainties(marg=True)
+         # reject unwanted cosmo params
+         I = self.cosmoPar.ILCDMMnuCurv + range(self.cosmoPar.nPar, self.fullPar.nPar)
+         par = newPar.extractParams(I, marg=False)
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:
+            par.printParams(path=self.figurePath+"/posterior_lcdmmnucurv_photozprior_"+floatExpForm(photoz)+".txt")
+         # cosmology
+         parCosmoLCDMMnuCurv = par.extractParams(self.cosmoPar.ILCDMMnuCurv, marg=True)
+         sCosmoLCDMMnuCurv[:, iPhotoz] = parCosmoLCDMMnuCurv.paramUncertainties(marg=True)
+         # photo-z
+         parPhotozLCDMMnuCurv = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
+         sPhotozLCDMMnuCurv[:, iPhotoz] = parPhotozLCDMMnuCurv.paramUncertainties(marg=True)
+         #
          # LCDM + w0,wa
-         parLCDMW0Wa = newCosmoPar.extractParams(self.cosmoPar.ILCDMW0Wa, marg=False)
-         sCosmoW0Wa[:, iPhotoz] = parLCDMW0Wa.paramUncertainties(marg=True)
+         # reject unwanted cosmo params
+         I = self.cosmoPar.ILCDMW0Wa + range(self.cosmoPar.nPar, self.fullPar.nPar)
+         par = newPar.extractParams(I, marg=False)
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:
+            par.printParams(path=self.figurePath+"/posterior_lcdmw0wa_photozprior_"+floatExpForm(photoz)+".txt")
+         # cosmology
+         parCosmoLCDMW0Wa = par.extractParams(self.cosmoPar.ILCDMW0Wa, marg=True)
+         sCosmoLCDMW0Wa[:, iPhotoz] = parCosmoLCDMW0Wa.paramUncertainties(marg=True)
+         # photo-z
+         parPhotozLCDMW0Wa = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
+         sPhotozLCDMW0Wa[:, iPhotoz] = parPhotozLCDMW0Wa.paramUncertainties(marg=True)
+         #
          # LCDM + w0,wa + curvature
-         parLCDMW0WaCurv = newCosmoPar.extractParams(self.cosmoPar.ILCDMW0WaCurv, marg=False)
-         sCosmoW0WaCurv[:, iPhotoz] = parLCDMW0WaCurv.paramUncertainties(marg=True)
+         # reject unwanted cosmo params
+         I = self.cosmoPar.ILCDMW0WaCurv + range(self.cosmoPar.nPar, self.fullPar.nPar)
+         par = newPar.extractParams(I, marg=False)
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:
+            par.printParams(path=self.figurePath+"/posterior_lcdmw0wacurv_photozprior_"+floatExpForm(photoz)+".txt")
+         # cosmology
+         parCosmoLCDMW0WaCurv = par.extractParams(self.cosmoPar.ILCDMW0WaCurv, marg=True)
+         sCosmoLCDMW0WaCurv[:, iPhotoz] = parCosmoLCDMW0WaCurv.paramUncertainties(marg=True)
+         # photo-z
+         parPhotozLCDMW0WaCurv = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
+         sPhotozLCDMW0WaCurv[:, iPhotoz] = parPhotozLCDMW0WaCurv.paramUncertainties(marg=True)
+
       
 
 
@@ -1454,15 +1527,16 @@ class FisherLsst(object):
       ##################################################################################
       # Degradation of cosmo. par., depending on photo-z prior
 
-      def plotDegradation(sCosmo, par, path):
+      def plotDegradation(sCosmo, parCosmo, path):
          fig=plt.figure(0)
          ax=fig.add_subplot(111)
          #
          # fiducial prior
          ax.axvline(0.002, color='gray')
          #
-         for iPar in range(par.nPar):
-            ax.plot(Photoz, sCosmo[iPar, :] / sCosmo[iPar, 0], label=par.namesLatex[iPar])
+         for iPar in range(parCosmo.nPar):
+#         for iPar in range(len(sCosmo)):
+            ax.plot(Photoz, sCosmo[iPar, :] / sCosmo[iPar, 0], label=parCosmo.namesLatex[iPar])
          #
          ax.set_xscale('log', nonposx='clip')
 #         ax.legend(loc=2)
@@ -1474,17 +1548,17 @@ class FisherLsst(object):
          fig.clf()
 
       # Full: LCDM + Mnu + curv + w0,wa
-      plotDegradation(sCosmoFull, parFull, "/photozreq_cosmo_deg_full.pdf")
+      plotDegradation(sCosmoFull, parCosmoFull, "/photozreq_cosmo_deg_full.pdf")
       # LCDM + Mnu
-      plotDegradation(sCosmoMnu, parLCDMMnu, "/photozreq_cosmo_deg_lcdmmnu.pdf")
+      plotDegradation(sCosmoLCDMMnu, parCosmoLCDMMnu, "/photozreq_cosmo_deg_lcdmmnu.pdf")
       # LCDM + Mnu + w0,wa
-      plotDegradation(sCosmoMnuW0Wa, parLCDMMnuW0Wa, "/photozreq_cosmo_deg_lcdmmnuw0wa.pdf")
+      plotDegradation(sCosmoLCDMMnuW0Wa, parCosmoLCDMMnuW0Wa, "/photozreq_cosmo_deg_lcdmmnuw0wa.pdf")
       # LCDM + Mnu + curv
-      plotDegradation(sCosmoMnuCurv, parLCDMMnuCurv, "/photozreq_cosmo_deg_lcdmmnucurv.pdf")
+      plotDegradation(sCosmoLCDMMnuCurv, parCosmoLCDMMnuCurv, "/photozreq_cosmo_deg_lcdmmnucurv.pdf")
       # LCDM + w0,wa
-      plotDegradation(sCosmoW0Wa, parLCDMW0Wa, "/photozreq_cosmo_deg_lcdmw0wa.pdf")
+      plotDegradation(sCosmoLCDMW0Wa, parCosmoLCDMW0Wa, "/photozreq_cosmo_deg_lcdmw0wa.pdf")
       # LCDM + w0,wa + curvature
-      plotDegradation(sCosmoW0WaCurv, parLCDMW0WaCurv, "/photozreq_cosmo_deg_lcdmw0wa.pdf")
+      plotDegradation(sCosmoLCDMW0WaCurv, parCosmoLCDMW0WaCurv, "/photozreq_cosmo_deg_lcdmw0wacurv.pdf")
 
 
       ##################################################################################
@@ -1526,17 +1600,17 @@ class FisherLsst(object):
          fig.clf()
       
       # Full: LCDM + Mnu + curv + w0,wa
-      plotRelative(sCosmoFull, parFull, "/photozreq_cosmo_rel_full.pdf")
+      plotDegradation(sCosmoFull, parCosmoFull, "/photozreq_cosmo_deg_full.pdf")
       # LCDM + Mnu
-      plotRelative(sCosmoMnu, parLCDMMnu, "/photozreq_cosmo_rel_lcdmmnu.pdf")
+      plotDegradation(sCosmoLCDMMnu, parCosmoLCDMMnu, "/photozreq_cosmo_deg_lcdmmnu.pdf")
       # LCDM + Mnu + w0,wa
-      plotRelative(sCosmoMnuW0Wa, parLCDMMnuW0Wa, "/photozreq_cosmo_rel_lcdmmnuw0wa.pdf")
+      plotDegradation(sCosmoLCDMMnuW0Wa, parCosmoLCDMMnuW0Wa, "/photozreq_cosmo_deg_lcdmmnuw0wa.pdf")
       # LCDM + Mnu + curv
-      plotRelative(sCosmoMnuCurv, parLCDMMnuCurv, "/photozreq_cosmo_rel_lcdmmnucurv.pdf")
+      plotDegradation(sCosmoLCDMMnuCurv, parCosmoLCDMMnuCurv, "/photozreq_cosmo_deg_lcdmmnucurv.pdf")
       # LCDM + w0,wa
-      plotRelative(sCosmoW0Wa, parLCDMW0Wa, "/photozreq_cosmo_rel_lcdmw0wa.pdf")
+      plotDegradation(sCosmoLCDMW0Wa, parCosmoLCDMW0Wa, "/photozreq_cosmo_deg_lcdmw0wa.pdf")
       # LCDM + w0,wa + curvature
-      plotRelative(sCosmoW0WaCurv, parLCDMW0WaCurv, "/photozreq_cosmo_rel_lcdmw0wa.pdf")
+      plotDegradation(sCosmoLCDMW0WaCurv, parCosmoLCDMW0WaCurv, "/photozreq_cosmo_deg_lcdmw0wacurv.pdf")
 
 
       ##################################################################################
@@ -1548,8 +1622,8 @@ class FisherLsst(object):
       # fiducial prior
       ax.axvline(0.002, color='gray')
       #
-      for iPar in range(parLCDMMnuW0Wa.nPar):
-         ax.plot(Photoz, sCosmoFull[iPar, :] / sCosmoMnuW0Wa[iPar, :], label=parFull.namesLatex[iPar])
+      for iPar in range(parCosmoLCDMMnuW0Wa.nPar):
+         ax.plot(Photoz, sCosmoFull[iPar, :] / sCosmoLCDMMnuW0Wa[iPar, :], label=parCosmoFull.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
 #      ax.legend(loc=2)
@@ -1563,7 +1637,7 @@ class FisherLsst(object):
       
       ##################################################################################
 
-      def plotPhotoZPosterior(sigmas, path):
+      def plotPhotoZPosterior(sPhotoz, parPhotoz, path):
          fig=plt.figure(1)
          ax=fig.add_subplot(111)
          #
@@ -1573,30 +1647,26 @@ class FisherLsst(object):
          ax.plot(Photoz, Photoz, 'gray')
          #
          # photo-z shifts
-         IPar = self.cosmoPar.nPar+self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar
-         IPar += np.arange(self.nBins)
          # add legend entry
          color = 'r'
          ax.plot([], [], color=color, label=r'$\delta z$')
          darkLight = 0.
-         for iPar in IPar:
+         for iPar in range(self.nBins):
             color = 'r'
             color = darkerLighter(color, amount=darkLight)
             darkLight += -0.5 * 1./self.nBins
-            ax.plot(Photoz, sigmas[iPar, :], color=color)
+            ax.plot(Photoz, sPhotoz[iPar, :], color=color)
          #
          # photo-z scatter
-         IPar = self.cosmoPar.nPar+self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar + self.nBins
-         IPar += np.arange(self.nBins)
          # add legend entry
          color = 'b'
          ax.plot([], [], color=color, label=r'$\sigma_z / (1+z)$')
          darkLight = 0.
-         for iPar in IPar:
+         for iPar in range(self.nBins, 2*self.nBins):
             color = 'b'
             color = darkerLighter(color, amount=darkLight)
             darkLight += -0.5 * 1./self.nBins
-            ax.plot(Photoz, sigmas[iPar, :], color=color)
+            ax.plot(Photoz, sPhotoz[iPar, :], color=color)
          #
          ax.set_xscale('log', nonposx='clip')
          ax.set_yscale('log', nonposx='clip')
@@ -1607,7 +1677,18 @@ class FisherLsst(object):
          fig.savefig(self.figurePath+path)
          fig.clf()
 
-      plotPhotoZPosterior(sFull, "/photozreq_photoz_full.pdf")
+      # Full: LCDM + Mnu + curv + w0,wa
+      plotPhotoZPosterior(sPhotozFull, parPhotozFull, "/photozreq_photoz_full.pdf")
+      # LCDM + Mnu
+      plotPhotoZPosterior(sPhotozLCDMMnu, parPhotozLCDMMnu, "/photozreq_photoz_lcdmmnu.pdf")
+      # LCDM + Mnu + w0,wa
+      plotPhotoZPosterior(sPhotozLCDMMnuW0Wa, parPhotozLCDMMnuW0Wa, "/photozreq_photoz_lcdmmnuw0wa.pdf")
+      # LCDM + Mnu + curv
+      plotPhotoZPosterior(sPhotozLCDMMnuCurv, parPhotozLCDMMnuCurv, "/photozreq_photoz_lcdmmnucurv.pdf")
+      # LCDM + w0,wa
+      plotPhotoZPosterior(sPhotozLCDMW0Wa, parPhotozLCDMW0Wa, "/photozreq_photoz_lcdmw0wa.pdf")
+      # LCDM + w0,wa + curvature
+      plotPhotoZPosterior(sPhotozLCDMW0WaCurv, parPhotozLCDMW0WaCurv, "/photozreq_photoz_lcdmw0wacurv.pdf")
 
 
 #      # photo-z parameters

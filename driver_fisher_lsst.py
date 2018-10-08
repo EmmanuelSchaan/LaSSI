@@ -18,7 +18,7 @@ curvature = True #False
 PlanckPrior = True
 
 # include null crosses
-fullCross = False #False # True
+fullCross = True #False # True
 
 # include a known magnification bias
 magBias = False
@@ -57,19 +57,19 @@ photoZPar = PhotoZParams(nBins=nBins)
 fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, fullCross=fullCross, name=name, nProc=nProc, save=False)
 
 
-fisherLsst.plotDndz()
-fisherLsst.plotPowerSpectra()
-fisherLsst.plotUncertaintyPowerSpectra()
-fisherLsst.plotCovMat()
+#fisherLsst.plotDndz()
+#fisherLsst.plotPowerSpectra()
+#fisherLsst.plotUncertaintyPowerSpectra()
+#fisherLsst.plotCovMat()
 #fisherLsst.plotInvCovMat()
 
-fisherLsst.printSnrPowerSpectra(path=fisherLsst.figurePath+"/snr.txt")
+#fisherLsst.printSnrPowerSpectra(path=fisherLsst.figurePath+"/snr.txt")
 
 
 
 
 
-fisherLsst.plotDerivativeDataVectorCosmo()
+#fisherLsst.plotDerivativeDataVectorCosmo()
 
 
 #fisherLsst.plotSingleDerivative("gg", 0, 0)
@@ -77,15 +77,16 @@ fisherLsst.plotDerivativeDataVectorCosmo()
 #fisherLsst.plotSingleDerivative("gg", 0, 20)
 
 #cosmoPar.printParams()
-fisherLsst.fullPar.printParams(path=fisherLsst.figurePath+"/prior_uncertainties.txt")
-fisherLsst.posteriorPar.printParams(path=fisherLsst.figurePath+"/posterior_uncertainties.txt")
 #fisherLsst.posteriorPar.printParams()
+#fisherLsst.fullPar.printParams(path=fisherLsst.figurePath+"/prior_uncertainties.txt")
+#fisherLsst.posteriorPar.printParams(path=fisherLsst.figurePath+"/posterior_uncertainties.txt")
+
 
 #cosmoPar.plotContours(path=fisherLsst.figurePath+"/contours_cosmo_prior.pdf")
 #fisherLsst.posteriorPar.plotContours(IPar=range(cosmoPar.nPar), path=fisherLsst.figurePath+"/contours_cosmo_posterior.pdf")
 
 
-fisherLsst.checkConditionNumbers()
+#fisherLsst.checkConditionNumbers()
 
 #fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar))
 #fisherLsst.posteriorPar.plotParams(IPar=range(cosmoPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar))
@@ -104,7 +105,7 @@ fisherLsst.photoZRequirements()
 ##################################################################################
 # show data vector and uncertainties
 
-
+'''
 fig=plt.figure(0)
 ax=fig.add_subplot(111)
 #
@@ -126,7 +127,7 @@ ax.legend()
 
 plt.show()
 
-
+'''
 
 
 
@@ -254,7 +255,7 @@ plt.show()
 
 ##################################################################################
 
-
+'''
 # Check eigenvalues of Fisher matrix
 #
 # try with numpy inversion
@@ -298,7 +299,7 @@ ax.set_xticklabels(fisherLsst.fullPar.namesLatex, fontsize=24)
 
 plt.show()
 
-
+'''
 
 
 
