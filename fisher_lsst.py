@@ -1449,7 +1449,7 @@ class FisherLsst(object):
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
             par.printParams(path=self.figurePath+"/posterior_full_photozprior_"+floatExpForm(photoz)+".txt")
          # cosmology
-         parCosmoFull = par.extractParams(self.cosmoPar.IFull, marg=True)
+         parCosmoFull = par.extractParams(range(len(self.cosmoPar.IFull)), marg=True)
          sCosmoFull[:, iPhotoz] = parCosmoFull.paramUncertainties(marg=True)
          # photo-z
          parPhotozFull = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
@@ -1462,7 +1462,7 @@ class FisherLsst(object):
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
             par.printParams(path=self.figurePath+"/posterior_ldcmmnu_photozprior_"+floatExpForm(photoz)+".txt")
          # cosmology
-         parCosmoLCDMMnu = par.extractParams(self.cosmoPar.ILCDMMnu, marg=True)
+         parCosmoLCDMMnu = par.extractParams(range(len(self.cosmoPar.ILCDMMnu)), marg=True)
          sCosmoLCDMMnu[:, iPhotoz] = parCosmoLCDMMnu.paramUncertainties(marg=True)
          # photo-z
          parPhotozLCDMMnu = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
@@ -1475,7 +1475,7 @@ class FisherLsst(object):
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
             par.printParams(path=self.figurePath+"/posterior_lcdmmnuw0wa_photozprior_"+floatExpForm(photoz)+".txt")
          # cosmology
-         parCosmoLCDMMnuW0Wa = par.extractParams(self.cosmoPar.ILCDMMnuW0Wa, marg=True)
+         parCosmoLCDMMnuW0Wa = par.extractParams(range(len(self.cosmoPar.ILCDMMnuW0Wa)), marg=True)
          sCosmoLCDMMnuW0Wa[:, iPhotoz] = parCosmoLCDMMnuW0Wa.paramUncertainties(marg=True)
          # photo-z
          parPhotozLCDMMnuW0Wa = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
@@ -1488,7 +1488,7 @@ class FisherLsst(object):
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
             par.printParams(path=self.figurePath+"/posterior_lcdmmnucurv_photozprior_"+floatExpForm(photoz)+".txt")
          # cosmology
-         parCosmoLCDMMnuCurv = par.extractParams(self.cosmoPar.ILCDMMnuCurv, marg=True)
+         parCosmoLCDMMnuCurv = par.extractParams(range(len(self.cosmoPar.ILCDMMnuCurv)), marg=True)
          sCosmoLCDMMnuCurv[:, iPhotoz] = parCosmoLCDMMnuCurv.paramUncertainties(marg=True)
          # photo-z
          parPhotozLCDMMnuCurv = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
@@ -1501,7 +1501,7 @@ class FisherLsst(object):
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
             par.printParams(path=self.figurePath+"/posterior_lcdmw0wa_photozprior_"+floatExpForm(photoz)+".txt")
          # cosmology
-         parCosmoLCDMW0Wa = par.extractParams(self.cosmoPar.ILCDMW0Wa, marg=True)
+         parCosmoLCDMW0Wa = par.extractParams(range(len(self.cosmoPar.ILCDMW0Wa)), marg=True)
          sCosmoLCDMW0Wa[:, iPhotoz] = parCosmoLCDMW0Wa.paramUncertainties(marg=True)
          # photo-z
          parPhotozLCDMW0Wa = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
@@ -1514,14 +1514,11 @@ class FisherLsst(object):
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
             par.printParams(path=self.figurePath+"/posterior_lcdmw0wacurv_photozprior_"+floatExpForm(photoz)+".txt")
          # cosmology
-         parCosmoLCDMW0WaCurv = par.extractParams(self.cosmoPar.ILCDMW0WaCurv, marg=True)
+         parCosmoLCDMW0WaCurv = par.extractParams(range(len(self.cosmoPar.ILCDMW0WaCurv)), marg=True)
          sCosmoLCDMW0WaCurv[:, iPhotoz] = parCosmoLCDMW0WaCurv.paramUncertainties(marg=True)
          # photo-z
          parPhotozLCDMW0WaCurv = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
          sPhotozLCDMW0WaCurv[:, iPhotoz] = parPhotozLCDMW0WaCurv.paramUncertainties(marg=True)
-
-      
-
 
       
       ##################################################################################

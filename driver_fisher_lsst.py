@@ -5,7 +5,7 @@ from fisher_lsst import *
 ##################################################################################
 # Forecast parameters
 
-nBins = 5  #5   #10
+nBins = 10  #5   #10
 nL = 20
 fsky = 0.4
 
