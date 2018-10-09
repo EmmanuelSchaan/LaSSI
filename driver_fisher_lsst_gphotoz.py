@@ -1,6 +1,6 @@
-import fisher_lsst
-reload(fisher_lsst)
-from fisher_lsst import *
+import fisher_lsst_gphotoz
+reload(fisher_lsst_gphotoz)
+from fisher_lsst_gphotoz import *
 
 ##################################################################################
 # Forecast parameters
@@ -27,6 +27,7 @@ magBias = False
 #name = "lcdm"
 #name = "lcdm_mnu_curv_w0wa"
 name = "lcdm_mnu_curv_w0wa_newellsandunits"
+#name = "lcdm_mnu_curv_w0wa_newellsandunits_perfectm"
 
 # Parallel evaluations
 nProc = 3   # not actually used, because CLASS won't be pickled...
@@ -39,6 +40,7 @@ cosmoPar = CosmoParams(massiveNu=massiveNu, wCDM=wCDM, curvature=curvature, Plan
 galaxyBiasPar = GalaxyBiasParams(nBins=nBins)
 #galaxyBiasPar.plotParams()
 shearMultBiasPar = ShearMultBiasParams(nBins=nBins)
+#shearMultBiasPar = ShearMultBiasParams(nBins=nBins, mStd=1.e-5)   # perfect photo-z priors
 #shearMultBiasPar.plotParams()
 photoZPar = PhotoZParams(nBins=nBins)
 #photoZPar.plotParams()
@@ -78,8 +80,8 @@ fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nB
 
 #cosmoPar.printParams()
 #fisherLsst.posteriorPar.printParams()
-#fisherLsst.fullPar.printParams(path=fisherLsst.figurePath+"/prior_uncertainties.txt")
-#fisherLsst.posteriorPar.printParams(path=fisherLsst.figurePath+"/posterior_uncertainties.txt")
+fisherLsst.fullPar.printParams(path=fisherLsst.figurePath+"/prior_uncertainties.txt")
+fisherLsst.posteriorPar.printParams(path=fisherLsst.figurePath+"/posterior_uncertainties.txt")
 
 
 #cosmoPar.plotContours(path=fisherLsst.figurePath+"/contours_cosmo_prior.pdf")

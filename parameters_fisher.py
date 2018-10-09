@@ -627,7 +627,34 @@ class PatPlanckParams(Parameters):
 
 ##################################################################################
 
+class DndzParams(Parameters):
 
+   def __init__(self, nBins=2, nZ=2, sNgal=1.e-4):
+      self.nPar = nBins * nZ
+      
+      # the parameters are defined as an additive correction to dn/dz
+      # these are the flattened version of (nBins, nZ)
+      self.fiducial = np.zeros(self.nPar)
+      self.high = 1.e-2 * np.ones(self.nPar)
+      self.low = np.zeros(self.nPar)
+      self.names = np.empty(self.nPar, dtype=object)
+      self.namesLatex = np.empty(self.nPar, dtype=object)
+      i = 0
+      for iBin in range(nBins):
+         for iZ in range(nZ):
+            self.names[i] = 'dn_'+str(iBin)+'dz_'+str(iZ)
+            self.namesLatex[i] = r'$dn_{'+str(iBin)+'}/dz_{'+str(iZ)+'}$'
+            i += 1
+   
+      # Prior: the dn/dz have to integrate to n_gal, the known nb of galaxies per bin
+      self.fisher = np.zeros((self.nPar, self.nPar))
+      # the Fisher matrix is block-diagonal, and the blocks on the diagonal are all ones
+      for iBin in range(nBins):
+         I = range(iBin*nZ, (iBin+1)*nZ)
+         J = np.ix_(I,I)
+         self.fisher[J] = np.ones((nZ, nZ))
+      # set the uncertainty on the measured ngal in each bin
+      self.fisher /= sNgal**2
 
 
 

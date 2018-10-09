@@ -538,7 +538,20 @@ class FisherLsst(object):
          snr = np.sqrt(snr)
          f.write("total i,i+2: "+str(snr)+"\n")
          
-
+         # gg: all
+         f.write("all\n")
+         i1 = 0
+         for iBin1 in range(self.nBins):
+            for iBin2 in range(self.nBins):
+               I = range(i1*self.nL, (i1+1)*self.nL)
+               d = self.dataVector[I]
+               J = np.ix_(I,I)
+               cov = self.covMat[J]
+               invCov = np.linalg.inv(cov)
+               snr = np.dot(d.transpose(), np.dot(invCov, d))
+               snr = np.sqrt(snr)
+               f.write("   "+str(iBin1)+","+str(iBin2)+": "+str(snr)+"\n")
+               i1 += 1
          # gg: total
          I = range(self.nGG*self.nL)
          d = self.dataVector[I]
@@ -554,6 +567,7 @@ class FisherLsst(object):
 
          # gs: all
          f.write("GS\n")
+         f.write("all\n")
          i1 = self.nGG
          for iBin1 in range(self.nBins):
             for iBin2 in range(self.nBins):
@@ -578,9 +592,35 @@ class FisherLsst(object):
 
          ###########################################################
          # ss
+         
+         f.write("SS\n")
+         
+         # ss: auto
+         f.write("auto\n")
+         i1 = self.nGG + self.nGS
+         Itotal = []
+         for iBin1 in range(self.nBins):
+            I = range(i1*self.nL, (i1+1)*self.nL)
+            d = self.dataVector[I]
+            J = np.ix_(I,I)
+            cov = self.covMat[J]
+            invCov = np.linalg.inv(cov)
+            snr = np.dot(d.transpose(), np.dot(invCov, d))
+            snr = np.sqrt(snr)
+            f.write("   "+str(iBin1)+","+str(iBin1)+": "+str(snr)+"\n")
+            i1 += self.nBins - iBin1
+            Itotal += I
+         # ss: total auto
+         d = self.dataVector[Itotal]
+         J = np.ix_(Itotal,Itotal)
+         cov = self.covMat[J]
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("total auto: "+str(snr)+"\n")
 
          # ss: all
-         f.write("SS\n")
+         f.write("all\n")
          i1 = self.nGG + self.nGS
          for iBin1 in range(self.nBins):
             for iBin2 in range(iBin1, self.nBins):
