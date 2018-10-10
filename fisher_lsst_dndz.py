@@ -104,7 +104,7 @@ class FisherLsst(object):
       # combined nuisance parameters
       self.nuisancePar = self.galaxyBiasPar.copy()
       self.nuisancePar.addParams(self.shearMultBiasPar)
-      self.nuisancePar.addParams(self.photoZPar)
+      self.nuisancePar.addParams(self.dndzPar)
       
       # all parameters
       self.fullPar = self.cosmoPar.copy()
@@ -169,14 +169,13 @@ class FisherLsst(object):
       # split the nuisance parameters
       galaxyBiasPar = nuisancePar[:self.galaxyBiasPar.nPar]
       shearMultBiasPar = nuisancePar[self.galaxyBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar]
-      photoZPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar:]
+      dndzPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar:]
       # LSST source sample
       w_glsst = WeightTracerLSSTSources(u, name='glsst')
       # split it into bins
       zBounds = w_glsst.splitBins(self.nBins)
       
       # generate the corresponding tracer and shear bins
-
       w_g = np.empty(self.nBins, dtype=object)
       w_s = np.empty(self.nBins, dtype=object)
       for iBin in range(self.nBins):
@@ -184,30 +183,33 @@ class FisherLsst(object):
          zMinP = zBounds[iBin]
          zMaxP = zBounds[iBin+1]
          # photo-z bias and uncertainty for this bin:
-         
-         
-         
 #!!!! I am using a loose mean redshift
-         dz = photoZPar[iBin]
-         sz = photoZPar[self.nBins+iBin] * (1.+0.5*(zMinP+zMaxP))
-         
-         
+         dz = 0.  #photoZPar[iBin]
+         sz = 0.05 * (1.+0.5*(zMinP+zMaxP))   #photoZPar[self.nBins+iBin] * (1.+0.5*(zMinP+zMaxP))
          
          # true z bounds: truncate at 5 sigma
          # careful for the first and last bin
          zMin = max(zMinP - 5.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
          zMax = min(zMaxP + 5.*sz, 1./w_glsst.aMin-1.)   # 1./w_glsst.aMin-1.
          
-         
 #         tStart = time()
          # true dn/dz_true from dn/dz_phot
          p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
          f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
          dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-3)[0]
+
+         # additive contribution from outliers
+         Zoutliers = np.linspace(1./w_glsst.aMax-1., 1./w_glsst.aMin-1., self.dndzPar.nZ)
+         Doutliers = dndzPar[iBin*self.dndzPar.nZ:(iBin+1)*self.dndzPar.nZ]
+         dndz_outliers = interp1d(Zoutliers, Doutliers, kind='linear', bounds_error=False, fill_value=0.)
+         
          # interpolate it for speed (for lensing kernel calculation)
          Z = np.linspace(zMin, zMax, 101)
-         F = np.array(map(dndz_tForInterp, Z))
+         F = np.array(map(dndz_tForInterp, Z))  # true z dist, given Gaussian photo-z
+         F += np.array(map(dndz_outliers, Z))  # add the outlier correction
          dndz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
+
+
 #         tStop = time()
 #         print "-- dndz_t took", tStop-tStart, "sec"
 

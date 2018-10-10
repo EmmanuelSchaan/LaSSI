@@ -630,6 +630,8 @@ class PatPlanckParams(Parameters):
 class DndzParams(Parameters):
 
    def __init__(self, nBins=2, nZ=2, sNgal=1.e-4):
+      self.nBins = nBins
+      self.nZ = nZ
       self.nPar = nBins * nZ
       
       # the parameters are defined as an additive correction to dn/dz
