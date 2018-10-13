@@ -128,6 +128,12 @@ class FisherLsst(object):
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
       
+      print "Mask for lMaxG"
+      tStart = time()
+      self.lMaxMask = self.generatelMaxMask(kMaxG=0.3)
+      tStop = time()
+      print "("+str(np.round(tStop-tStart,1))+" sec)"
+
       print "Power spectra",
       tStart = time()
       self.p2d_gg, self.p2d_gs, self.p2d_ss = self.generatePowerSpectra(self.u, self.w_g, self.w_s, save=self.save)
@@ -163,6 +169,48 @@ class FisherLsst(object):
       print "Full calculation took "+str(np.round((tStopFisher-tStartFisher)/60.,1))+" min"
 
    
+   ##################################################################################
+
+   def generatelMaxMask(self, kMaxG=0.3):
+      '''Creates a mask to discard the clustering modes
+      with ell >= kMax * chi - 0.5,
+      where chi is the mean comoving distance to the bin,
+      and kMax=0.3 h/Mpc,
+      as in the DESC SRD 2018.
+      Should be called after the tomo bins have been generated.
+      '''
+      lMaxMask = np.zeros(self.nData)
+      iData = 0
+      # gg
+      for iBin1 in range(self.nBins):
+         z1 = 0.5 * (1./self.w_g[iBin1].aMin-1. + 1./self.w_g[iBin1].aMax-1.)
+         chi1 = self.u.bg.comoving_distance(z1)
+         for iBin2 in range(iBin1, self.nBins):
+            z2 = 0.5 * (1./self.w_g[iBin2].aMin-1. + 1./self.w_g[iBin2].aMax-1.)
+            chi2 = self.u.bg.comoving_distance(z2)
+            if (iBin2==iBin1) or self.fullCross:
+               chi = min(chi1, chi2)
+               lMax = kMaxG * chi - 0.5
+               lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
+               iData += 1
+      # gs
+      for iBin1 in range(self.nBins):
+         z1 = 0.5 * (1./self.w_g[iBin1].aMin-1. + 1./self.w_g[iBin1].aMax-1.)
+         chi1 = self.u.bg.comoving_distance(z1)
+         for iBin2 in range(self.nBins):
+            if (iBin2>=iBin1) or self.fullCross:
+               lMax = kMaxG * chi1 - 0.5
+               lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
+               iData += 1
+      # ss
+      for iBin1 in range(self.nBins):
+         for iBin2 in range(iBin1, self.nBins):
+            iData += 1
+      return lMaxMask
+   
+   
+
+
    ##################################################################################
 
    def generateBins(self, u, nuisancePar, save=True):
