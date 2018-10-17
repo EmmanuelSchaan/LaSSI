@@ -524,8 +524,9 @@ class FisherLsst(object):
          Itotal = []
          for iBin1 in range(self.nBins):
             I = range(i1*self.nL, (i1+1)*self.nL)
-            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+            d = self.dataVector[I]
+            J = np.ix_(I,I)
+            cov = self.covMat[J]
             invCov = np.linalg.inv(cov)
             snr = np.dot(d.transpose(), np.dot(invCov, d))
             snr = np.sqrt(snr)
@@ -533,8 +534,9 @@ class FisherLsst(object):
             i1 += self.nBins - iBin1
             Itotal += I
          # gg: total auto
-         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=Itotal)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=Itotal)
+         d = self.dataVector[Itotal]
+         J = np.ix_(Itotal,Itotal)
+         cov = self.covMat[J]
          invCov = np.linalg.inv(cov)
          snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
@@ -547,8 +549,9 @@ class FisherLsst(object):
          Itotal = []
          for iBin1 in range(self.nBins-1):
             I = range(i1*self.nL, (i1+1)*self.nL)
-            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+            d = self.dataVector[I]
+            J = np.ix_(I,I)
+            cov = self.covMat[J]
             invCov = np.linalg.inv(cov)
             snr = np.dot(d.transpose(), np.dot(invCov, d))
             snr = np.sqrt(snr)
@@ -556,8 +559,9 @@ class FisherLsst(object):
             i1 += self.nBins - iBin1
             Itotal += I
          # gg: total i,i+1
-         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=Itotal)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=Itotal)
+         d = self.dataVector[Itotal]
+         J = np.ix_(Itotal,Itotal)
+         cov = self.covMat[J]
          invCov = np.linalg.inv(cov)
          snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
@@ -570,8 +574,9 @@ class FisherLsst(object):
          Itotal = []
          for iBin1 in range(self.nBins-2):
             I = range(i1*self.nL, (i1+1)*self.nL)
-            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+            d = self.dataVector[I]
+            J = np.ix_(I,I)
+            cov = self.covMat[J]
             invCov = np.linalg.inv(cov)
             snr = np.dot(d.transpose(), np.dot(invCov, d))
             snr = np.sqrt(snr)
@@ -579,8 +584,9 @@ class FisherLsst(object):
             i1 += self.nBins - iBin1
             Itotal += I
          # gg: total i,i+2
-         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=Itotal)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=Itotal)
+         d = self.dataVector[Itotal]
+         J = np.ix_(Itotal,Itotal)
+         cov = self.covMat[J]
          invCov = np.linalg.inv(cov)
          snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
@@ -592,8 +598,9 @@ class FisherLsst(object):
          for iBin1 in range(self.nBins):
             for iBin2 in range(self.nBins):
                I = range(i1*self.nL, (i1+1)*self.nL)
-               d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-               cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+               d = self.dataVector[I]
+               J = np.ix_(I,I)
+               cov = self.covMat[J]
                invCov = np.linalg.inv(cov)
                snr = np.dot(d.transpose(), np.dot(invCov, d))
                snr = np.sqrt(snr)
@@ -601,8 +608,9 @@ class FisherLsst(object):
                i1 += 1
          # gg: total
          I = range(self.nGG*self.nL)
-         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+         d = self.dataVector[I]
+         J = np.ix_(I,I)
+         cov = self.covMat[J]
          invCov = np.linalg.inv(cov)
          snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
@@ -618,8 +626,9 @@ class FisherLsst(object):
          for iBin1 in range(self.nBins):
             for iBin2 in range(self.nBins):
                I = range(i1*self.nL, (i1+1)*self.nL)
-               d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-               cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+               d = self.dataVector[I]
+               J = np.ix_(I,I)
+               cov = self.covMat[J]
                invCov = np.linalg.inv(cov)
                snr = np.dot(d.transpose(), np.dot(invCov, d))
                snr = np.sqrt(snr)
@@ -627,8 +636,9 @@ class FisherLsst(object):
                i1 += 1
          # gs: total
          I = range(self.nGG*self.nL, (self.nGG+self.nGS)*self.nL)
-         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+         d = self.dataVector[I]
+         J = np.ix_(I,I)
+         cov = self.covMat[J]
          invCov = np.linalg.inv(cov)
          snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
@@ -645,8 +655,9 @@ class FisherLsst(object):
          Itotal = []
          for iBin1 in range(self.nBins):
             I = range(i1*self.nL, (i1+1)*self.nL)
-            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+            d = self.dataVector[I]
+            J = np.ix_(I,I)
+            cov = self.covMat[J]
             invCov = np.linalg.inv(cov)
             snr = np.dot(d.transpose(), np.dot(invCov, d))
             snr = np.sqrt(snr)
@@ -654,8 +665,9 @@ class FisherLsst(object):
             i1 += self.nBins - iBin1
             Itotal += I
          # ss: total auto
-         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=Itotal)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=Itotal)
+         d = self.dataVector[Itotal]
+         J = np.ix_(Itotal,Itotal)
+         cov = self.covMat[J]
          invCov = np.linalg.inv(cov)
          snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
@@ -667,8 +679,9 @@ class FisherLsst(object):
          for iBin1 in range(self.nBins):
             for iBin2 in range(iBin1, self.nBins):
                I = range(i1*self.nL, (i1+1)*self.nL)
-               d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-               cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+               d = self.dataVector[I]
+               J = np.ix_(I,I)
+               cov = self.covMat[J]
                invCov = np.linalg.inv(cov)
                snr = np.dot(d.transpose(), np.dot(invCov, d))
                snr = np.sqrt(snr)
@@ -676,8 +689,9 @@ class FisherLsst(object):
                i1 += 1
          # ss: total
          I = range((self.nGG+self.nGS)*self.nL, (self.nGG+self.nGS+self.nSS)*self.nL)
-         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+         d = self.dataVector[I]
+         J = np.ix_(I,I)
+         cov = self.covMat[J]
          invCov = np.linalg.inv(cov)
          snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
@@ -686,10 +700,7 @@ class FisherLsst(object):
          ###########################################################
          # gg, gs, ss
 
-         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask)
-         invCov = np.linalg.inv(cov)
-         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.dot(self.dataVector.transpose(), np.dot(self.invCov, self.dataVector))
          snr = np.sqrt(snr)
          f.write("total gg, gs, ss: "+str(snr)+"\n\n")
 
@@ -787,11 +798,9 @@ class FisherLsst(object):
       # Fisher from the data
       for i in range(self.fullPar.nPar):
          for j in range(self.fullPar.nPar):
-            di = extractMaskedVec(self.derivativeDataVector[i,:], mask=self.lMaxMask)
-            dj = extractMaskedVec(self.derivativeDataVector[j,:], mask=self.lMaxMask)
-            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask)
-            invCov = np.linalg.inv(cov)
-            self.fisherData[i,j] = np.dot(di.transpose(), np.dot(invCov, dj))
+            result = np.dot(self.invCov, self.derivativeDataVector[j,:])
+            result = np.dot(self.derivativeDataVector[i,:].transpose(), result)
+            self.fisherData[i,j] = result
       # Fisher from the prior
       self.fisherPrior = self.fullPar.fisher.copy()
       # Fisher from data and prior
@@ -806,10 +815,9 @@ class FisherLsst(object):
    
    def checkConditionNumbers(self):
       print "Cov matrix"
-      cov = extractMaskedMat(self.covMat, mask=self.lMaxMask)
-      print "inverse condition number:", 1./np.linalg.cond(cov)
-      print "number numerical precision:", np.finfo(cov.dtype).eps
-      if 1./np.linalg.cond(self.covMat) > np.finfo(cov.dtype).eps:
+      print "inverse condition number:", 1./np.linalg.cond(self.covMat)
+      print "number numerical precision:", np.finfo(self.covMat.dtype).eps
+      if 1./np.linalg.cond(self.covMat) > np.finfo(self.covMat.dtype).eps:
          print "--> OK"
       else:
          print "--> Not OK"

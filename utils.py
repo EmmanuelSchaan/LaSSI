@@ -161,3 +161,44 @@ def generateEllBins(lMin, lMax, nL, fsky=1.):
    return Lc, dL, Nmodes, Le
 
 
+##################################################################################
+#  Extract non-mask data vector and cov matrix
+
+def extractMaskedMat(cov, mask=None, I=None):
+   '''cov: large matrix
+   mask: 1d array, 1 if masked
+   I: indices of the large matrix to keep, pre-masking
+   '''
+   # extract indices of interest, if needed
+   if I is not None:
+      mask = mask[I]
+      J = np.ix_(I, I)
+      cov = cov[J]
+   if mask is not None:
+      # mask cov matrix
+      mask = np.diag(mask)
+      cov = ma.masked_array(cov, mask=mask)
+      cov = ma.mask_rowcols(cov)
+      # extract the non-masked elements
+      cov = cov.compressed().reshape((nNew, nNew))
+   return cov
+
+def extractMaskedVec(vec, mask=None, I=None):
+   '''vec: large vector
+   mask: 1d array, 1 if masked
+   I: indices of the large vector to keep, pre-masking
+   '''
+   # extract indices of interest, if needed
+   if I is not None:
+      mask = mask[I]
+      vec = vec[I]
+   if mask is not None:
+      # mask vec matrix
+      vec = ma.masked_array(vec, mask=mask)
+      # extract the non-masked elements
+      vec = vec.compressed()
+   return vec
+
+
+
+
