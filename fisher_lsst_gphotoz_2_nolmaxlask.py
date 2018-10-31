@@ -784,14 +784,13 @@ class FisherLsst(object):
    
    def loadFisher(self):
       self.fisherData = np.zeros((self.fullPar.nPar, self.fullPar.nPar))
-      # extract unmasked cov elements, and invert
-      cov = extractMaskedMat(self.covMat, mask=self.lMaxMask)
-      invCov = np.linalg.inv(cov)
       # Fisher from the data
       for i in range(self.fullPar.nPar):
          for j in range(self.fullPar.nPar):
             di = extractMaskedVec(self.derivativeDataVector[i,:], mask=self.lMaxMask)
             dj = extractMaskedVec(self.derivativeDataVector[j,:], mask=self.lMaxMask)
+            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask)
+            invCov = np.linalg.inv(cov)
             self.fisherData[i,j] = np.dot(di.transpose(), np.dot(invCov, dj))
       # Fisher from the prior
       self.fisherPrior = self.fullPar.fisher.copy()
@@ -906,9 +905,9 @@ class FisherLsst(object):
       fig=plt.figure(0, figsize=(12,8))
       ax=fig.add_subplot(111)
       #
-#      # extract the unmasked cov elements
-#      cov = extractMaskedMat(self.covMat, mask=self.lMaxMask)
-#      invCov = np.linalg.inv(cov)
+      # extract the unmasked cov elements
+      cov = extractMaskedMat(self.covMat, mask=self.lMaxMask)
+      invCov = np.linalg.inv(cov)
       #
       upperDiag = np.triu(np.ones(self.nData))
 #      plt.imshow(self.invCov * upperDiag, interpolation='nearest', norm=LogNorm(vmin=1.e-4, vmax=1), cmap=cmaps.viridis_r)
@@ -1084,16 +1083,11 @@ class FisherLsst(object):
       ax0=plt.subplot(gs[0])
       i1 = 0
       for iBin1 in range(self.nBins):
-#         d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
-#         std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-         I = range(i1*self.nL, (i1+1)*self.nL)
-         L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-         std = L * np.sqrt(np.diag(cov))
+         d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
+         std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
          #
          color = Colors[iBin1]
-         ax0.errorbar(L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
+         ax0.errorbar(self.L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
          # advance counter in data vector
          i1 += self.nBins - iBin1
       #
@@ -1108,16 +1102,11 @@ class FisherLsst(object):
       ax1=plt.subplot(gs[1])
       i1 = 1
       for iBin1 in range(self.nBins-1):
-#         d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
-#         std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-         I = range(i1*self.nL, (i1+1)*self.nL)
-         L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-         std = L * np.sqrt(np.diag(cov))
+         d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
+         std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
          #
          color = Colors[iBin1]
-         ax1.errorbar(L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
+         ax1.errorbar(self.L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
          # advance counter in data vector
          i1 += self.nBins - iBin1
       #
@@ -1131,16 +1120,11 @@ class FisherLsst(object):
       ax2=plt.subplot(gs[2])
       i1 = 2
       for iBin1 in range(self.nBins-2):
-#         d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
-#         std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-         I = range(i1*self.nL, (i1+1)*self.nL)
-         L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-         std = L * np.sqrt(np.diag(cov))
+         d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
+         std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
          #
          color = Colors[iBin1]
-         ax2.errorbar(L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
+         ax2.errorbar(self.L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
          # advance counter in data vector
          i1 += self.nBins - iBin1
       #
@@ -1164,15 +1148,9 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          color = Colors[iBin1]
          for iBin2 in range(self.nBins):
-#            d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
-#            std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-            I = range(i1*self.nL, (i1+1)*self.nL)
-            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-            d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-            std = L * np.sqrt(np.diag(cov))
-            #
-            ax.errorbar(L*(1.+0.01*i1/self.nGS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)# label=r'$\ell \langle g_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+r'}\rangle$')
+            d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
+            std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+            ax.errorbar(self.L*(1.+0.01*i1/self.nGS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)# label=r'$\ell \langle g_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+r'}\rangle$')
             # move to next row
             i1 += 1
       #
@@ -1198,18 +1176,12 @@ class FisherLsst(object):
          color = Colors[iBin1]
          ax.plot([], [], c=color, label=r'$\langle\gamma_{i} \gamma_{i+'+str(iBin1)+r'} \rangle $')
          for iBin2 in range(iBin1, self.nBins):
-#            d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
-#            std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+            d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
             #
             color = Colors[iBin2-iBin1]
             #
-            I = range(i1*self.nL, (i1+1)*self.nL)
-            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-            d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-            std = L * np.sqrt(np.diag(cov))
-            #
-            ax.errorbar(L*(1.+0.01*i1/self.nSS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)#, label=r'$\gamma_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
+            std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+            ax.errorbar(self.L*(1.+0.01*i1/self.nSS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)#, label=r'$\gamma_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
             # move to next row
             i1 += 1
       #
@@ -1241,16 +1213,11 @@ class FisherLsst(object):
       ax0=plt.subplot(gs[0])
       i1 = 0
       for iBin1 in range(self.nBins):
-#         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
-#         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-         I = range(i1*self.nL, (i1+1)*self.nL)
-         L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-         std = np.sqrt(np.diag(cov))
+         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
          #
          color = Colors[iBin1]
-         ax0.plot(L, std / d, '.-', lw=2, color=color)
+         ax0.plot(self.L, std / d, '.-', lw=2, color=color)
          # advance counter in data vector
          i1 += self.nBins - iBin1
       #
@@ -1265,16 +1232,11 @@ class FisherLsst(object):
       ax1=plt.subplot(gs[1])
       i1 = 1
       for iBin1 in range(self.nBins-1):
-#         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
-#         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-         I = range(i1*self.nL, (i1+1)*self.nL)
-         L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-         std = np.sqrt(np.diag(cov))
+         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
          #
          color = Colors[iBin1]
-         ax1.plot(L, std / d, '-', lw=2, color=color)
+         ax1.plot(self.L, std / d, '-', lw=2, color=color)
          # advance counter in data vector
          i1 += self.nBins - iBin1
       #
@@ -1288,16 +1250,11 @@ class FisherLsst(object):
       ax2=plt.subplot(gs[2])
       i1 = 2
       for iBin1 in range(self.nBins-2):
-#         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
-#         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-         I = range(i1*self.nL, (i1+1)*self.nL)
-         L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-         std = np.sqrt(np.diag(cov))
+         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
          #
          color = Colors[iBin1]
-         ax2.plot(L, std / d, '.-', lw=2, color=color)
+         ax2.plot(self.L, std / d, '.-', lw=2, color=color)
          # advance counter in data vector
          i1 += self.nBins - iBin1
       #
@@ -1321,15 +1278,9 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          color = Colors[iBin1]
          for iBin2 in range(self.nBins):
-#            d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
-#            std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
-            I = range(i1*self.nL, (i1+1)*self.nL)
-            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-            std = np.sqrt(np.diag(cov))
-            #
-            ax.plot(L*(1.+0.01*i1/self.nGS), std / d, '.-', lw=1, color=color)
+            d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+            std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+            ax.plot(self.L*(1.+0.01*i1/self.nGS), std / d, '.-', lw=1, color=color)
             # move to next row
             i1 += 1
       #
@@ -1355,17 +1306,10 @@ class FisherLsst(object):
          color = Colors[iBin1]
          ax.plot([], [], c=color, label=r'$\langle\gamma_{i} \gamma_{i+'+str(iBin1)+r'} \rangle $')
          for iBin2 in range(iBin1, self.nBins):
-#            d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
-#            std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+            d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
+            std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
             color = Colors[iBin2-iBin1]
-            #
-            I = range(i1*self.nL, (i1+1)*self.nL)
-            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-            std = np.sqrt(np.diag(cov))
-            #
-            ax.plot(L*(1.+0.01*i1/self.nSS), std / d, '.-', lw=1, color=color)
+            ax.plot(self.L*(1.+0.01*i1/self.nSS), std / d, '.-', lw=1, color=color)
             # move to next row
             i1 += 1
       #
@@ -1422,16 +1366,12 @@ class FisherLsst(object):
 #      for iPar in [9]:  # curvature
          # plot all the 2pt functions
          for i2pt in range(self.nGG):
-#            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
-            I = range(i2pt*self.nL, (i2pt+1)*self.nL)
-            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-            dlnDdlnP = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
-            dlnDdlnP /= extractMaskedVec(self.dataVector[iPar, :], mask=self.lMaxMask, I=I)
+            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
             if self.cosmoPar.fiducial[iPar] <> 0.:
                dlnDdlnP *= self.cosmoPar.fiducial[iPar]
             color = Colors[iPar]
             color = darkerLighter(color, amount=-0.5*i2pt/self.nGG)
-            ax.plot(L, dlnDdlnP, c=color, lw=3)
+            ax.plot(self.L, dlnDdlnP, c=color, lw=3)
          ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
       #
       #ax.grid()
@@ -1456,16 +1396,12 @@ class FisherLsst(object):
 #      for iPar in [9]:  # curvature
          # plot all the 2pt functions
          for i2pt in range(self.nGG, self.nGG+self.nGS):
-#            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
-            I = range(i2pt*self.nL, (i2pt+1)*self.nL)
-            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-            dlnDdlnP = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
-            dlnDdlnP /= extractMaskedVec(self.dataVector[iPar, :], mask=self.lMaxMask, I=I)
+            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
             if self.cosmoPar.fiducial[iPar] <> 0.:
                dlnDdlnP *= self.cosmoPar.fiducial[iPar]
             color = Colors[iPar]
             color = darkerLighter(color, amount=-0.5*(i2pt-self.nGG)/self.nGS)
-            ax.plot(L, dlnDdlnP, c=color, lw=3)
+            ax.plot(self.L, dlnDdlnP, c=color, lw=3)
          ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
       #
       #ax.grid()
@@ -1490,16 +1426,12 @@ class FisherLsst(object):
 #      for iPar in [9]:  # curvature
          # plot all the 2pt functions
          for i2pt in range(self.nGG+self.nGS, self.nGG+self.nGS+self.nSS):
-#            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
-            I = range(i2pt*self.nL, (i2pt+1)*self.nL)
-            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-            dlnDdlnP = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
-            dlnDdlnP /= extractMaskedVec(self.dataVector[iPar, :], mask=self.lMaxMask, I=I)
+            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
             if self.cosmoPar.fiducial[iPar] <> 0.:
                dlnDdlnP *= self.cosmoPar.fiducial[iPar]
             color = Colors[iPar]
             color = darkerLighter(color, amount=-0.5*(i2pt-(self.nGG+self.nGS))/self.nSS)
-            ax.plot(L, dlnDdlnP, c=color, lw=3)
+            ax.plot(self.L, dlnDdlnP, c=color, lw=3)
          ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
       #
       #ax.grid()

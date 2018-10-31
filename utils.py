@@ -175,6 +175,8 @@ def extractMaskedMat(cov, mask=None, I=None):
       J = np.ix_(I, I)
       cov = cov[J]
    if mask is not None:
+      # nb of unmasked rows
+      nNew = np.int(np.sum(1 - mask))
       # mask cov matrix
       mask = np.diag(mask)
       cov = ma.masked_array(cov, mask=mask)

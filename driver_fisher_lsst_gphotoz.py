@@ -26,8 +26,9 @@ magBias = False
 # forecast name
 #name = "lcdm"
 #name = "lcdm_mnu_curv_w0wa"
-name = "lcdm_mnu_curv_w0wa_newellsandunits"
+#name = "lcdm_mnu_curv_w0wa_newellsandunits"
 #name = "lcdm_mnu_curv_w0wa_newellsandunits_perfectm"
+name = "gphotoz_lmaxmask"
 
 # Parallel evaluations
 nProc = 3   # not actually used, because CLASS won't be pickled...
@@ -56,22 +57,22 @@ photoZPar = PhotoZParams(nBins=nBins)
 ##################################################################################
 # Fisher calculation
 
-fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, fullCross=fullCross, name=name, nProc=nProc, save=False)
+fisherLsst = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, fullCross=fullCross, name=name, nProc=nProc, save=True)
 
 
-#fisherLsst.plotDndz()
-#fisherLsst.plotPowerSpectra()
-#fisherLsst.plotUncertaintyPowerSpectra()
-#fisherLsst.plotCovMat()
+fisherLsst.plotDndz()
+fisherLsst.plotPowerSpectra()
+fisherLsst.plotUncertaintyPowerSpectra()
+fisherLsst.plotCovMat()
 #fisherLsst.plotInvCovMat()
 
-#fisherLsst.printSnrPowerSpectra(path=fisherLsst.figurePath+"/snr.txt")
+fisherLsst.printSnrPowerSpectra(path=fisherLsst.figurePath+"/snr.txt")
 
 
 
 
 
-#fisherLsst.plotDerivativeDataVectorCosmo()
+fisherLsst.plotDerivativeDataVectorCosmo()
 
 
 #fisherLsst.plotSingleDerivative("gg", 0, 0)
