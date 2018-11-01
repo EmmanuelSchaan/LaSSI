@@ -166,9 +166,11 @@ def generateEllBins(lMin, lMax, nL, fsky=1.):
 
 def extractMaskedMat(cov, mask=None, I=None):
    '''cov: large matrix
-   mask: 1d array, 1 if masked
+   mask: 1d array, 0 if unmasked, anything else if masked
    I: indices of the large matrix to keep, pre-masking
    '''
+   # convert mask to 0 and 1
+   mask = mask.astype(bool)
    # extract indices of interest, if needed
    if I is not None:
       mask = mask[I]
@@ -187,9 +189,11 @@ def extractMaskedMat(cov, mask=None, I=None):
 
 def extractMaskedVec(vec, mask=None, I=None):
    '''vec: large vector
-   mask: 1d array, 1 if masked
+   mask: 1d array, 0 if unmasked, anything else if masked
    I: indices of the large vector to keep, pre-masking
    '''
+   # convert mask to 0 and 1
+   mask = mask.astype(bool)
    # extract indices of interest, if needed
    if I is not None:
       mask = mask[I]

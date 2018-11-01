@@ -23,7 +23,7 @@ from covp_2d import *
 
 class FisherLsst(object):
    
-   def __init__(self, cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=2, nL=20, fsky=1., magBias=False, name=None, nProc=3, save=True):   #, fullCross=True
+   def __init__(self, cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=2, nL=20, fsky=1., magBias=False, fullCross=True, name=None, nProc=3, save=True):
       self.save = save
       self.nProc = nProc
       
@@ -45,12 +45,12 @@ class FisherLsst(object):
       self.nBins = nBins
       self.nG = self.nBins
       self.nS = self.nBins
-#      if fullCross:
-      self.nGG = self.nG * (self.nG+1) / 2   # not just gg from same z-bin
-      self.nGS = self.nG * self.nS # not just higher z s than g
-#      else:
-#         self.nGG = self.nG   # just gg from same z-bin
-#         self.nGS = self.nG * (self.nG+1) / 2 # just higher z s than g
+      if fullCross:
+         self.nGG = self.nG * (self.nG+1) / 2   # not just gg from same z-bin
+         self.nGS = self.nG * self.nS # not just higher z s than g
+      else:
+         self.nGG = self.nG   # just gg from same z-bin
+         self.nGS = self.nG * (self.nG+1) / 2 # just higher z s than g
       self.nSS = self.nS * (self.nS+1) / 2
       self.n2pt = self.nGG + self.nGS + self.nSS
       print "Tomographic bins: "+str(self.nBins)
@@ -63,9 +63,9 @@ class FisherLsst(object):
       # include known magnification bias or not
       self.magBias = magBias
       
-#      # include null crosses
-#      self.fullCross = fullCross
-
+      # include null crosses
+      self.fullCross = fullCross
+      
       # Improving the conditioning of the cov matrix
       # Relative unit for shear
       self.sUnit = 20.
@@ -77,8 +77,8 @@ class FisherLsst(object):
       self.name = "lsst_gg_gs_ss_nBins"+str(self.nBins)+"_nL"+str(self.nL)
       if self.magBias:
          self.name += "_magbias"
-#      if fullCross:
-#         self.name += "_fullcross"
+      if fullCross:
+         self.name += "_fullcross"
       if name is not None:
          self.name += "_"+name
       print "Ouput file name:", self.name
@@ -128,12 +128,9 @@ class FisherLsst(object):
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
       
-      print "Mask for lMaxG, noNull, gOnly, sOnly",
+      print "Mask for lMaxG"
       tStart = time()
       self.lMaxMask = self.generatelMaxMask(kMaxG=0.3)
-      self.noNullMask = self.generateNoNullMask()
-      self.gOnlyMask = self.generateGOnlyMask()
-      self.sOnlyMask = self.generateSOnlyMask()
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
 
@@ -162,55 +159,17 @@ class FisherLsst(object):
          self.saveDerivativeDataVector()
       self.loadDerivativeDataVector()
       
-#      print "Fisher matrix"
-#      tStart = time()
-#      self.generateFisher()
-#      tStop = time()
-#      print "("+str(np.round(tStop-tStart,1))+" sec)"
+      print "Fisher matrix"
+      tStart = time()
+      self.loadFisher()
+      tStop = time()
+      print "("+str(np.round(tStop-tStart,1))+" sec)"
 
       tStopFisher = time()
       print "Full calculation took "+str(np.round((tStopFisher-tStartFisher)/60.,1))+" min"
 
    
    ##################################################################################
-
-#   def generatelMaxMask(self, kMaxG=0.3):
-#      '''Creates a mask to discard the clustering modes
-#      with ell >= kMax * chi - 0.5,
-#      where chi is the mean comoving distance to the bin,
-#      and kMax=0.3 h/Mpc,
-#      as in the DESC SRD 2018.
-#      Should be called after the tomo bins have been generated.
-#      '''
-#      lMaxMask = np.zeros(self.nData)
-#      iData = 0
-#      # gg
-#      for iBin1 in range(self.nBins):
-#         z1 = 0.5 * (1./self.w_g[iBin1].aMin-1. + 1./self.w_g[iBin1].aMax-1.)
-#         chi1 = self.u.bg.comoving_distance(z1)
-#         for iBin2 in range(iBin1, self.nBins):
-#            z2 = 0.5 * (1./self.w_g[iBin2].aMin-1. + 1./self.w_g[iBin2].aMax-1.)
-#            chi2 = self.u.bg.comoving_distance(z2)
-#            if (iBin2==iBin1) or self.fullCross:
-#               chi = min(chi1, chi2)
-#               lMax = kMaxG * chi - 0.5
-#               lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
-#               iData += 1
-#      # gs
-#      for iBin1 in range(self.nBins):
-#         z1 = 0.5 * (1./self.w_g[iBin1].aMin-1. + 1./self.w_g[iBin1].aMax-1.)
-#         chi1 = self.u.bg.comoving_distance(z1)
-#         for iBin2 in range(self.nBins):
-#            if (iBin2>=iBin1) or self.fullCross:
-#               lMax = kMaxG * chi1 - 0.5
-#               lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
-#               iData += 1
-#      # ss
-#      for iBin1 in range(self.nBins):
-#         for iBin2 in range(iBin1, self.nBins):
-#            iData += 1
-#      return lMaxMask
-
 
    def generatelMaxMask(self, kMaxG=0.3):
       '''Creates a mask to discard the clustering modes
@@ -229,59 +188,27 @@ class FisherLsst(object):
          for iBin2 in range(iBin1, self.nBins):
             z2 = 0.5 * (1./self.w_g[iBin2].aMin-1. + 1./self.w_g[iBin2].aMax-1.)
             chi2 = self.u.bg.comoving_distance(z2)
-            chi = min(chi1, chi2)
-            lMax = kMaxG * chi - 0.5
-            lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
-            iData += 1
+            if (iBin2==iBin1) or self.fullCross:
+               chi = min(chi1, chi2)
+               lMax = kMaxG * chi - 0.5
+               lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
+               iData += 1
       # gs
       for iBin1 in range(self.nBins):
          z1 = 0.5 * (1./self.w_g[iBin1].aMin-1. + 1./self.w_g[iBin1].aMax-1.)
          chi1 = self.u.bg.comoving_distance(z1)
          for iBin2 in range(self.nBins):
-            lMax = kMaxG * chi1 - 0.5
-            lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
-            iData += 1
-      return lMaxMask
-
-   def generateNoNullMask(self):
-      '''Creates a mask to discard all the spectra that would be null
-      if photo-z were perfect.
-      I.e. discard gg crosses, and gs where z_g>z_s.
-      '''
-      noNullMask = np.zeros(self.nData)
-      iData = 0
-      # gg
+            if (iBin2>=iBin1) or self.fullCross:
+               lMax = kMaxG * chi1 - 0.5
+               lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
+               iData += 1
+      # ss
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            if (iBin2<>iBin1):
-               noNullMask[iData*self.nL:(iData+1)*self.nL] = 1
             iData += 1
-      # gs
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(self.nBins):
-            if (iBin2<iBin1):
-               noNullMask[iData*self.nL:(iData+1)*self.nL] = 1
-            iData += 1
-      return noNullMask
-
-   def generateGOnlyMask(self):
-      '''Creates a mask to discard the keep only clustering:
-      0 for gg, 1 for gs and ss.
-      '''
-      gOnlyMask = np.zeros(self.nData)
-      # mask gs and ss
-      gOnlyMask[self.nGG*self.nL: (self.nGG + self.nGS + self.nSS)*self.nL] = 1
-      return gOnlyMask
-
-   def generateSOnlyMask(self):
-      '''Creates a mask to discard the keep only cosmic shear:
-      0 for ss, 1 for gg and gs.
-      '''
-      sOnlyMask = np.zeros(self.nData)
-      # mask gg and gs
-      sOnlyMask[:(self.nGG + self.nGS)*self.nL] = 1
-      return sOnlyMask
-
+      return lMaxMask
+   
+   
 
 
    ##################################################################################
@@ -419,15 +346,17 @@ class FisherLsst(object):
       # gg
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gg[iBin1, iBin2].fPinterp, self.L))
-            dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-            iData += 1
+            if (iBin2==iBin1) or self.fullCross:
+               dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gg[iBin1, iBin2].fPinterp, self.L))
+               dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
+               iData += 1
       # gs
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
-            dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gs[iBin1, iBin2].fPinterp, self.L))
-            dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
-            iData += 1
+            if (iBin2>=iBin1) or self.fullCross:
+               dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gs[iBin1, iBin2].fPinterp, self.L))
+               dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
+               iData += 1
       # ss
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
@@ -452,91 +381,99 @@ class FisherLsst(object):
       i1 = 0
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            # considering gg[j1,j2]
-            i2 = 0
-            for jBin1 in range(self.nBins):
-               for jBin2 in range(jBin1, self.nBins):
-                  # compute only upper diagonal
-                  if i2>=i1:
-                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gg[iBin2,jBin2], p2d_gg[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-                  # move to next column
-                  i2 += 1
-            # move to next row
-            i1 += 1
+            if (iBin2==iBin1) or self.fullCross:
+               # considering gg[j1,j2]
+               i2 = 0
+               for jBin1 in range(self.nBins):
+                  for jBin2 in range(jBin1, self.nBins):
+                     if (jBin2==jBin1) or self.fullCross:
+                        # compute only upper diagonal
+                        if i2>=i1:
+                           covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gg[iBin2,jBin2], p2d_gg[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
+                           covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+                        # move to next column
+                        i2 += 1
+               # move to next row
+               i1 += 1
 
       #print "gg-gs"
       # considering gg[i1,i2]
       i1 = 0
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            # considering gs[j1,j2]
-            i2 = self.nGG
-            for jBin1 in range(self.nBins):
-               for jBin2 in range(self.nBins):
-                  # compute only upper diagonal
-                  if i2>=i1:
-                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit *self.L**(2*self.alpha) *  covBlock.covMat
-                  # move to next column
-                  i2 += 1
-            # move to next row
-            i1 += 1
+            if (iBin2==iBin1) or self.fullCross:
+               # considering gs[j1,j2]
+               i2 = self.nGG
+               for jBin1 in range(self.nBins):
+                  for jBin2 in range(self.nBins):
+                     if (jBin2>=jBin1) or self.fullCross:
+                        # compute only upper diagonal
+                        if i2>=i1:
+                           covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
+                           covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit *self.L**(2*self.alpha) *  covBlock.covMat
+                        # move to next column
+                        i2 += 1
+               # move to next row
+               i1 += 1
 
       #print "gg-ss"
       # considering gg[i1,i2]
       i1 = 0
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            # considering ss[j1,j2]
-            i2 = self.nGG + self.nGS
-            for jBin1 in range(self.nBins):
-               for jBin2 in range(jBin1, self.nBins):
-                  # compute only upper diagonal
-                  if i2>=i1:
-                     covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[iBin2,jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
-                  # move to next column
-                  i2 += 1
-            # move to next row
-            i1 += 1
+            if (iBin2==iBin1) or self.fullCross:
+               # considering ss[j1,j2]
+               i2 = self.nGG + self.nGS
+               for jBin1 in range(self.nBins):
+                  for jBin2 in range(jBin1, self.nBins):
+                     # compute only upper diagonal
+                     if i2>=i1:
+                        covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[iBin2,jBin1], self.Nmodes)
+                        covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+                     # move to next column
+                     i2 += 1
+               # move to next row
+               i1 += 1
 
       #print "gs-gs"
       # considering gs[i1,i2]
       i1 = self.nGG
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
-            # considering gs[j1,j2]
-            i2 = self.nGG
-            for jBin1 in range(self.nBins):
-               for jBin2 in range(self.nBins):
-                  # compute only upper diagonal
-                  if i2>=i1:
-                     # watch the order for gs
-                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[jBin1,iBin2], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
-                  # move to next column
-                  i2 += 1
-            # move to next row
-            i1 += 1
+            if (iBin2>=iBin1) or self.fullCross:
+               # considering gs[j1,j2]
+               i2 = self.nGG
+               for jBin1 in range(self.nBins):
+                  for jBin2 in range(self.nBins):
+                     if (jBin2>=jBin1) or self.fullCross:
+                        # compute only upper diagonal
+                        if i2>=i1:
+                           # watch the order for gs
+                           covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[jBin1,iBin2], self.Nmodes)
+                           covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+                        # move to next column
+                        i2 += 1
+               # move to next row
+               i1 += 1
 
       #print "gs-ss"
       # considering gs[i1,i2]
       i1 = self.nGG
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
-            # considering ss[j1,j2]
-            i2 = self.nGG + self.nGS
-            for jBin1 in range(self.nBins):
-               for jBin2 in range(jBin1, self.nBins):
-                  # compute only upper diagonal
-                  if i2>=i1:
-                     covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_ss[iBin2,jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock.covMat
-                  # move to next column
-                  i2 += 1
-            # move to next row
-            i1 += 1
+            if (iBin2>=iBin1) or self.fullCross:
+               # considering ss[j1,j2]
+               i2 = self.nGG + self.nGS
+               for jBin1 in range(self.nBins):
+                  for jBin2 in range(jBin1, self.nBins):
+                     # compute only upper diagonal
+                     if i2>=i1:
+                        covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_ss[iBin2,jBin1], self.Nmodes)
+                        covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock.covMat
+                     # move to next column
+                     i2 += 1
+               # move to next row
+               i1 += 1
 
       #print "ss-ss"
       # considering ss[i1,i2]
@@ -571,6 +508,9 @@ class FisherLsst(object):
    ##################################################################################
    
    def printSnrPowerSpectra(self, path):
+      if not self.fullCross:
+         print "(function only implemented for fullCross)"
+         return
       with open(path, 'w') as f:
          f.write("SNR\n\n")
          
@@ -842,38 +782,32 @@ class FisherLsst(object):
 
    ##################################################################################
    
-   def generateFisher(self, mask=None):
-      if mask is None:
-         mask=self.lMaxMask
-      fisherData = np.zeros((self.fullPar.nPar, self.fullPar.nPar))
+   def loadFisher(self):
+      self.fisherData = np.zeros((self.fullPar.nPar, self.fullPar.nPar))
       # extract unmasked cov elements, and invert
-      cov = extractMaskedMat(self.covMat, mask=mask)
+      cov = extractMaskedMat(self.covMat, mask=self.lMaxMask)
       invCov = np.linalg.inv(cov)
       # Fisher from the data
       for i in range(self.fullPar.nPar):
          for j in range(self.fullPar.nPar):
-            di = extractMaskedVec(self.derivativeDataVector[i,:], mask=mask)
-            dj = extractMaskedVec(self.derivativeDataVector[j,:], mask=mask)
-            fisherData[i,j] = np.dot(di.transpose(), np.dot(invCov, dj))
+            di = extractMaskedVec(self.derivativeDataVector[i,:], mask=self.lMaxMask)
+            dj = extractMaskedVec(self.derivativeDataVector[j,:], mask=self.lMaxMask)
+            self.fisherData[i,j] = np.dot(di.transpose(), np.dot(invCov, dj))
       # Fisher from the prior
-      fisherPrior = self.fullPar.fisher.copy()
+      self.fisherPrior = self.fullPar.fisher.copy()
       # Fisher from data and prior
-      fisherPosterior = fisherData + fisherPrior
-#      # create posterior parameter object
-#      posteriorPar = self.fullPar.copy()
-#      posteriorPar.fisher = fisherPosterior.copy()
-#      return posteriorPar
-      return fisherData, fisherPosterior
-
+      self.fisherPosterior = self.fisherData + self.fisherPrior
+      # create posterior parameter object
+      self.posteriorPar = self.fullPar.copy()
+      self.posteriorPar.fisher = self.fisherPosterior.copy()
+   
 
    ##################################################################################
    ##################################################################################
    
-   def checkConditionNumbers(self, mask=None):
-      if mask is None:
-         mask=self.lMaxMask
+   def checkConditionNumbers(self):
       print "Cov matrix"
-      cov = extractMaskedMat(self.covMat, mask=mask)
+      cov = extractMaskedMat(self.covMat, mask=self.lMaxMask)
       print "inverse condition number:", 1./np.linalg.cond(cov)
       print "number numerical precision:", np.finfo(cov.dtype).eps
       if 1./np.linalg.cond(self.covMat) > np.finfo(cov.dtype).eps:
@@ -882,10 +816,9 @@ class FisherLsst(object):
          print "--> Not OK"
       #
       print "Fisher matrix"
-      fisherData, fisherPosterior = self.generateFisher(mask=mask)
-      print "inverse condition number:", 1./np.linalg.cond(fisherPosterior)
-      print "number numerical precision:", np.finfo(fisherPosterior.dtype).eps
-      if 1./np.linalg.cond(fisherPosterior) > np.finfo(fisherPosterior.dtype).eps:
+      print "inverse condition number:", 1./np.linalg.cond(self.fisherPosterior)
+      print "number numerical precision:", np.finfo(self.fisherPosterior.dtype).eps
+      if 1./np.linalg.cond(self.fisherPosterior) > np.finfo(self.fisherPosterior.dtype).eps:
          print "--> OK"
       else:
          print "--> Not OK"
@@ -924,9 +857,7 @@ class FisherLsst(object):
 
    
    
-   def plotCovMat(self, mask=None):
-      if mask is None:
-         mask=self.lMaxMask
+   def plotCovMat(self):
       fig=plt.figure(0, figsize=(12,8))
       ax=fig.add_subplot(111)
       #
@@ -935,10 +866,10 @@ class FisherLsst(object):
       for i in range(self.nData):
          for j in range(self.nData):
             corMat[i,j] = self.covMat[i,j] / np.sqrt(self.covMat[i,i] * self.covMat[j,j])
-      
+   
       # set to zero the masked data elements
-      maskMat = np.outer(1-mask,1-mask)
-      corMat *= maskMat
+      J = np.ix_(self.lMaxMask, self.lMaxMask)
+      corMat[J] = 0.
       
       upperDiag = np.triu(np.ones(self.nData))
       plt.imshow(corMat * upperDiag, interpolation='nearest', norm=LogNorm(vmin=1.e-4, vmax=1), cmap=cmaps.viridis_r)
@@ -1138,6 +1069,9 @@ class FisherLsst(object):
 
 
    def plotPowerSpectra(self):
+      if not self.fullCross:
+         print "(function only implemented for fullCross)"
+         return
       
       # gg: panels
       Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
@@ -1292,6 +1226,9 @@ class FisherLsst(object):
 
 
    def plotUncertaintyPowerSpectra(self):
+      if not self.fullCross:
+         print "(function only implemented for fullCross)"
+         return
 
       # gg: panels
       Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
@@ -1489,7 +1426,7 @@ class FisherLsst(object):
             I = range(i2pt*self.nL, (i2pt+1)*self.nL)
             L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
             dlnDdlnP = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
-            dlnDdlnP /= extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+            dlnDdlnP /= extractMaskedVec(self.dataVector[iPar, :], mask=self.lMaxMask, I=I)
             if self.cosmoPar.fiducial[iPar] <> 0.:
                dlnDdlnP *= self.cosmoPar.fiducial[iPar]
             color = Colors[iPar]
@@ -1523,7 +1460,7 @@ class FisherLsst(object):
             I = range(i2pt*self.nL, (i2pt+1)*self.nL)
             L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
             dlnDdlnP = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
-            dlnDdlnP /= extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+            dlnDdlnP /= extractMaskedVec(self.dataVector[iPar, :], mask=self.lMaxMask, I=I)
             if self.cosmoPar.fiducial[iPar] <> 0.:
                dlnDdlnP *= self.cosmoPar.fiducial[iPar]
             color = Colors[iPar]
@@ -1557,7 +1494,7 @@ class FisherLsst(object):
             I = range(i2pt*self.nL, (i2pt+1)*self.nL)
             L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
             dlnDdlnP = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
-            dlnDdlnP /= extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+            dlnDdlnP /= extractMaskedVec(self.dataVector[iPar, :], mask=self.lMaxMask, I=I)
             if self.cosmoPar.fiducial[iPar] <> 0.:
                dlnDdlnP *= self.cosmoPar.fiducial[iPar]
             color = Colors[iPar]
@@ -1623,17 +1560,11 @@ class FisherLsst(object):
 
 
    
-   def photoZRequirements(self, mask=None, name=""):
+   def photoZRequirements(self):
       '''Here the photo-z value is such that
       sigma (delta z) = photoz
       sigma (sigma z) = 1.5 * photoz
       '''
-      if mask is None:
-         mask=self.lMaxMask
-      
-      # get the Fisher matrix
-      fisherData, fisherPosterior = self.generateFisher(mask=mask)
-      
       # values of photo-z priors to try
       nPhotoz = 101
       Photoz = np.logspace(np.log10(1.e-5), np.log10(1.), nPhotoz, 10.)
@@ -1667,7 +1598,7 @@ class FisherLsst(object):
          newPar.addParams(self.shearMultBiasPar)
          newPar.addParams(newPhotoZPar)
          # get the new posterior Fisher matrix, including the prior
-         newPar.fisher += fisherData
+         newPar.fisher += self.fisherData
          
          # Extract full uncertainties
          sFull[:,iPhotoz] = newPar.paramUncertainties(marg=True)
@@ -1679,7 +1610,7 @@ class FisherLsst(object):
          I = self.cosmoPar.IFull + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_full_photozprior_"+floatExpForm(photoz)+"_"+name+".txt")
+            par.printParams(path=self.figurePath+"/posterior_full_photozprior_"+floatExpForm(photoz)+".txt")
          # cosmology
          parCosmoFull = par.extractParams(range(len(self.cosmoPar.IFull)), marg=True)
          sCosmoFull[:, iPhotoz] = parCosmoFull.paramUncertainties(marg=True)
@@ -1692,7 +1623,7 @@ class FisherLsst(object):
          I = self.cosmoPar.ILCDMMnu + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_ldcmmnu_photozprior_"+floatExpForm(photoz)+"_"+name+".txt")
+            par.printParams(path=self.figurePath+"/posterior_ldcmmnu_photozprior_"+floatExpForm(photoz)+".txt")
          # cosmology
          parCosmoLCDMMnu = par.extractParams(range(len(self.cosmoPar.ILCDMMnu)), marg=True)
          sCosmoLCDMMnu[:, iPhotoz] = parCosmoLCDMMnu.paramUncertainties(marg=True)
@@ -1705,7 +1636,7 @@ class FisherLsst(object):
          I = self.cosmoPar.ILCDMMnuW0Wa + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_lcdmmnuw0wa_photozprior_"+floatExpForm(photoz)+"_"+name+".txt")
+            par.printParams(path=self.figurePath+"/posterior_lcdmmnuw0wa_photozprior_"+floatExpForm(photoz)+".txt")
          # cosmology
          parCosmoLCDMMnuW0Wa = par.extractParams(range(len(self.cosmoPar.ILCDMMnuW0Wa)), marg=True)
          sCosmoLCDMMnuW0Wa[:, iPhotoz] = parCosmoLCDMMnuW0Wa.paramUncertainties(marg=True)
@@ -1718,7 +1649,7 @@ class FisherLsst(object):
          I = self.cosmoPar.ILCDMMnuCurv + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_lcdmmnucurv_photozprior_"+floatExpForm(photoz)+"_"+name+".txt")
+            par.printParams(path=self.figurePath+"/posterior_lcdmmnucurv_photozprior_"+floatExpForm(photoz)+".txt")
          # cosmology
          parCosmoLCDMMnuCurv = par.extractParams(range(len(self.cosmoPar.ILCDMMnuCurv)), marg=True)
          sCosmoLCDMMnuCurv[:, iPhotoz] = parCosmoLCDMMnuCurv.paramUncertainties(marg=True)
@@ -1731,7 +1662,7 @@ class FisherLsst(object):
          I = self.cosmoPar.ILCDMW0Wa + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_lcdmw0wa_photozprior_"+floatExpForm(photoz)+"_"+name+".txt")
+            par.printParams(path=self.figurePath+"/posterior_lcdmw0wa_photozprior_"+floatExpForm(photoz)+".txt")
          # cosmology
          parCosmoLCDMW0Wa = par.extractParams(range(len(self.cosmoPar.ILCDMW0Wa)), marg=True)
          sCosmoLCDMW0Wa[:, iPhotoz] = parCosmoLCDMW0Wa.paramUncertainties(marg=True)
@@ -1744,7 +1675,7 @@ class FisherLsst(object):
          I = self.cosmoPar.ILCDMW0WaCurv + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_lcdmw0wacurv_photozprior_"+floatExpForm(photoz)+"_"+name+".txt")
+            par.printParams(path=self.figurePath+"/posterior_lcdmw0wacurv_photozprior_"+floatExpForm(photoz)+".txt")
          # cosmology
          parCosmoLCDMW0WaCurv = par.extractParams(range(len(self.cosmoPar.ILCDMW0WaCurv)), marg=True)
          sCosmoLCDMW0WaCurv[:, iPhotoz] = parCosmoLCDMW0WaCurv.paramUncertainties(marg=True)
@@ -1777,17 +1708,17 @@ class FisherLsst(object):
          fig.clf()
 
       # Full: LCDM + Mnu + curv + w0,wa
-      plotDegradation(sCosmoFull, parCosmoFull, "/photozreq_cosmo_deg_full_"+name+".pdf")
+      plotDegradation(sCosmoFull, parCosmoFull, "/photozreq_cosmo_deg_full.pdf")
       # LCDM + Mnu
-      plotDegradation(sCosmoLCDMMnu, parCosmoLCDMMnu, "/photozreq_cosmo_deg_lcdmmnu_"+name+".pdf")
+      plotDegradation(sCosmoLCDMMnu, parCosmoLCDMMnu, "/photozreq_cosmo_deg_lcdmmnu.pdf")
       # LCDM + Mnu + w0,wa
-      plotDegradation(sCosmoLCDMMnuW0Wa, parCosmoLCDMMnuW0Wa, "/photozreq_cosmo_deg_lcdmmnuw0wa_"+name+".pdf")
+      plotDegradation(sCosmoLCDMMnuW0Wa, parCosmoLCDMMnuW0Wa, "/photozreq_cosmo_deg_lcdmmnuw0wa.pdf")
       # LCDM + Mnu + curv
-      plotDegradation(sCosmoLCDMMnuCurv, parCosmoLCDMMnuCurv, "/photozreq_cosmo_deg_lcdmmnucurv_"+name+".pdf")
+      plotDegradation(sCosmoLCDMMnuCurv, parCosmoLCDMMnuCurv, "/photozreq_cosmo_deg_lcdmmnucurv.pdf")
       # LCDM + w0,wa
-      plotDegradation(sCosmoLCDMW0Wa, parCosmoLCDMW0Wa, "/photozreq_cosmo_deg_lcdmw0wa_"+name+".pdf")
+      plotDegradation(sCosmoLCDMW0Wa, parCosmoLCDMW0Wa, "/photozreq_cosmo_deg_lcdmw0wa.pdf")
       # LCDM + w0,wa + curvature
-      plotDegradation(sCosmoLCDMW0WaCurv, parCosmoLCDMW0WaCurv, "/photozreq_cosmo_deg_lcdmw0wacurv_"+name+".pdf")
+      plotDegradation(sCosmoLCDMW0WaCurv, parCosmoLCDMW0WaCurv, "/photozreq_cosmo_deg_lcdmw0wacurv.pdf")
 
 
       ##################################################################################
@@ -1829,17 +1760,17 @@ class FisherLsst(object):
          fig.clf()
       
       # Full: LCDM + Mnu + curv + w0,wa
-      plotDegradation(sCosmoFull, parCosmoFull, "/photozreq_cosmo_deg_full_"+name+".pdf")
+      plotDegradation(sCosmoFull, parCosmoFull, "/photozreq_cosmo_deg_full.pdf")
       # LCDM + Mnu
-      plotDegradation(sCosmoLCDMMnu, parCosmoLCDMMnu, "/photozreq_cosmo_deg_lcdmmnu_"+name+".pdf")
+      plotDegradation(sCosmoLCDMMnu, parCosmoLCDMMnu, "/photozreq_cosmo_deg_lcdmmnu.pdf")
       # LCDM + Mnu + w0,wa
-      plotDegradation(sCosmoLCDMMnuW0Wa, parCosmoLCDMMnuW0Wa, "/photozreq_cosmo_deg_lcdmmnuw0wa_"+name+".pdf")
+      plotDegradation(sCosmoLCDMMnuW0Wa, parCosmoLCDMMnuW0Wa, "/photozreq_cosmo_deg_lcdmmnuw0wa.pdf")
       # LCDM + Mnu + curv
-      plotDegradation(sCosmoLCDMMnuCurv, parCosmoLCDMMnuCurv, "/photozreq_cosmo_deg_lcdmmnucurv_"+name+".pdf")
+      plotDegradation(sCosmoLCDMMnuCurv, parCosmoLCDMMnuCurv, "/photozreq_cosmo_deg_lcdmmnucurv.pdf")
       # LCDM + w0,wa
-      plotDegradation(sCosmoLCDMW0Wa, parCosmoLCDMW0Wa, "/photozreq_cosmo_deg_lcdmw0wa_"+name+".pdf")
+      plotDegradation(sCosmoLCDMW0Wa, parCosmoLCDMW0Wa, "/photozreq_cosmo_deg_lcdmw0wa.pdf")
       # LCDM + w0,wa + curvature
-      plotDegradation(sCosmoLCDMW0WaCurv, parCosmoLCDMW0WaCurv, "/photozreq_cosmo_deg_lcdmw0wacurv_"+name+".pdf")
+      plotDegradation(sCosmoLCDMW0WaCurv, parCosmoLCDMW0WaCurv, "/photozreq_cosmo_deg_lcdmw0wacurv.pdf")
 
 
       ##################################################################################
@@ -1860,7 +1791,7 @@ class FisherLsst(object):
       ax.set_ylabel(r'$\sigma_\text{Param}^\text{Full} / \sigma_\text{Param}^\text{no curv.}$')
       ax.set_xlabel(r'Photo-z prior')
       #
-      fig.savefig(self.figurePath+"/photozreq_cosmo_full_over_lcdmmnuw0wa_"+name+".pdf")
+      fig.savefig(self.figurePath+"/photozreq_cosmo_full_over_lcdmmnuw0wa.pdf")
       fig.clf()
 
       
@@ -1907,17 +1838,17 @@ class FisherLsst(object):
          fig.clf()
 
       # Full: LCDM + Mnu + curv + w0,wa
-      plotPhotoZPosterior(sPhotozFull, parPhotozFull, "/photozreq_photoz_full_"+name+".pdf")
+      plotPhotoZPosterior(sPhotozFull, parPhotozFull, "/photozreq_photoz_full.pdf")
       # LCDM + Mnu
-      plotPhotoZPosterior(sPhotozLCDMMnu, parPhotozLCDMMnu, "/photozreq_photoz_lcdmmnu_"+name+".pdf")
+      plotPhotoZPosterior(sPhotozLCDMMnu, parPhotozLCDMMnu, "/photozreq_photoz_lcdmmnu.pdf")
       # LCDM + Mnu + w0,wa
-      plotPhotoZPosterior(sPhotozLCDMMnuW0Wa, parPhotozLCDMMnuW0Wa, "/photozreq_photoz_lcdmmnuw0wa_"+name+".pdf")
+      plotPhotoZPosterior(sPhotozLCDMMnuW0Wa, parPhotozLCDMMnuW0Wa, "/photozreq_photoz_lcdmmnuw0wa.pdf")
       # LCDM + Mnu + curv
-      plotPhotoZPosterior(sPhotozLCDMMnuCurv, parPhotozLCDMMnuCurv, "/photozreq_photoz_lcdmmnucurv_"+name+".pdf")
+      plotPhotoZPosterior(sPhotozLCDMMnuCurv, parPhotozLCDMMnuCurv, "/photozreq_photoz_lcdmmnucurv.pdf")
       # LCDM + w0,wa
-      plotPhotoZPosterior(sPhotozLCDMW0Wa, parPhotozLCDMW0Wa, "/photozreq_photoz_lcdmw0wa_"+name+".pdf")
+      plotPhotoZPosterior(sPhotozLCDMW0Wa, parPhotozLCDMW0Wa, "/photozreq_photoz_lcdmw0wa.pdf")
       # LCDM + w0,wa + curvature
-      plotPhotoZPosterior(sPhotozLCDMW0WaCurv, parPhotozLCDMW0WaCurv, "/photozreq_photoz_lcdmw0wacurv_"+name+".pdf")
+      plotPhotoZPosterior(sPhotozLCDMW0WaCurv, parPhotozLCDMW0WaCurv, "/photozreq_photoz_lcdmw0wacurv.pdf")
 
 
 #      # photo-z parameters
@@ -1963,13 +1894,7 @@ class FisherLsst(object):
    ##################################################################################
 
 
-   def shearBiasRequirements(self, mask=None):
-      if mask is None:
-         mask=self.lMaxMask
-
-      # get the Fisher matrix
-      fisherData, fisherPosterior = self.generateFisher(mask=mask)
-
+   def shearBiasRequirements(self):
       # values of shear priors to try
       nM = 101
       M = np.logspace(np.log10(1.e-5), np.log10(1.), nM, 10.)
@@ -1988,7 +1913,7 @@ class FisherLsst(object):
          newPar.addParams(shearMultBiasPar)
          newPar.addParams(self.photoZPar)
          # get the new posterior Fisher matrix
-         newPar.fisher += fisherData
+         newPar.fisher += self.fisherData
          
          # LCDM + Mnu + curvature + w0, wa
          # compute uncertainties with prior
