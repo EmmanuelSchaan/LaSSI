@@ -304,7 +304,7 @@ class ShearMultBiasParams(Parameters):
 
 class PhotoZParams(Parameters):
 
-   def __init__(self, nBins=2, dzFid=0., szFid=0.05, dzStd=0.002, szStd=0.003, outliers=0.):
+   def __init__(self, nBins=2, dzFid=0., szFid=0.05, dzStd=0.002, szStd=0.003, outliers=0., outliersStd=0.05):
       self.nPar = 2 * nBins
       if outliers<>0.:
          self.nPar += nBins*(nBins-1)
@@ -370,7 +370,7 @@ class PhotoZParams(Parameters):
       if outliers==0.:
          self.priorStd = np.concatenate((dz, sz))
       else:
-         cij = np.array([0.1*outliers/(nBins-1.) for iBin in range(nBins) for jBin in list(set(range(nBins)) - set([iBin]))])
+         cij = np.array([outliersStd/(nBins-1.) for iBin in range(nBins) for jBin in list(set(range(nBins)) - set([iBin]))])
          self.priorStd = np.concatenate((dz, sz, cij))
       # corresponding Fisher matrix of priors
       self.fisher = np.diagflat(1./self.priorStd**2)

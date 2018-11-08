@@ -131,9 +131,6 @@ class FisherLsst(object):
       self.w_g, self.w_s, self.zBounds = self.generateBins(self.u, self.nuisancePar.fiducial)
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
-
-
-      self.plotDndz()
       
       print "Mask for lMaxG, noNull, gOnly, sOnly",
       tStart = time()
@@ -309,7 +306,6 @@ class FisherLsst(object):
       
       # extract the outlier contamination matrix, if needed
       if len(photoZPar)==self.nBins*(self.nBins+1):
-         print ", including outliers",
          cij = photoZPar[2*self.nBins:]
       
       for iBin in range(self.nBins):
@@ -964,10 +960,10 @@ class FisherLsst(object):
       ax.set_xlabel(r'$z$')
       ax.set_ylabel(r'$dN / d\Omega\; dz$ [arcmin$^{-2}$]')
       #
-#      fig.savefig(self.figurePath+"/dndz.pdf")
-#      fig.clf()
-      plt.show()
-   
+      fig.savefig(self.figurePath+"/dndz.pdf")
+      fig.clf()
+#      plt.show()
+
    def plotCovMat(self, mask=None):
       if mask is None:
          mask=self.lMaxMask
