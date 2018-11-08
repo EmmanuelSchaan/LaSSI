@@ -376,7 +376,6 @@ class PhotoZParams(Parameters):
       self.fisher = np.diagflat(1./self.priorStd**2)
 
 
-
 ##################################################################################
 
 class GalaxyBiasParams(Parameters):

@@ -5,7 +5,7 @@ from fisher_lsst_gphotoz import *
 ##################################################################################
 # Forecast parameters
 
-nBins = 10  #5   #10
+nBins = 5  #5   #10
 nL = 20
 fsky = 0.4
 
@@ -57,9 +57,9 @@ photoZPar = PhotoZParams(nBins=nBins, outliers=0.1)
 ##################################################################################
 # Fisher calculation
 
-fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, name=name, nProc=nProc, save=True)
+fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, name=name, nProc=nProc, save=False)
 
-
+'''
 # Show observables and uncertainties
 fish.plotDndz()
 fish.plotPowerSpectra()
@@ -117,6 +117,7 @@ par.printParams(path=fish.figurePath+"/posterior_uncertainties_sonly.txt")
 #fish.posteriorPar.plotParams(IPar=range(cosmoPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar))
 #fish.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar))
 #fish.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar+photoZPar.nPar))
+'''
 
 '''
 # Photo-z requirements
@@ -125,6 +126,13 @@ fish.photoZRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull")  # no
 fish.photoZRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="gonly")  # g-only
 #fish.photoZRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly")  # s-only
 '''
+
+# Outlier requirements
+fish.photoZOutliersRequirements(mask=fish.lMaxMask, name="")  # default
+fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull")  # no null 2-pt functions
+fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="gonly")  # g-only
+fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly")  # s-only
+
 
 #fish.shearBiasRequirements()
 
