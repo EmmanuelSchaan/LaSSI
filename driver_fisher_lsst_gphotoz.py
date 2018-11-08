@@ -26,7 +26,8 @@ magBias = False
 #name = "lcdm_mnu_curv_w0wa_newellsandunits"
 #name = "lcdm_mnu_curv_w0wa_newellsandunits_perfectm"
 #name = "gphotoz_lmaxmask"
-name = "gphotoz"
+#name = "gphotoz"
+name = ""
 
 # Parallel evaluations
 nProc = 3   # not actually used, because CLASS won't be pickled...
@@ -41,7 +42,7 @@ galaxyBiasPar = GalaxyBiasParams(nBins=nBins)
 shearMultBiasPar = ShearMultBiasParams(nBins=nBins)
 #shearMultBiasPar = ShearMultBiasParams(nBins=nBins, mStd=1.e-5)   # perfect photo-z priors
 #shearMultBiasPar.plotParams()
-photoZPar = PhotoZParams(nBins=nBins, outliers=0.)
+photoZPar = PhotoZParams(nBins=nBins, outliers=0.1)
 #photoZPar.plotParams()
 
 #cosmoPar.plotContours()
@@ -78,9 +79,9 @@ fish.checkConditionNumbers(mask=fish.lMaxMask) # default
 fish.checkConditionNumbers(mask=fish.lMaxMask+fish.noNullMask) # no null 2-pt functions
 fish.checkConditionNumbers(mask=fish.lMaxMask+fish.gOnlyMask)   # g-only
 fish.checkConditionNumbers(mask=fish.lMaxMask+fish.sOnlyMask)   # s-only
-'''
 
-'''
+
+
 # Parameter uncertainties,
 # for various data combinations
 # Prior

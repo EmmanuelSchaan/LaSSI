@@ -306,6 +306,9 @@ class PhotoZParams(Parameters):
 
    def __init__(self, nBins=2, dzFid=0., szFid=0.05, dzStd=0.002, szStd=0.003, outliers=0.):
       self.nPar = 2 * nBins
+      if outliers<>0.:
+         self.nPar += nBins*(nBins-1)
+      self.outliers = outliers
 
       # bias and std dev of photo-z
       dz = np.array(['dz'+str(iBin) for iBin in range(nBins)])

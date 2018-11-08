@@ -79,6 +79,10 @@ class FisherLsst(object):
          self.name += "_magbias"
 #      if fullCross:
 #         self.name += "_fullcross"
+      if photoZPar.outliers<>0.:
+         self.name += "_outliers"+str(photoZPar.outliers)
+      else:
+         self.name += "_gphotoz"
       if name is not None:
          self.name += "_"+name
       print "Ouput file name:", self.name
@@ -127,6 +131,9 @@ class FisherLsst(object):
       self.w_g, self.w_s, self.zBounds = self.generateBins(self.u, self.nuisancePar.fiducial)
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
+
+
+      self.plotDndz()
       
       print "Mask for lMaxG, noNull, gOnly, sOnly",
       tStart = time()
@@ -302,7 +309,7 @@ class FisherLsst(object):
       
       # extract the outlier contamination matrix, if needed
       if len(photoZPar)==self.nBins*(self.nBins+1):
-         print "Including outliers"
+         print ", including outliers",
          cij = photoZPar[2*self.nBins:]
       
       for iBin in range(self.nBins):
@@ -315,11 +322,10 @@ class FisherLsst(object):
          sz = photoZPar[self.nBins+iBin] * (1.+0.5*(zMinP+zMaxP))
          # true z bounds: truncate at 5 sigma
          # careful for the first and last bin
-         zMin = max(zMinP - 5.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
-         zMax = min(zMaxP + 5.*sz, 1./w_glsst.aMin-1.)   # 1./w_glsst.aMin-1.
+         zMin = 1./w_glsst.aMax-1.  #max(zMinP - 5.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
+         zMax = 1./w_glsst.aMin-1.  #min(zMaxP + 5.*sz, 1./w_glsst.aMin-1.)   # 1./w_glsst.aMin-1.
          
          
-#         tStart = time()
          # true dn/dz_true from dn/dz_phot
          p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
          
@@ -328,7 +334,7 @@ class FisherLsst(object):
          if len(photoZPar)==2*self.nBins:
             f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
             dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-3)[0]
-         
+      
          # If outliers are included
          elif len(photoZPar)==self.nBins*(self.nBins+1):
             
@@ -339,33 +345,34 @@ class FisherLsst(object):
                result = w_glsst.dndz(zp)
                # if zp is in the bin
                if zp>=zBounds[iBin] and zp<zBounds[iBin+1]:
-                  result *= (1. - np.sum([cij[iBin*(self.nBins-1)+j] for j in range(nBins-1)]))
+                  result *= (1. - np.sum([cij[iBin*(self.nBins-1)+j] for j in range(self.nBins-1)]))
                # if zp is in another bin
                else:
                   # find which bin this is
-                  jBin = np.where(np.array([(zp>=zBounds[j])*(zp<zBounds[j+1]) for j in range(nBins)])==1)
+                  jBin = np.where(np.array([(zp>=zBounds[j])*(zp<zBounds[j+1]) for j in range(self.nBins)])==1)[0][0]
                   # since the diagonal c_ii is not encoded, make sure to skip it if iBin > jBin
                   i = iBin - (iBin>jBin)
                   result *= cij[jBin*(self.nBins-1)+i]
+               
+               
                return result
 
             f = lambda zp,z: dndzp_outliers(zp) * p_z_given_zp(zp,z)
-            dndz_tForInterp = lambda z: integrate.quad(f, zBounds[0], zBounds[-1], args=(z), epsabs=0., epsrel=1.e-3)[0]
+            dndz_tForInterp = lambda z: integrate.quad(f, zMin, zMax, args=(z), epsabs=0., epsrel=1.e-3)[0]
       
          else:
-            print "PhotoZPar does not have the right size"
+            print "Error: PhotoZPar does not have the right size"
 
          
-         
          # interpolate it for speed (for lensing kernel calculation)
+#         Z = np.linspace(zMin, zMax, 101)
          Z = np.linspace(zMin, zMax, 101)
          F = np.array(map(dndz_tForInterp, Z))
          dndz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
-#         tStop = time()
-#         print "-- dndz_t took", tStop-tStart, "sec"
 
 
-#!!!!!!!!! Bottleneck is clearly the shear bin, by a factor 100 compared to lens bin and getting dndz_t
+
+#!!!!!! Bottleneck is the shear bin, by a factor 100 compared to lens bin and getting dndz_t
 #         tStart = time()
          # shear bin
          w_s[iBin] = WeightLensCustom(u,
@@ -957,9 +964,9 @@ class FisherLsst(object):
       ax.set_xlabel(r'$z$')
       ax.set_ylabel(r'$dN / d\Omega\; dz$ [arcmin$^{-2}$]')
       #
-      fig.savefig(self.figurePath+"/dndz.pdf")
-      fig.clf()
-
+#      fig.savefig(self.figurePath+"/dndz.pdf")
+#      fig.clf()
+      plt.show()
    
    def plotCovMat(self, mask=None):
       if mask is None:
