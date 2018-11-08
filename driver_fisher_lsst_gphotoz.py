@@ -41,7 +41,7 @@ galaxyBiasPar = GalaxyBiasParams(nBins=nBins)
 shearMultBiasPar = ShearMultBiasParams(nBins=nBins)
 #shearMultBiasPar = ShearMultBiasParams(nBins=nBins, mStd=1.e-5)   # perfect photo-z priors
 #shearMultBiasPar.plotParams()
-photoZPar = PhotoZParams(nBins=nBins)
+photoZPar = PhotoZParams(nBins=nBins, outliers=0.)
 #photoZPar.plotParams()
 
 #cosmoPar.plotContours()
@@ -80,6 +80,7 @@ fish.checkConditionNumbers(mask=fish.lMaxMask+fish.gOnlyMask)   # g-only
 fish.checkConditionNumbers(mask=fish.lMaxMask+fish.sOnlyMask)   # s-only
 '''
 
+'''
 # Parameter uncertainties,
 # for various data combinations
 # Prior
@@ -118,11 +119,11 @@ par.printParams(path=fish.figurePath+"/posterior_uncertainties_gonly.txt")
 fish.photoZRequirements(mask=fish.lMaxMask, name="")  # default
 fish.photoZRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull")  # no null 2-pt functions
 fish.photoZRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="gonly")  # g-only
-#fish.photoZRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly")  # default
+#fish.photoZRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly")  # s-only
 
 
 #fish.shearBiasRequirements()
-
+'''
 
 
 

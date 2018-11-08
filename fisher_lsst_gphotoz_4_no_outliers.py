@@ -300,11 +300,6 @@ class FisherLsst(object):
       w_g = np.empty(self.nBins, dtype=object)
       w_s = np.empty(self.nBins, dtype=object)
       
-      # extract the outlier contamination matrix, if needed
-      if len(photoZPar)==self.nBins*(self.nBins+1):
-         print "Including outliers"
-         cij = photoZPar[2*self.nBins:]
-      
       for iBin in range(self.nBins):
          # sharp photo-z cuts
          zMinP = zBounds[iBin]
@@ -322,41 +317,8 @@ class FisherLsst(object):
 #         tStart = time()
          # true dn/dz_true from dn/dz_phot
          p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
-         
-         
-         # If outliers are not included
-         if len(photoZPar)==2*self.nBins:
-            f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
-            dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-3)[0]
-         
-         # If outliers are included
-         elif len(photoZPar)==self.nBins*(self.nBins+1):
-            
-            def dndzp_outliers(zp):
-               ''' This is the dn/dz_p, such that for bin i:
-               n_i^new = n_i * (1-sum_{j \neq i} c_ij) + sum_{j \neq i} c_ji n_j.
-               '''
-               result = w_glsst.dndz(zp)
-               # if zp is in the bin
-               if zp>=zBounds[iBin] and zp<zBounds[iBin+1]:
-                  result *= (1. - np.sum([cij[iBin*(self.nBins-1)+j] for j in range(nBins-1)]))
-               # if zp is in another bin
-               else:
-                  # find which bin this is
-                  jBin = np.where(np.array([(zp>=zBounds[j])*(zp<zBounds[j+1]) for j in range(nBins)])==1)
-                  # since the diagonal c_ii is not encoded, make sure to skip it if iBin > jBin
-                  i = iBin - (iBin>jBin)
-                  result *= cij[jBin*(self.nBins-1)+i]
-               return result
-
-            f = lambda zp,z: dndzp_outliers(zp) * p_z_given_zp(zp,z)
-            dndz_tForInterp = lambda z: integrate.quad(f, zBounds[0], zBounds[-1], args=(z), epsabs=0., epsrel=1.e-3)[0]
-      
-         else:
-            print "PhotoZPar does not have the right size"
-
-         
-         
+         f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
+         dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-3)[0]
          # interpolate it for speed (for lensing kernel calculation)
          Z = np.linspace(zMin, zMax, 101)
          F = np.array(map(dndz_tForInterp, Z))
