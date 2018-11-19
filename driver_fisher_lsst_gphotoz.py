@@ -5,7 +5,7 @@ from fisher_lsst_gphotoz import *
 ##################################################################################
 # Forecast parameters
 
-nBins = 5  #5   #10
+nBins = 10  #5   #10
 nL = 20
 fsky = 0.4
 
@@ -59,7 +59,7 @@ photoZPar = PhotoZParams(nBins=nBins, outliers=0.1)
 
 fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, name=name, nProc=nProc, save=False)
 
-'''
+
 # Show observables and uncertainties
 fish.plotDndz()
 fish.plotPowerSpectra()
@@ -84,25 +84,30 @@ fish.checkConditionNumbers(mask=fish.lMaxMask+fish.sOnlyMask)   # s-only
 
 # Parameter uncertainties,
 # for various data combinations
+#
 # Prior
 fish.fullPar.printParams(path=fish.figurePath+"/prior_uncertainties.txt")
 #cosmoPar.plotContours(path=fish.figurePath+"/contours_cosmo_prior.pdf")
+#
 # Fiducial
 par = fish.fullPar.copy()
 fisherData, fisherPosterior = fish.generateFisher(mask=fish.lMaxMask)  # default
 par.fisher = fisherPosterior
 par.printParams(path=fish.figurePath+"/posterior_uncertainties.txt")
 #par.plotContours(IPar=range(cosmoPar.nPar), path=fish.figurePath+"/contours_cosmo_posterior.pdf")
+#
 # No null 2-pt functions
 par = fish.fullPar.copy()
 fisherData, fisherPosterior = fish.generateFisher(mask=fish.lMaxMask+fish.noNullMask)  # no null 2-pt functions
 par.fisher = fisherPosterior
 par.printParams(path=fish.figurePath+"/posterior_uncertainties_nonull.txt")
+#
 # g-only
 par = fish.fullPar.copy()
 fisherData, fisherPosterior = fish.generateFisher(mask=fish.lMaxMask+fish.gOnlyMask)  # g-only
 par.fisher = fisherPosterior
 par.printParams(path=fish.figurePath+"/posterior_uncertainties_gonly.txt")
+#
 # s-only
 par = fish.fullPar.copy()
 fisherData, fisherPosterior = fish.generateFisher(mask=fish.lMaxMask+fish.sOnlyMask)  # s-only
@@ -117,10 +122,10 @@ par.printParams(path=fish.figurePath+"/posterior_uncertainties_sonly.txt")
 #fish.posteriorPar.plotParams(IPar=range(cosmoPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar))
 #fish.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar))
 #fish.posteriorPar.plotParams(IPar=range(cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar, cosmoPar.nPar+galaxyBiasPar.nPar+shearMultBiasPar.nPar+photoZPar.nPar))
-'''
+
 
 '''
-# Photo-z requirements
+# Gaussian Photo-z requirements
 fish.photoZRequirements(mask=fish.lMaxMask, name="")  # default
 fish.photoZRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull")  # no null 2-pt functions
 fish.photoZRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="gonly")  # g-only
@@ -128,10 +133,25 @@ fish.photoZRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="gonly")  # g-on
 '''
 
 # Outlier requirements
-fish.photoZOutliersRequirements(mask=fish.lMaxMask, name="")  # default
-fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull")  # no null 2-pt functions
-fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="gonly")  # g-only
-fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly")  # s-only
+#
+# G photo-z prior: fixed at level of LSST req
+fish.photoZOutliersRequirements(mask=fish.lMaxMask, name="", Gphotoz='req')  # default
+fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull", Gphotoz='req')  # no null 2-pt functions
+fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="gonly", Gphotoz='req')  # g-only
+#fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly", Gphotoz='req')  # s-only
+#
+# G photo-z prior: fixed with perfect prior
+fish.photoZOutliersRequirements(mask=fish.lMaxMask, name="", Gphotoz='perfect')  # default
+fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull", Gphotoz='perfect')  # no null 2-pt functions
+fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="gonly", Gphotoz='perfect')  # g-only
+#fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly", Gphotoz='perfect')  # s-only
+#
+# G photo-z prior: fixed with no prior
+fish.photoZOutliersRequirements(mask=fish.lMaxMask, name="", Gphotoz='noprior')  # default
+fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull", Gphotoz='noprior')  # no null 2-pt functions
+fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="gonly", Gphotoz='noprior')  # g-only
+#fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly", Gphotoz='noprior')  # s-only
+
 
 
 #fish.shearBiasRequirements()
