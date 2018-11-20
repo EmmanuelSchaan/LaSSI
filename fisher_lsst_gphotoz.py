@@ -974,7 +974,7 @@ class FisherLsst(object):
    ##################################################################################
    
    
-   def SampleDndz(self, photoZPar, nSamples=10, path=None):
+   def SampleDndz(self, photoZPar, nSamples=10, path=None, log=False):
       '''Make a plot with samples of dn/dz,
       determined by the Fisher matrix in the photoZPar.
       The photoZPar is extracted from the input fullPar.
@@ -991,7 +991,6 @@ class FisherLsst(object):
       dndz = w_glsst.dndz(Z)
       dndz /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
       ax.plot(Z, dndz, 'k')
-      
       
       # draw samples
       tStart = time()
@@ -1030,6 +1029,8 @@ class FisherLsst(object):
       #
       ax.set_xlabel(r'$z$')
       ax.set_ylabel(r'$dN / d\Omega\; dz$ [arcmin$^{-2}$]')
+      if log:
+         ax.set_yscale('log', nonposy='clip')
       
       # save figure if requested
       if path is not None:
