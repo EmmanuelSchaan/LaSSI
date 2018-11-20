@@ -11,7 +11,7 @@ class Projection(object):
       #self.aMax
 
       # interpolate the projection kernel, for speed
-      nA = 101
+      nA = 501
       A = np.linspace(self.aMin, self.aMax, nA)
       F = np.array(map(self.fForInterp, A))
       self.f = interp1d(A, F, kind='linear', bounds_error=False, fill_value=0.)
@@ -49,7 +49,7 @@ class Projection(object):
       nd = 2*n-2.
       
       # range to plot
-      Na = 101
+      Na = 501
       A = np.linspace(self.aMin, self.aMax, Na)
       Z = 1./A - 1.
       ComovDistToObs = np.array( map( self.U.bg.comoving_distance, Z ) )
@@ -223,7 +223,7 @@ class WeightLensSingle(Projection):
       A = 1./(1.+Z)
       Wgal_ref = Data[:, 1]
       # from my code
-      Zme = np.linspace(0., 10., 101)
+      Zme = np.linspace(0., 10., 501)
       Ame = 1./(1.+Zme)
       fW = lambda a: self.f(a) * (3.e5/self.U.hubble(1./a-1.))
       Wgal_me = np.array(map(fW, Ame))
@@ -375,7 +375,7 @@ class WeightLensHandEtAl13(Projection):
       # fig 2 from Hand et al 2013
       Data = np.genfromtxt('./input/tests/HandEtAl13/HandEtAl13_fig2.txt')
       # my interpolation
-      Z = np.linspace(0., 3., 101)
+      Z = np.linspace(0., 3., 501)
       Me = np.array(map(self.fdpdz, Z))
       
       fig=plt.figure(0)
@@ -434,7 +434,7 @@ class WeightLensDasEtAl13(Projection):
       return result
 
    def plot(self):
-      Na = 101
+      Na = 501
       A = np.linspace(self.aMin, self.aMax, Na)
       Z = 1./A - 1.
    
@@ -533,7 +533,7 @@ class WeightLensCustom(Projection):
          return result
 
    def plot(self):
-      Na = 101
+      Na = 501
       A = np.linspace(self.aMin, self.aMax, Na)
       Z = 1./A - 1.
    
@@ -608,7 +608,7 @@ class WeightLensCIBSchmidt15(Projection):
    
 
    def plot(self):
-      Na = 101
+      Na = 501
       A = np.linspace(self.aMin, self.aMax, Na)
       Z = 1./A - 1.
       
@@ -686,7 +686,7 @@ class WeightLensCIBPullen17(Projection):
       return result
 
    def plot(self):
-      Na = 101
+      Na = 501
       A = np.linspace(self.aMin, self.aMax, Na)
       Z = 1./A - 1.
       
@@ -774,7 +774,7 @@ class WeightTracer(Projection):
       return result
 
    def plotDndz(self):
-      Z = np.linspace(1./self.aMax-1., 1./self.aMin-1., 101)
+      Z = np.linspace(1./self.aMax-1., 1./self.aMin-1., 501)
       Dndz = np.array(map(self.dndz, Z))
       # normalize such that int dz dn/dz = ngal in arcmin^-2
       Dndz /= (180.*60. / np.pi)**2

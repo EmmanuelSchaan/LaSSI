@@ -5,7 +5,7 @@ from fisher_lsst_gphotoz import *
 ##################################################################################
 # Forecast parameters
 
-nBins = 10  #5   #10
+nBins = 5  #5   #10
 nL = 20
 fsky = 0.4
 
@@ -42,6 +42,9 @@ galaxyBiasPar = GalaxyBiasParams(nBins=nBins)
 shearMultBiasPar = ShearMultBiasParams(nBins=nBins)
 #shearMultBiasPar = ShearMultBiasParams(nBins=nBins, mStd=1.e-5)   # perfect photo-z priors
 #shearMultBiasPar.plotParams()
+
+
+#photoZPar = PhotoZParams(nBins=nBins)
 photoZPar = PhotoZParams(nBins=nBins, outliers=0.1)
 #photoZPar.plotParams()
 
@@ -82,12 +85,14 @@ fish.checkConditionNumbers(mask=fish.lMaxMask+fish.sOnlyMask)   # s-only
 
 
 
-# Parameter uncertainties,
+# Parameter uncertainties, and dn/dz visualizations
 # for various data combinations
 #
 # Prior
 fish.fullPar.printParams(path=fish.figurePath+"/prior_uncertainties.txt")
 #cosmoPar.plotContours(path=fish.figurePath+"/contours_cosmo_prior.pdf")
+# visualize photo-z uncertainties
+fish.SampleDndz(photoZPar, nSamples=10, path=fish.figurePath+"/sampling_dndz_prior.txt")
 #
 # Fiducial
 par = fish.fullPar.copy()
@@ -95,18 +100,30 @@ fisherData, fisherPosterior = fish.generateFisher(mask=fish.lMaxMask)  # default
 par.fisher = fisherPosterior
 par.printParams(path=fish.figurePath+"/posterior_uncertainties.txt")
 #par.plotContours(IPar=range(cosmoPar.nPar), path=fish.figurePath+"/contours_cosmo_posterior.pdf")
+# visualize photo-z uncertainties
+I = range(-photoZPar.nPar, 0)
+newPhotoZPar = par.extractParams(I, marg=True)
+fish.SampleDndz(newPhotoZPar, nSamples=10, path=fish.figurePath+"/sampling_dndz_posterior.txt")
 #
 # No null 2-pt functions
 par = fish.fullPar.copy()
 fisherData, fisherPosterior = fish.generateFisher(mask=fish.lMaxMask+fish.noNullMask)  # no null 2-pt functions
 par.fisher = fisherPosterior
 par.printParams(path=fish.figurePath+"/posterior_uncertainties_nonull.txt")
+# visualize photo-z uncertainties
+I = range(-photoZPar.nPar, 0)
+newPhotoZPar = par.extractParams(I, marg=True)
+fish.SampleDndz(newPhotoZPar, nSamples=10, path=fish.figurePath+"/sampling_dndz_posterior_nonull.txt")
 #
 # g-only
 par = fish.fullPar.copy()
 fisherData, fisherPosterior = fish.generateFisher(mask=fish.lMaxMask+fish.gOnlyMask)  # g-only
 par.fisher = fisherPosterior
 par.printParams(path=fish.figurePath+"/posterior_uncertainties_gonly.txt")
+# visualize photo-z uncertainties
+I = range(-photoZPar.nPar, 0)
+newPhotoZPar = par.extractParams(I, marg=True)
+fish.SampleDndz(newPhotoZPar, nSamples=10, path=fish.figurePath+"/sampling_dndz_posterior_gonly.txt")
 #
 # s-only
 par = fish.fullPar.copy()
@@ -116,6 +133,10 @@ par.fisher = fisherPosterior
 I = range(cosmoPar.nPar) + range(cosmoPar.nPar+galaxyBiasPar.nPar, fish.fullPar.nPar)
 par = par.extractParams(I, marg=False)
 par.printParams(path=fish.figurePath+"/posterior_uncertainties_sonly.txt")
+# visualize photo-z uncertainties
+I = range(-photoZPar.nPar, 0)
+newPhotoZPar = par.extractParams(I, marg=True)
+fish.SampleDndz(newPhotoZPar, nSamples=10, path=fish.figurePath+"/sampling_dndz_posterior_sonly.txt")
 
 
 #fish.posteriorPar.plotParams(IPar=range(cosmoPar.nPar))

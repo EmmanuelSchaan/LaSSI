@@ -128,7 +128,7 @@ class FisherLsst(object):
 
       print "Tracer and shear bins",
       tStart = time()
-      self.w_g, self.w_s, self.zBounds = self.generateBins(self.u, self.nuisancePar.fiducial)
+      self.w_g, self.w_s, self.zBounds = self.generateTomoBins(self.u, self.nuisancePar.fiducial)
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
       
@@ -290,7 +290,10 @@ class FisherLsst(object):
 
    ##################################################################################
 
-   def generateBins(self, u, nuisancePar, save=True):
+   def generateTomoBins(self, u, nuisancePar, save=True, doS=True):
+      '''The option doS=False is only used to save time when sampling dn/dz,
+      since the s bins take much longer to generate (by a factor ~100).
+      '''
       # split the nuisance parameters
       galaxyBiasPar = nuisancePar[:self.galaxyBiasPar.nPar]
       shearMultBiasPar = nuisancePar[self.galaxyBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar]
@@ -341,7 +344,7 @@ class FisherLsst(object):
                result = w_glsst.dndz(zp)
                # if zp is in the bin
                if zp>=zBounds[iBin] and zp<zBounds[iBin+1]:
-                  result *= (1. - np.sum([cij[iBin*(self.nBins-1)+j] for j in range(self.nBins-1)]))
+                  result *= 1. - np.sum([cij[iBin*(self.nBins-1)+j] for j in range(self.nBins-1)])
                # if zp is in another bin
                else:
                   # find which bin this is
@@ -349,8 +352,6 @@ class FisherLsst(object):
                   # since the diagonal c_ii is not encoded, make sure to skip it if iBin > jBin
                   i = iBin - (iBin>jBin)
                   result *= cij[jBin*(self.nBins-1)+i]
-               
-               
                return result
 
             f = lambda zp,z: dndzp_outliers(zp) * p_z_given_zp(zp,z)
@@ -362,7 +363,7 @@ class FisherLsst(object):
          
          # interpolate it for speed (for lensing kernel calculation)
 #         Z = np.linspace(zMin, zMax, 101)
-         Z = np.linspace(zMin, zMax, 101)
+         Z = np.linspace(zMin, zMax, 501)
          F = np.array(map(dndz_tForInterp, Z))
          dndz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
 
@@ -371,12 +372,13 @@ class FisherLsst(object):
 #!!!!!! Bottleneck is the shear bin, by a factor 100 compared to lens bin and getting dndz_t
 #         tStart = time()
          # shear bin
-         w_s[iBin] = WeightLensCustom(u,
-                                      dndz_t, # dn/dz_true
-                                      m=lambda z: shearMultBiasPar[iBin], # multiplicative shear bias
-                                      zMinG=zMin,
-                                      zMaxG=zMax,
-                                      name='s'+str(iBin))
+         if doS:
+            w_s[iBin] = WeightLensCustom(u,
+                                         dndz_t, # dn/dz_true
+                                         m=lambda z: shearMultBiasPar[iBin], # multiplicative shear bias
+                                         zMinG=zMin,
+                                         zMaxG=zMax,
+                                         name='s'+str(iBin))
 #         tStop = time()
 #         print "-- shear bin took", tStop-tStart, "sec"
 
@@ -409,7 +411,11 @@ class FisherLsst(object):
 
          #print "- done "+str(iBin+1)+" of "+str(self.nBins)
       #print "total ngal="+str(np.sum([w_g[i].ngal_per_arcmin2 for i in range(self.nBins)]))+"/arcmin2, should be "+str(w_glsst.ngal_per_arcmin2)
-      return w_g, w_s, zBounds
+      
+      if doS:
+         return w_g, w_s, zBounds
+      else:
+         return w_g, zBounds
 
 
    ##################################################################################
@@ -814,7 +820,7 @@ class FisherLsst(object):
          cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyHigh[self.cosmoPar.names[iPar]]
 #         print cosmoParClassy
          u = Universe(cosmoParClassy)
-         w_g, w_s, zBounds = self.generateBins(u, self.nuisancePar.fiducial)
+         w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
          p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
          dataVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
          # low
@@ -822,7 +828,7 @@ class FisherLsst(object):
          cosmoParClassy = self.cosmoPar.paramsClassy.copy()
          cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyLow[self.cosmoPar.names[iPar]]
          u = Universe(cosmoParClassy)
-         w_g, w_s, zBounds = self.generateBins(u, self.nuisancePar.fiducial)
+         w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
          p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
          dataVectorLow = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
          # derivative
@@ -851,13 +857,13 @@ class FisherLsst(object):
          # high
          name = "_"+self.name+self.nuisancePar.names[iPar]+"high"
          params[iPar] = self.nuisancePar.high[iPar]
-         w_g, w_s, zBounds = self.generateBins(self.u, params)
+         w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
          p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_g, w_s, name=name, save=True)
          dataVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
          # low
          name = self.name+self.nuisancePar.names[iPar]+"low"
          params[iPar] = self.nuisancePar.low[iPar]
-         w_g, w_s, zBounds = self.generateBins(self.u, params)
+         w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
          p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_g, w_s, name=name, save=True)
          dataVectorLow = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
          # derivative
@@ -963,6 +969,111 @@ class FisherLsst(object):
       fig.savefig(self.figurePath+"/dndz.pdf")
       fig.clf()
 #      plt.show()
+
+
+   ##################################################################################
+   
+   
+   def SampleDndz(self, photoZPar, nSamples=10, path=None):
+      '''Make a plot with samples of dn/dz,
+      determined by the Fisher matrix in the photoZPar.
+      The photoZPar is extracted from the input fullPar.
+      '''
+      # Initialize the plot
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      # full LSST source sample
+      w_glsst = WeightTracerLSSTSources(self.u, name='glsst')
+      zMin = 1./w_glsst.aMax-1.
+      zMax = 1./w_glsst.aMin-1.
+      Z = np.linspace(zMin, zMax, 501)
+      dndz = w_glsst.dndz(Z)
+      dndz /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
+      ax.plot(Z, dndz, 'k')
+      
+      
+      # draw samples
+      tStart = time()
+      # new photo-z par, to store the sample
+      newPhotoZPar = photoZPar.copy()
+      for iSample in range(nSamples):
+   
+         # generate one sample of the photoZPar
+         mean = photoZPar.fiducial
+         cov = np.linalg.inv(photoZPar.fisher)
+         newPhotoZPar.fiducial = np.random.multivariate_normal(mean, cov, size=1)[0]
+   
+         # generate the corresponding nuisancePar
+         newNuisancePar = self.galaxyBiasPar.copy()
+         newNuisancePar.addParams(self.shearMultBiasPar)
+         newNuisancePar.addParams(newPhotoZPar)
+         
+         # generate the corresponding dn/dz for the particular sample
+         w_g, zBounds = self.generateTomoBins(self.u, newNuisancePar.fiducial, doS=False)
+   
+         # add it to the plot
+         for iBin in range(self.nBins):
+            # redshift range for that bin
+            zMin = 1./self.w_g[iBin].aMax-1.
+            zMax = 1./self.w_g[iBin].aMin-1.
+            Z = np.linspace(zMin, zMax, 501)
+            # evaluate dn/dz
+            dndz = np.array(map(w_g[iBin].dndz, Z))
+            dndz /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
+            # plot it
+#            ax.fill_between(Z, 0., dndz, facecolor=plt.cm.autumn(1.*iBin/self.nBins), edgecolor='', alpha=0.7)
+            ax.plot(Z, dndz, c=plt.cm.autumn(1.*iBin/self.nBins), lw=1, alpha=0.3)
+
+      tStop = time()
+      print "took "+str((tStop-tStart)/60.)+" min"
+      #
+      ax.set_xlabel(r'$z$')
+      ax.set_ylabel(r'$dN / d\Omega\; dz$ [arcmin$^{-2}$]')
+      
+      # save figure if requested
+      if path is not None:
+         fig.savefig(path)
+         fig.clf()
+      else:
+         plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   ##################################################################################
+
+
 
    def plotCovMat(self, mask=None):
       if mask is None:
