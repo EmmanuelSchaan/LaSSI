@@ -165,15 +165,17 @@ class Parameters(object):
       else:
          with open(path, 'w') as f:
             # if a Fisher prior is available, print the uncertainties
+            f.write("Param name, fiducial value, marginalized 1-sigma uncertainty\n")
             try:
                invFisher = np.linalg.inv(self.fisher)
                std = np.sqrt(np.diag(invFisher))
                for iPar in IPar:
-                  f.write(self.names[iPar]+" = "+str(self.fiducial[iPar])+" +/- "+str(std[iPar])+"\n")
+#                  f.write(self.names[iPar]+" = "+str(self.fiducial[iPar])+" +/- "+str(std[iPar])+"\n")
+                  f.write(self.names[iPar]+", "+str(self.fiducial[iPar])+", "+str(std[iPar])+"\n")
             # otherwise, just print the fiducial values
             except:
                for iPar in IPar:
-                  f.write(self.names[iPar]+" = "+str(self.fiducial[iPar])+"\n")
+                  f.write(self.names[iPar]+", "+str(self.fiducial[iPar])+"\n")
 
 
 
