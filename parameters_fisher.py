@@ -394,7 +394,10 @@ class GalaxyBiasParams(Parameters):
       self.high = self.fiducial * 1.05
       self.low = self.fiducial * 0.95
 
-      self.fisher = np.zeros((self.nPar, self.nPar))
+#      self.fisher = np.zeros((self.nPar, self.nPar))
+      # uninformative prior, just to avoid non-invertible Fisher matrices
+      priorStd = np.array([100. for iBin in range(self.nPar)])
+      self.fisher = np.diagflat(1./priorStd**2)
 
 
 ##################################################################################
