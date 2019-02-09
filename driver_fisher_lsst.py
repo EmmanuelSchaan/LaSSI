@@ -61,7 +61,7 @@ photoZPar = PhotoZParams(nBins=nBins, outliers=0.1)
 ##################################################################################
 # Fisher calculation
 
-fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, name=name, nProc=nProc, save=False)
+fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, name=name, nProc=nProc, save=True)
 
 
 
@@ -136,9 +136,11 @@ fish.SampleDndz(newPhotoZPar, nSamples=10, path=fish.figurePath+"/sampling_dndz_
 par = fish.fullPar.copy()
 fisherData, fisherPosterior = fish.generateFisher(mask=fish.lMaxMask+fish.sOnlyMask)  # s-only
 par.fisher = fisherPosterior
-# With s-only, bg cannot be constrained: we fix it
-I = range(cosmoPar.nPar) + range(cosmoPar.nPar+galaxyBiasPar.nPar, fish.fullPar.nPar)
-par = par.extractParams(I, marg=False)
+## !!! no need to fix the galaxy bias, since I added an uninformative prior on it,
+## just to be able to invert the Fisher matrix
+## With s-only, bg cannot be constrained: we fix it
+#I = range(cosmoPar.nPar) + range(cosmoPar.nPar+galaxyBiasPar.nPar, fish.fullPar.nPar)
+#par = par.extractParams(I, marg=False)
 par.printParams(path=fish.figurePath+"/posterior_uncertainties_sonly.txt")
 # visualize photo-z uncertainties
 I = range(-photoZPar.nPar, 0)
@@ -166,19 +168,19 @@ else:
    fish.photoZOutliersRequirements(mask=fish.lMaxMask, name="", Gphotoz='req')  # default
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull", Gphotoz='req')  # no null 2-pt functions
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="gonly", Gphotoz='req')  # g-only
-   #fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly", Gphotoz='req')  # s-only
+   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly", Gphotoz='req')  # s-only
    #
    # G photo-z prior: fixed with perfect prior
    fish.photoZOutliersRequirements(mask=fish.lMaxMask, name="", Gphotoz='perfect')  # default
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull", Gphotoz='perfect')  # no null 2-pt functions
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="gonly", Gphotoz='perfect')  # g-only
-   #fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly", Gphotoz='perfect')  # s-only
+   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly", Gphotoz='perfect')  # s-only
    #
    # G photo-z prior: fixed with no prior
    fish.photoZOutliersRequirements(mask=fish.lMaxMask, name="", Gphotoz='noprior')  # default
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull", Gphotoz='noprior')  # no null 2-pt functions
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="gonly", Gphotoz='noprior')  # g-only
-   #fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly", Gphotoz='noprior')  # s-only
+   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="sonly", Gphotoz='noprior')  # s-only
 
 
 
