@@ -22,7 +22,7 @@ import sys
 
 # parallelizing "map"
 # version that works when the function is a class module
-from pathos.multiprocessing import ProcessingPool as Pool
+#from pathos.multiprocessing import ProcessingPool as Pool
 #from multiprocess import Pool
 # import sharedmem   # library from Yu Feng to fork rather than pickle
 

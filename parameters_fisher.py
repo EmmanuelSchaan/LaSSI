@@ -252,7 +252,7 @@ class Parameters(object):
             X, Y = np.meshgrid(x, y)
             Z = bivariate_normal(X, Y, sigmax=sx, sigmay=sy, mux=meanx, muy=meany, sigmaxy=sxy)
             norm = bivariate_normal(0., 0., sigmax=sx, sigmay=sy, mux=0., muy=0., sigmaxy=sxy)
-            Z = np.log(norm/Z)   # returns the chi squared
+            Z = -2. * np.log(Z/norm)   # returns the chi squared
 
             # confidence level contours
             conf_level = np.array([0.68, 0.95])
