@@ -933,7 +933,7 @@ class WeightTracerLSSTGold(WeightTracer):
 ##################################################################################
 ##################################################################################
 
-class WeightTracerLSSTSources(WeightTracer):
+class WeightTracerLSSTSourcesSchaanKrauseEifler16(WeightTracer):
    """Projected number density of LSST source galaxies,
    used for shear measurements,
    as in Schaan Krause Eifler +16.
@@ -994,6 +994,72 @@ class WeightTracerLSSTSources(WeightTracer):
       b35 = -2.5027
       result += (b31 + b32*(b33*self.iLim - b34)**b35 ) * z**2
       return result
+
+
+##################################################################################
+##################################################################################
+
+class WeightTracerLSSTSourcesDESCSRDV1(WeightTracer):
+   """Projected number density of LSST source galaxies,
+   used for shear measurements,
+   as in the DESC SRD v1.
+   """
+   
+   def __init__(self, U, name='lsstsources', zMin=0.005, zMax=4., ngal=27.):
+      self.zMin = zMin
+      self.zMax = zMax
+      self.aMin = 1./(1.+self.zMax)   # min bound for integral over a
+      self.aMax = 1./(1.+self.zMin)   # max bound for integral over a
+      
+      # tracer bias
+      # copied from the LSST gold sample, from LSST Science book
+      self.b = lambda z: 0.95 / self.U.bg.scale_independent_growth_factor(z) #1 + 0.84*z
+      
+      self.ngal_per_arcmin2 = ngal # galaxies per squared arcmin
+      self.ngal = self.ngal_per_arcmin2 / (np.pi/180./60.)**2  # per steradian
+      
+
+      # dn/dz, non-normalized
+      self.z0 = 0.11
+      self.alpha = 0.68
+      f = lambda z: z**2. * np.exp(-(z/self.z0)**self.alpha)
+      # normalization
+      norm = integrate.quad(f, self.zMin, self.zMax, epsabs=0., epsrel=1.e-2)[0]
+      # dn/dz, normalized such that int dz dn/dz = ngal
+      # where ngal = number of gals per unit steradian
+      self.dndz = lambda z: self.ngal * f(z) / norm
+
+      super(WeightTracerLSSTSources, self).__init__(U, name=name)
+
+
+
+   def magnificationBias(self, z):
+      '''Implements the magnification bias from Joachimi Bridle 2010.
+      Computes alpha = dn/dS, such that:
+      W = W_g + 2(alpha-1)*W_kappa.
+      '''
+      b11 = 0.44827
+      b12 = -1.
+      b13 = 0.05617
+      b14 = 0.07704
+      b15 = -11.3768
+      result = b11 + b12*(b13*self.iLim - b14)**b15
+      #
+      b21 = 0.
+      b22 = 1.
+      b23 = 0.19658
+      b24 = 3.31359
+      b25 = -2.5028
+      result += (b21 + b22*(b23*self.iLim - b24)**b25 ) * z
+      #
+      b31 = 0.
+      b32 = 1.
+      b33 = 0.18107
+      b34 = 3.05213
+      b35 = -2.5027
+      result += (b31 + b32*(b33*self.iLim - b34)**b35 ) * z**2
+      return result
+
 
 
 ##################################################################################

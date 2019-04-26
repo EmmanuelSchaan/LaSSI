@@ -61,7 +61,10 @@ photoZPar = PhotoZParams(nBins=nBins, outliers=0.1)
 ##################################################################################
 # Fisher calculation
 
-fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=0.4, magBias=magBias, name=name, nProc=nProc, save=False)
+
+fsky = 0.35 # 0.4
+
+fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, magBias=magBias, name=name, nProc=nProc, save=False)
 
 
 

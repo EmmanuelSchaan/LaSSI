@@ -299,7 +299,7 @@ class FisherLsst(object):
       shearMultBiasPar = nuisancePar[self.galaxyBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar]
       photoZPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar:]
       # LSST source sample
-      w_glsst = WeightTracerLSSTSources(u, name='glsst')
+      w_glsst = WeightTracerLSSTSourcesDESCSRDV1(u, name='glsst')
       # split it into bins
       zBounds = w_glsst.splitBins(self.nBins)
 
@@ -428,7 +428,7 @@ class FisherLsst(object):
 #      shearMultBiasPar = nuisancePar[self.galaxyBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar]
 #      photoZPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar:]
 #      # LSST source sample
-#      w_glsst = WeightTracerLSSTSources(u, name='glsst')
+#      w_glsst = WeightTracerLSSTSourcesDESCSRDV1(u, name='glsst')
 #      # split it into bins
 #      zBounds = w_glsst.splitBins(self.nBins)
 #
@@ -1091,7 +1091,7 @@ class FisherLsst(object):
       ax=fig.add_subplot(111)
       #
       # full LSST source sample
-      w_glsst = WeightTracerLSSTSources(self.u, name='glsst')
+      w_glsst = WeightTracerLSSTSourcesDESCSRDV1(self.u, name='glsst')
       zMin = 1./w_glsst.aMax-1.
       zMax = 1./w_glsst.aMin-1.
       Z = np.linspace(zMin, zMax, 501)
