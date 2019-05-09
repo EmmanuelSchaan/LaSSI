@@ -3,10 +3,11 @@ from headers import *
 
 class Projection(object):
 
-   def __init__(self, U, name=''):
+   def __init__(self, U, name='', nProc=1):
       # copy U
       self.U = U
       self.name=name
+      self.nProc=nProc
       #self.aMin
       #self.aMax
 
@@ -14,6 +15,14 @@ class Projection(object):
       nA = 501
       A = np.linspace(self.aMin, self.aMax, nA)
       F = np.array(map(self.fForInterp, A))
+
+#      print "nProc=", self.nProc
+#      tStart = time()
+#      with sharedmem.MapReduce(np=self.nProc) as pool:
+#         F = np.array(pool.map(self.fForInterp, A))
+#      tStop = time()
+#      print "para took", tStop-tStart
+
       self.f = interp1d(A, F, kind='linear', bounds_error=False, fill_value=0.)
 
    def __str__(self):
@@ -463,7 +472,7 @@ class WeightLensDasEtAl13(Projection):
 
 class WeightLensCustom(Projection):
    
-   def __init__(self, U, fdndz, m=lambda z: 0., zMinG=1.e-4, zMaxG=2., name='lens'):
+   def __init__(self, U, fdndz, m=lambda z: 0., zMinG=1.e-4, zMaxG=2., name='lens', nProc=1):
       '''Here zMinG and zMaxG are those of the galaxy sample,
       not those of the resulting lensing kernel.
       m is the shear multiplicative bias.
@@ -485,7 +494,7 @@ class WeightLensCustom(Projection):
       # dpdz normalized such that int dz dpdz = 1
       self.fdpdz = lambda z: self.fdndz(z) / self.ngal
    
-      super(WeightLensCustom, self).__init__(U, name=name)
+      super(WeightLensCustom, self).__init__(U, name=name, nProc=nProc)
 
    
 #   def fForInterp(self, a):
@@ -1029,7 +1038,7 @@ class WeightTracerLSSTSourcesDESCSRDV1(WeightTracer):
       # where ngal = number of gals per unit steradian
       self.dndz = lambda z: self.ngal * f(z) / norm
 
-      super(WeightTracerLSSTSources, self).__init__(U, name=name)
+      super(WeightTracerLSSTSourcesDESCSRDV1, self).__init__(U, name=name)
 
 
 

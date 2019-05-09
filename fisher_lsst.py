@@ -33,7 +33,7 @@ class FisherLsst(object):
       # ell bins
       self.nL = nL
       self.lMin = 20.
-      self.lMax = 1.e3
+      self.lMax = 3.e3  #1.e3
 #      self.Le = np.logspace(np.log10(self.lMin), np.log10(self.lMax), self.nL+1, 10.)
 #      self.dL = self.Le[1:] - self.Le[:-1]
 #      # use the average ell in the bin, weighted by number of modes, as bin center
@@ -290,7 +290,7 @@ class FisherLsst(object):
 
    ##################################################################################
 
-   def generateTomoBins(self, u, nuisancePar, save=True, doS=True):
+   def generateTomoBins(self, u, nuisancePar, save=True, doS=True, test=False):
       '''The option doS=False is only used to save time when sampling dn/dz,
       since the s bins take much longer to generate (by a factor ~100).
       '''
@@ -312,6 +312,7 @@ class FisherLsst(object):
          cij = photoZPar[2*self.nBins:]
 
       for iBin in range(self.nBins):
+         tStart = time()
          # sharp photo-z cuts
          zMinP = zBounds[iBin]
          zMaxP = zBounds[iBin+1]
@@ -361,16 +362,26 @@ class FisherLsst(object):
             print "Error: PhotoZPar does not have the right size"
 
 
-         # interpolate it for speed (for lensing kernel calculation)
-#         Z = np.linspace(zMin, zMax, 101)
-         Z = np.linspace(zMin, zMax, 501)
-         F = np.array(map(dndz_tForInterp, Z))
-         dndz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
 
+         tStop = time()
+         if test:
+            print "-- before dn/dz took", tStop-tStart, "sec"
+
+
+
+         tStart = time()
+         # interpolate it for speed (for lensing kernel calculation)
+         Z = np.linspace(zMin, zMax, 501)
+         with sharedmem.MapReduce(np=self.nProc) as pool:
+            F = np.array(pool.map(dndz_tForInterp, Z))
+         dndz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
+         tStop = time()
+         if test:
+            print "-- getting dn/dz took", tStop-tStart, "sec"
 
 
 #!!!!!! Bottleneck is the shear bin, by a factor 100 compared to lens bin and getting dndz_t
-#         tStart = time()
+         tStart = time()
          # shear bin
          if doS:
             w_s[iBin] = WeightLensCustom(u,
@@ -378,12 +389,14 @@ class FisherLsst(object):
                                          m=lambda z: shearMultBiasPar[iBin], # multiplicative shear bias
                                          zMinG=zMin,
                                          zMaxG=zMax,
-                                         name='s'+str(iBin))
-#         tStop = time()
-#         print "-- shear bin took", tStop-tStart, "sec"
+                                         name='s'+str(iBin),
+                                         nProc=self.nProc)
+         tStop = time()
+         if test:
+            print "-- shear bin took", tStop-tStart, "sec"
 
 
-#         tStart = time()
+         tStart = time()
          # tracer bin
          w_g[iBin] = WeightTracerCustom(u,
                                         lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
@@ -391,8 +404,9 @@ class FisherLsst(object):
                                         zMin=zMin,
                                         zMax=zMax,
                                         name='g'+str(iBin))
-#         tStop = time()
-#         print "-- clustering bin took", tStop-tStart, "sec"
+         tStop = time()
+         if test:
+            print "-- clustering bin took", tStop-tStart, "sec"
 
 
          # add magnification bias, if requested
@@ -1132,7 +1146,7 @@ class FisherLsst(object):
       ax=fig.add_subplot(111)
       #
       # full LSST source sample
-      w_glsst = WeightTracerLSSTSources(self.u, name='glsst')
+      w_glsst = WeightTracerLSSTSourcesDESCSRDV1(self.u, name='glsst')
       zMin = 1./w_glsst.aMax-1.
       zMax = 1./w_glsst.aMin-1.
       Z = np.linspace(zMin, zMax, 501)
@@ -2119,7 +2133,7 @@ class FisherLsst(object):
             ax.plot(Photoz, sPOverP[iPar, :], label=par.namesLatex[iPar])
          #
          ax.set_xscale('log', nonposx='clip')
-         ax.set_yscale('log', nonposx='clip')
+         ax.set_yscale('log', nonposy='clip')
 #         ax.legend(loc=2)
          ax.legend(loc=2, labelspacing=0.1, frameon=True, handlelength=1.)
          ax.set_ylabel(r'$\sigma_\text{Param} / \text{Param}$')
@@ -2199,7 +2213,7 @@ class FisherLsst(object):
             ax.plot(Photoz, sPhotoz[iPar, :], color=color)
          #
          ax.set_xscale('log', nonposx='clip')
-         ax.set_yscale('log', nonposx='clip')
+         ax.set_yscale('log', nonposy='clip')
          ax.legend(loc=2)
          ax.set_ylabel(r'$\sigma_\text{Param}$')
          ax.set_xlabel(r'Photo-z prior')
@@ -2249,7 +2263,7 @@ class FisherLsst(object):
 #         ax.plot(Photoz, sigmasFull[iPar, :], color=color)#, label=self.fullPar.namesLatex[iPar])
 #      #
 #      ax.set_xscale('log', nonposx='clip')
-#      ax.set_yscale('log', nonposx='clip')
+#      ax.set_yscale('log', nonposy='clip')
 #      ax.legend(loc=2)
 #      ax.set_ylabel(r'$\sigma_\text{Param}$')
 #      ax.set_xlabel(r'Photo-z prior')
@@ -2465,7 +2479,7 @@ class FisherLsst(object):
             ax.plot(Photoz, sPOverP[iPar, :], label=par.namesLatex[iPar])
          #
          ax.set_xscale('log', nonposx='clip')
-         ax.set_yscale('log', nonposx='clip')
+         ax.set_yscale('log', nonposy='clip')
 #         ax.legend(loc=2)
          ax.legend(loc=2, labelspacing=0.1, frameon=True, handlelength=1.)
          ax.set_ylabel(r'$\sigma_\text{Param} / \text{Param}$')
@@ -2523,7 +2537,7 @@ class FisherLsst(object):
             ax.plot(Photoz/(self.nBins-1), sPhotoz[iPar, :], color=color)
          #
          ax.set_xscale('log', nonposx='clip')
-         ax.set_yscale('log', nonposx='clip')
+         ax.set_yscale('log', nonposy='clip')
          ax.legend(loc=2)
          ax.set_ylabel(r'$\sigma_{c_{ij}}$')
          ax.set_xlabel(r'Prior on outlier fraction $c_{ij}$')

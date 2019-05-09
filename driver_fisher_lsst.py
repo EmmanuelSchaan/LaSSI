@@ -30,7 +30,7 @@ magBias = False
 name = None
 
 # Parallel evaluations
-nProc = 3   # not actually used, because CLASS won't be pickled...
+nProc = 4   # not actually used, because CLASS won't be pickled...
 
 ##################################################################################
 # Parameter classes
