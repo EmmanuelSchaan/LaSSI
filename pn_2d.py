@@ -214,7 +214,7 @@ class P2d(object):
 
       # Save the power spectrum
       # evaluate array of integrand
-      A = np.linspace(self.aMin, self.aMax, 101)
+      A = np.linspace(self.aMin, self.aMax, 501)   #A = np.linspace(self.aMin, self.aMax, 101)
       Z = 1./A-1.
       Chi = self.U.bg.comoving_distance(1./A-1.)
       #

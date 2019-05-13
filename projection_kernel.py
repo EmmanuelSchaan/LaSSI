@@ -821,7 +821,7 @@ class WeightTracer(Projection):
       return zBounds
 
    def bMean(self):
-      '''Computes the dn/dz weighted galaxy bias.
+      '''Computes the dn/dz-weighted galaxy bias.
       '''
       f = lambda z: self.dndz(z) / self.ngal * self.b(z)
       result = integrate.quad(f, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-2)[0]
@@ -830,6 +830,15 @@ class WeightTracer(Projection):
       result /= integrate.quad(f, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-2)[0]
       return result
 
+   def zMean(self):
+      '''Computes the dn/dz-weighted mean redshift.
+      '''
+      f = lambda z: self.dndz(z) / self.ngal * z
+      result = integrate.quad(f, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-2)[0]
+      # the normalization should be 1, but just in case:
+      f = lambda z: self.dndz(z) / self.ngal
+      result /= integrate.quad(f, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-2)[0]
+      return result
 
 
 ##################################################################################

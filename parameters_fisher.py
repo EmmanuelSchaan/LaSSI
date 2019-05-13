@@ -481,7 +481,7 @@ class CosmoParams(Parameters):
          nuMasses = self.computeNuMasses(Mnu, normal=normalHierarchy)
          self.paramsClassy.update({
                                  # Massive neutrinos
-                                 'N_ur': 0.0064,
+                                 'N_ur': 0.00641,  # recommended in explanatory.ini to get correct Neff
                                  'N_ncdm': 3,
                                  'm_ncdm': str(nuMasses[0])+','+str(nuMasses[1])+','+str(nuMasses[2]),
                                  'deg_ncdm': '1, 1, 1',
@@ -489,7 +489,7 @@ class CosmoParams(Parameters):
          self.low = np.concatenate((self.low, np.array([Mnu])))
          self.paramsClassyLow.update({
                                  # Massive neutrinos
-                                 'N_ur': 0.0064,
+                                 'N_ur': 0.00641,  # recommended in explanatory.ini to get correct Neff
                                  'N_ncdm': 3,
                                  'm_ncdm': str(nuMasses[0])+','+str(nuMasses[1])+','+str(nuMasses[2]),
                                  'deg_ncdm': '1, 1, 1',
@@ -498,7 +498,7 @@ class CosmoParams(Parameters):
          nuMasses = self.computeNuMasses(Mnu+0.02, normal=normalHierarchy)
          self.paramsClassyHigh.update({
                                  # Massive neutrinos
-                                 'N_ur': 0.0064,
+                                 'N_ur': 0.00641,  # recommended in explanatory.ini to get correct Neff
                                  'N_ncdm': 3,
                                  'm_ncdm': str(nuMasses[0])+','+str(nuMasses[1])+','+str(nuMasses[2]),
                                  'deg_ncdm': '1, 1, 1',

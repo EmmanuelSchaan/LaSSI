@@ -32,8 +32,8 @@ class FisherLsst(object):
       
       # ell bins
       self.nL = nL
-      self.lMin = 20.
-      self.lMax = 3.e3  #1.e3
+      self.lMin = 20.   # as in DESC SRD v1
+      self.lMax = 1.e3  #3.e3  #1.e3
 #      self.Le = np.logspace(np.log10(self.lMin), np.log10(self.lMax), self.nL+1, 10.)
 #      self.dL = self.Le[1:] - self.Le[:-1]
 #      # use the average ell in the bin, weighted by number of modes, as bin center
@@ -140,7 +140,7 @@ class FisherLsst(object):
       self.sOnlyMask = self.generateSOnlyMask()
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
-
+      
       print "Power spectra",
       tStart = time()
       self.p2d_gg, self.p2d_gs, self.p2d_ss = self.generatePowerSpectra(self.u, self.w_g, self.w_s, save=self.save)
@@ -228,10 +228,10 @@ class FisherLsst(object):
       iData = 0
       # gg
       for iBin1 in range(self.nBins):
-         z1 = 0.5 * (1./self.w_g[iBin1].aMin-1. + 1./self.w_g[iBin1].aMax-1.)
+         z1 = self.w_g[iBin1].zMean()
          chi1 = self.u.bg.comoving_distance(z1)
          for iBin2 in range(iBin1, self.nBins):
-            z2 = 0.5 * (1./self.w_g[iBin2].aMin-1. + 1./self.w_g[iBin2].aMax-1.)
+            z2 = self.w_g[iBin2].zMean()
             chi2 = self.u.bg.comoving_distance(z2)
             chi = min(chi1, chi2)
             lMax = kMaxG * chi - 0.5
@@ -239,7 +239,7 @@ class FisherLsst(object):
             iData += 1
       # gs
       for iBin1 in range(self.nBins):
-         z1 = 0.5 * (1./self.w_g[iBin1].aMin-1. + 1./self.w_g[iBin1].aMax-1.)
+         z1 = self.w_g[iBin1].zMean()
          chi1 = self.u.bg.comoving_distance(z1)
          for iBin2 in range(self.nBins):
             lMax = kMaxG * chi1 - 0.5
@@ -269,7 +269,7 @@ class FisherLsst(object):
       return noNullMask
 
    def generateGOnlyMask(self):
-      '''Creates a mask to discard the keep only clustering:
+      '''Creates a mask to keep only clustering:
       0 for gg, 1 for gs and ss.
       '''
       gOnlyMask = np.zeros(self.nData)
@@ -1077,7 +1077,43 @@ class FisherLsst(object):
 
    ##################################################################################
    ##################################################################################
-   
+
+   def plotEllBins(self):
+
+      Z = np.linspace(1.e-4, 4., 201)
+
+      def fLMax(z, kMaxG=0.3):
+         '''Enforce that k < kMaxG = 0.3h/Mpc
+         for clustering, following DESC SRD v1,
+         where nonlin gal bias is a 10% effect on clustering.
+         '''
+         return kMaxG * self.u.bg.comoving_distance(z) - 0.5
+
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      ax.plot(Z, fLMax(Z, kMaxG=0.3), label=r'$k_\text{max}=0.3$ h/Mpc')
+      #ax.plot(Z, fLMax(Z, kMaxG=0.5))
+      #
+      # show the actual ell and z for the various bins
+      for iBin in range(self.nBins):
+         zBin = self.w_g[iBin].zMean()
+         lMaxG = fLMax(zBin, kMaxG=0.3)
+         for iL in range(self.nL):
+            if self.L[iL]<lMaxG:
+               ax.plot(zBin, self.L[iL], 'ko')
+            else:
+               ax.plot(zBin, self.L[iL], 'ko', alpha=0.3)
+      #
+      ax.set_xlim((0., 4.))
+      ax.set_ylim((0., 1100.))
+      ax.set_xlabel(r'$z_\text{mean}$')
+      ax.set_ylabel(r'$\ell$')
+      #
+      fig.savefig(self.figurePath+"/ell_bins.pdf", bbox_inches='tight')
+      fig.clf()
+
+
    def checkConditionNumbers(self, mask=None):
       if mask is None:
          mask=self.lMaxMask
