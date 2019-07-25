@@ -148,7 +148,7 @@ class FisherLsst(object):
 
       print "Data vector",
       tStart = time()
-      self.dataVector, self.shotNoiseVector = self.generateDataVector(self.p2d_gg, self.p2d_gs, self.p2d_ss)
+      self.dataVector = self.generateDataVector(self.p2d_gg, self.p2d_gs, self.p2d_ss)
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
 
@@ -622,44 +622,31 @@ class FisherLsst(object):
       '''The data vector is made of the various power spectra,
       with a choice of units that makes the covariance matrix for gg and ss more similar,
       and with an ell^alpha factor that makes the covariance matrix more ell-independent.
-      The "shotNoiseVector" is the vector of shot noises and shape noises, useful to see whether
-      we are cosmic variance or shot noise limited
       '''
       dataVector = np.zeros(self.nData)
-      shotNoiseVector = np.zeros(self.nData)
       iData = 0
       # gg
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
             dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gg[iBin1, iBin2].fPinterp, self.L))
             dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-            #
-            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gg[iBin1, iBin2].fPnoise, self.L))
-            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-            #
             iData += 1
       # gs
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
             dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gs[iBin1, iBin2].fPinterp, self.L))
             dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
-            #
-            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gs[iBin1, iBin2].fPnoise, self.L))
-            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
-            #
             iData += 1
       # ss
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
             dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ss[iBin1, iBin2].fPinterp, self.L))
             dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit**2 * self.L**self.alpha
-            #
-            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ss[iBin1, iBin2].fPnoise, self.L))
-            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit**2 * self.L**self.alpha
-            #
             iData += 1
 
-      return dataVector, shotNoiseVector
+#      # apply mask for lMaxG
+#      dataVector = ma.masked_array(dataVector, mask=self.lMaxMask)
+      return dataVector
 
 
    ##################################################################################
@@ -997,7 +984,7 @@ class FisherLsst(object):
          u = Universe(cosmoParClassy)
          w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
          p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
-         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
+         dataVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
          # low
          name = self.name+self.cosmoPar.names[iPar]+"low"
          cosmoParClassy = self.cosmoPar.paramsClassy.copy()
@@ -1005,7 +992,7 @@ class FisherLsst(object):
          u = Universe(cosmoParClassy)
          w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
          p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
-         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
+         dataVectorLow = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
          # derivative
          derivative[iPar,:] = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
 #         derivative[iPar,:] = (dataVectorHigh-self.dataVector) / (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
@@ -1034,13 +1021,13 @@ class FisherLsst(object):
          params[iPar] = self.nuisancePar.high[iPar]
          w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
          p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_g, w_s, name=name, save=True)
-         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
+         dataVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
          # low
          name = self.name+self.nuisancePar.names[iPar]+"low"
          params[iPar] = self.nuisancePar.low[iPar]
          w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
          p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_g, w_s, name=name, save=True)
-         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
+         dataVectorLow = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
          # derivative
          derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-dataVectorLow) / (self.nuisancePar.high[iPar]-self.nuisancePar.low[iPar])
 #         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-self.dataVector) / (self.nuisancePar.high[iPar]-self.nuisancePar.fiducial[iPar])
@@ -1516,17 +1503,16 @@ class FisherLsst(object):
       ax0=plt.subplot(gs[0])
       i1 = 0
       for iBin1 in range(self.nBins):
+#         d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
+#         std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
          I = range(i1*self.nL, (i1+1)*self.nL)
          L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
          d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
          std = L * np.sqrt(np.diag(cov))
          #
          color = Colors[iBin1]
          ax0.errorbar(L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
-#         ax0.plot(L, shot, ls='--', lw=1, color=color)  # different color for each tomo bin
-         ax0.plot(L, shot, ls='--', lw=1, color='grey')  # same color for all tomo bins, since they have the same n_gal
          # advance counter in data vector
          i1 += self.nBins - iBin1
       #
@@ -1534,14 +1520,15 @@ class FisherLsst(object):
       ax0.set_yscale('log', nonposy='clip')
       plt.setp(ax0.get_xticklabels(), visible=False)
       #
-      ax0.set_title(r'Clustering')
-      
-      ax0.set_ylabel(r'$\ell\; C_\ell^{g_ig_i}$', fontsize=18)
+      ax0.set_title(r'$\ell\; C_\ell^{gg}$')
+      ax0.set_ylabel(r'$\langle g_i g_i\rangle$', fontsize=18)
 
       # cross i,i+1
       ax1=plt.subplot(gs[1])
       i1 = 1
       for iBin1 in range(self.nBins-1):
+#         d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
+#         std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
          I = range(i1*self.nL, (i1+1)*self.nL)
          L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
          d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
@@ -1557,12 +1544,14 @@ class FisherLsst(object):
       ax1.set_yscale('log', nonposy='clip')
       plt.setp(ax1.get_xticklabels(), visible=False)
       #
-      ax1.set_ylabel(r'$\ell\; C_\ell^{g_ig_{i+1}}$', fontsize=18)
+      ax1.set_ylabel(r'$\langle g_i g_{i+1}\rangle$', fontsize=18)
 
       # cross i,i+2
       ax2=plt.subplot(gs[2])
       i1 = 2
       for iBin1 in range(self.nBins-2):
+#         d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
+#         std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
          I = range(i1*self.nL, (i1+1)*self.nL)
          L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
          d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
@@ -1577,7 +1566,7 @@ class FisherLsst(object):
       ax2.set_xscale('log')
       ax2.set_yscale('log', nonposy='clip')
       #
-      ax2.set_ylabel(r'$\ell\; C_\ell^{g_ig_{i+2}}$', fontsize=18)
+      ax2.set_ylabel(r'$\langle g_i g_{i+2}\rangle$', fontsize=18)
       ax2.set_xlabel(r'$\ell$')
       #
       fig.savefig(self.figurePath+"/p2d_gg.pdf")
@@ -1594,6 +1583,8 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          color = Colors[iBin1]
          for iBin2 in range(self.nBins):
+#            d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
+#            std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
             I = range(i1*self.nL, (i1+1)*self.nL)
             L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
             d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
@@ -1626,18 +1617,18 @@ class FisherLsst(object):
          color = Colors[iBin1]
          ax.plot([], [], c=color, label=r'$\langle\gamma_{i} \gamma_{i+'+str(iBin1)+r'} \rangle $')
          for iBin2 in range(iBin1, self.nBins):
+#            d = self.L * self.dataVector[i1*self.nL:(i1+1)*self.nL]
+#            std = self.L * np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
+            #
             color = Colors[iBin2-iBin1]
             #
             I = range(i1*self.nL, (i1+1)*self.nL)
             L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
             d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-            shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
             cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
             std = L * np.sqrt(np.diag(cov))
             #
             ax.errorbar(L*(1.+0.01*i1/self.nSS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)#, label=r'$\gamma_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
-#            ax.plot(L*(1.+0.01*i1/self.nSS), shot, ls='--', lw=1, color=color)   # different color for each bin
-            ax.plot(L*(1.+0.01*i1/self.nSS), shot, ls='--', lw=1, color='grey')   # same color for all bins
             # move to next row
             i1 += 1
       #
@@ -1679,7 +1670,6 @@ class FisherLsst(object):
          # advance counter in data vector
          i1 += self.nBins - iBin1
       #
-      ax0.set_ylim((9.e-3, 2.5e-2))
       ax0.set_xscale('log')
       ax0.set_yscale('log', nonposy='clip')
       plt.setp(ax0.get_xticklabels(), visible=False)
@@ -1759,7 +1749,7 @@ class FisherLsst(object):
             # move to next row
             i1 += 1
       #
-#      ax.legend(loc=1)
+      ax.legend(loc=1)
       ax.set_xscale('log')
       ax.set_yscale('log', nonposy='clip')
       ax.set_xlabel(r'$\ell$')

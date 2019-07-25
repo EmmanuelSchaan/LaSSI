@@ -195,7 +195,7 @@ class WeightLensSingle(Projection):
    def __init__(self, U, z_source=1., name='lens'):
       # a for mass func, biases, and projection
       self.z_source = z_source
-      a_source = 1./(1.+z_source)
+      self.a_source = 1./(1.+z_source)
       #
       self.aMin = max(self.a_source, 1./11.)   # don't go further than z=10
       epsilon = 1.e-5

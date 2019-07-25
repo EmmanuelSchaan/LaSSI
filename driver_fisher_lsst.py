@@ -64,7 +64,7 @@ photoZPar = PhotoZParams(nBins=nBins, outliers=0.1)
 
 fsky = 0.35 # 0.4
 
-fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, magBias=magBias, name=name, nProc=nProc, save=True)
+fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, magBias=magBias, name=name, nProc=nProc, save=False)
 
 
 
@@ -77,11 +77,11 @@ fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nB
 
 
 # Show observables and uncertainties
-fish.plotEllBins()
-fish.plotDndz()
-fish.plotPowerSpectra()
-fish.plotUncertaintyPowerSpectra()
-fish.plotCovMat()
+#fish.plotEllBins()
+#fish.plotDndz()
+#fish.plotPowerSpectra()
+#fish.plotUncertaintyPowerSpectra()
+#fish.plotCovMat()
 #fish.plotInvCovMat()
 fish.printSnrPowerSpectra(path=fish.figurePath+"/snr.txt")
 fish.plotDerivativeDataVectorCosmo()
