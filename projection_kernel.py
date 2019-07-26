@@ -64,7 +64,7 @@ class Projection(object):
       ComovDistToObs = np.array( map( self.U.bg.comoving_distance, Z ) )
       W = np.array( map( lambda a: self.f(a), A ) )
       
-      H_A = self.U.hubble(1./A-1.) / 3.e5   # inverse hubble length: H/c in (h Mpc^-1)
+      H_A = self.U.hubble(1./A-1.) / 3.e5   # H/c in (h Mpc^-1)
       
       # compute weight for n-pt function
       F_a = 1. / (H_A * A**2)

@@ -34,30 +34,37 @@ class FisherLsst(object):
       self.nL = nL
       self.lMin = 20.   # as in DESC SRD v1
       self.lMax = 1.e3  #3.e3  #1.e3
+#      self.Le = np.logspace(np.log10(self.lMin), np.log10(self.lMax), self.nL+1, 10.)
+#      self.dL = self.Le[1:] - self.Le[:-1]
+#      # use the average ell in the bin, weighted by number of modes, as bin center
+#      f = lambda i: 2./3. * (self.Le[i+1]**3 - self.Le[i]**3) / (self.Le[i+1]**2 - self.Le[i]**2)
+#      self.L = np.array(map(f, range(self.nL)))
       self.L, self.dL, self.Nmodes, self.Le = generateEllBins(self.lMin, self.lMax, self.nL, self.fsky)
       
       # number of bins
       self.nBins = nBins
       self.nG = self.nBins
       self.nS = self.nBins
-      #
-      self.nKK = 1
-      self.nKG = self.nG
-      self.nKS = self.nS
+#      if fullCross:
       self.nGG = self.nG * (self.nG+1) / 2   # not just gg from same z-bin
       self.nGS = self.nG * self.nS # not just higher z s than g
+#      else:
+#         self.nGG = self.nG   # just gg from same z-bin
+#         self.nGS = self.nG * (self.nG+1) / 2 # just higher z s than g
       self.nSS = self.nS * (self.nS+1) / 2
-      #
-      self.n2pt = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS + self.nSS
+      self.n2pt = self.nGG + self.nGS + self.nSS
       print "Tomographic bins: "+str(self.nBins)
       print "2-pt functions: "+str(self.n2pt)
       
       # size of data vector
-      self.nData = self.n2pt * self.nL
+      self.nData = (self.nGG + self.nGS + self.nSS) * self.nL
       print "Data vector has "+str(self.nData)+" elements"
 
       # include known magnification bias or not
       self.magBias = magBias
+      
+#      # include null crosses
+#      self.fullCross = fullCross
 
       # Improving the conditioning of the cov matrix
       # Relative unit for shear
@@ -67,7 +74,7 @@ class FisherLsst(object):
 
       
       # output file names
-      self.name = "lsst_kgs_nBins"+str(self.nBins)+"_nL"+str(self.nL)
+      self.name = "lsst_gg_gs_ss_nBins"+str(self.nBins)+"_nL"+str(self.nL)
       if self.magBias:
          self.name += "_magbias"
 #      if fullCross:
@@ -120,19 +127,14 @@ class FisherLsst(object):
 
       print "Tracer and shear bins",
       tStart = time()
-      self.w_k, self.w_g, self.w_s, self.zBounds = self.generateTomoBins(self.u, self.nuisancePar.fiducial)
+      self.w_g, self.w_s, self.zBounds = self.generateTomoBins(self.u, self.nuisancePar.fiducial)
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
       
       print "Mask for lMaxG, noNull, gOnly, sOnly",
       tStart = time()
       self.lMaxMask = self.generatelMaxMask(kMaxG=0.3)
-
-
-# Manuwarning: fix all the functions below
       self.noNullMask = self.generateNoNullMask()
-      self.gsOnlyMask = self.generateGSOnlyMask()
-      self.gsOnlyNoNullMask = self.generateGSOnlyNoNullMask()
       self.gOnlyMask = self.generateGOnlyMask()
       self.sOnlyMask = self.generateSOnlyMask()
       tStop = time()
@@ -140,19 +142,19 @@ class FisherLsst(object):
       
       print "Power spectra",
       tStart = time()
-      self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss = self.generatePowerSpectra(self.u, self.w_k, self.w_g, self.w_s, save=self.save)
+      self.p2d_gg, self.p2d_gs, self.p2d_ss = self.generatePowerSpectra(self.u, self.w_g, self.w_s, save=self.save)
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
 
       print "Data vector",
       tStart = time()
-      self.dataVector, self.shotNoiseVector = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
+      self.dataVector, self.shotNoiseVector = self.generateDataVector(self.p2d_gg, self.p2d_gs, self.p2d_ss)
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
 
       print "Covariance matrix",
       tStart = time()
-      self.covMat = self.generateCov(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
+      self.covMat = self.generateCov(self.p2d_gg, self.p2d_gs, self.p2d_ss)
       self.invCov = np.linalg.inv(self.covMat)
 #      self.invCov = invertMatrixSvdTruncated(self.covMat, epsilon=1.e-8, keepLow=True)
       tStop = time()
@@ -175,6 +177,43 @@ class FisherLsst(object):
    
    ##################################################################################
 
+#   def generatelMaxMask(self, kMaxG=0.3):
+#      '''Creates a mask to discard the clustering modes
+#      with ell >= kMax * chi - 0.5,
+#      where chi is the mean comoving distance to the bin,
+#      and kMax=0.3 h/Mpc,
+#      as in the DESC SRD 2018.
+#      Should be called after the tomo bins have been generated.
+#      '''
+#      lMaxMask = np.zeros(self.nData)
+#      iData = 0
+#      # gg
+#      for iBin1 in range(self.nBins):
+#         z1 = 0.5 * (1./self.w_g[iBin1].aMin-1. + 1./self.w_g[iBin1].aMax-1.)
+#         chi1 = self.u.bg.comoving_distance(z1)
+#         for iBin2 in range(iBin1, self.nBins):
+#            z2 = 0.5 * (1./self.w_g[iBin2].aMin-1. + 1./self.w_g[iBin2].aMax-1.)
+#            chi2 = self.u.bg.comoving_distance(z2)
+#            if (iBin2==iBin1) or self.fullCross:
+#               chi = min(chi1, chi2)
+#               lMax = kMaxG * chi - 0.5
+#               lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
+#               iData += 1
+#      # gs
+#      for iBin1 in range(self.nBins):
+#         z1 = 0.5 * (1./self.w_g[iBin1].aMin-1. + 1./self.w_g[iBin1].aMax-1.)
+#         chi1 = self.u.bg.comoving_distance(z1)
+#         for iBin2 in range(self.nBins):
+#            if (iBin2>=iBin1) or self.fullCross:
+#               lMax = kMaxG * chi1 - 0.5
+#               lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
+#               iData += 1
+#      # ss
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(iBin1, self.nBins):
+#            iData += 1
+#      return lMaxMask
+
 
    def generatelMaxMask(self, kMaxG=0.3):
       '''Creates a mask to discard the clustering modes
@@ -186,21 +225,6 @@ class FisherLsst(object):
       '''
       lMaxMask = np.zeros(self.nData)
       iData = 0
-      
-      # kk
-      iData += self.nKK # ie +=1
-      
-      # kg
-      for iBin1 in range(self.nBins):
-         z1 = self.w_g[iBin1].zMean()
-         chi1 = self.u.bg.comoving_distance(z1)
-         lMax = kMaxG * chi1 - 0.5
-         lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
-         iData += 1
-         
-      # ks
-      iData += self.nKS
-      
       # gg
       for iBin1 in range(self.nBins):
          z1 = self.w_g[iBin1].zMean()
@@ -222,15 +246,6 @@ class FisherLsst(object):
             iData += 1
       return lMaxMask
 
-
-
-
-
-
-
-
-
-
    def generateNoNullMask(self):
       '''Creates a mask to discard all the spectra that would be null
       if photo-z were perfect.
@@ -238,8 +253,6 @@ class FisherLsst(object):
       '''
       noNullMask = np.zeros(self.nData)
       iData = 0
-      # kk, kg, ks
-      iData += self.nKK + self.nKG + self.nKS
       # gg
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
@@ -253,66 +266,23 @@ class FisherLsst(object):
                noNullMask[iData*self.nL:(iData+1)*self.nL] = 1
             iData += 1
       return noNullMask
-
-
-
-   def generateGSOnlyMask(self):
-      '''Creates a mask to keep only gg, gs, ss:
-      0 for kk, kg, ks; 1 for gg, gs and ss.
-      '''
-      gsOnlyMask = np.zeros(self.nData)
-      gsOnlyMask[:(self.nKK+self.nKG+self.nKS)*self.nL] = 1
-      return gsOnlyMask
-
-
-   def generateGSOnlyNoNullMask(self):
-      '''Creates a mask to discard KK, KG, KS and all the spectra that would be null
-      if photo-z were perfect.
-      I.e. discard gg crosses, and gs where z_g>z_s.
-      '''
-      noNullMask = np.zeros(self.nData)
-      iData = 0
-      # kk, kg, ks
-      gsOnlyMask[:(self.nKK+self.nKG+self.nKS)*self.nL] = 1
-      iData += self.nKK + self.nKG + self.nKS
-      # gg
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(iBin1, self.nBins):
-            if (iBin2<>iBin1):
-               noNullMask[iData*self.nL:(iData+1)*self.nL] = 1
-            iData += 1
-      # gs
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(self.nBins):
-            if (iBin2<iBin1):
-               noNullMask[iData*self.nL:(iData+1)*self.nL] = 1
-            iData += 1
-      return noNullMask
-   
-
-   def generateKOnlyMask(self):
-      '''Creates a mask to keep only CMB lensing:
-      0 for kk, 1 for kg, ks, gg, gs and ss.
-      '''
-      gOnlyMask = np.zeros(self.nData)
-      gOnlyMask[(self.nKK+self.nKG+self.nKS+self.nGG)*self.nL: (self.nKK+self.nKG+self.nKS+self.nGG+self.nGS+self.nSS)*self.nL] = 1
-      return gOnlyMask
 
    def generateGOnlyMask(self):
       '''Creates a mask to keep only clustering:
-      1 for kk, kg, ks, 0 for gg, 1 for gs and ss.
+      0 for gg, 1 for gs and ss.
       '''
       gOnlyMask = np.zeros(self.nData)
-      gOnlyMask[:(self.nKK+self.nKG+self.nKS)*self.nL] = 1
-      gOnlyMask[(self.nKK+self.nKG+self.nKS+self.nGG)*self.nL: (self.nKK+self.nKG+self.nKS+self.nGG+self.nGS+self.nSS)*self.nL] = 1
+      # mask gs and ss
+      gOnlyMask[self.nGG*self.nL: (self.nGG + self.nGS + self.nSS)*self.nL] = 1
       return gOnlyMask
 
    def generateSOnlyMask(self):
       '''Creates a mask to discard the keep only cosmic shear:
-      1 for kk, kg, ks, gg, gs, 0 for ss.
+      0 for ss, 1 for gg and gs.
       '''
       sOnlyMask = np.zeros(self.nData)
-      sOnlyMask[:(self.nKK+self.nKG+self.nKS+self.nGG+self.nGS)*self.nL] = 1
+      # mask gg and gs
+      sOnlyMask[:(self.nGG + self.nGS)*self.nL] = 1
       return sOnlyMask
 
 
@@ -323,9 +293,6 @@ class FisherLsst(object):
       '''The option doS=False is only used to save time when sampling dn/dz,
       since the s bins take much longer to generate (by a factor ~100).
       '''
-      # CMB lensing kernel
-      w_k = WeightLensSingle(u, z_source=1100., name="cmblens")
-      
       # split the nuisance parameters
       galaxyBiasPar = nuisancePar[:self.galaxyBiasPar.nPar]
       shearMultBiasPar = nuisancePar[self.galaxyBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar]
@@ -459,9 +426,9 @@ class FisherLsst(object):
       #print "total ngal="+str(np.sum([w_g[i].ngal_per_arcmin2 for i in range(self.nBins)]))+"/arcmin2, should be "+str(w_glsst.ngal_per_arcmin2)
 
       if doS:
-         return w_k, w_g, w_s, zBounds
+         return w_g, w_s, zBounds
       else:
-         return w_k, w_g, zBounds
+         return w_g, zBounds
 
 
 
@@ -615,27 +582,9 @@ class FisherLsst(object):
 
    ##################################################################################
 
-   def generatePowerSpectra(self, u, w_k, w_g, w_s, name=None, save=True):
+   def generatePowerSpectra(self, u, w_g, w_s, name=None, save=True):
       if name is None:
          name = "_"+self.name
-      
-      # kk
-      #cmb = CMB(beam=1., noise=1., nu1=143.e9, nu2=143.e9, lMin=1., lMaxT=3.e3, lMaxP=5.e3, atm=False, name="cmbs4")
-      #cmbLensRec = CMBLensRec(cmb, save=False, nProc=3)
-      p2d_kk = P2d(u, u, w_k, fPnoise=lambda l:0., doT=False, name=name, L=self.L, nProc=1, save=save)
-      
-      # kg
-      p2d_kg = np.empty((self.nBins), dtype=object)
-      for iBin in range(self.nBins):
-         # auto-correlation: same bin
-         p2d_kg[iBin] = P2d(u, u, w_k, w_g[iBin], fPnoise=lambda l:0., doT=False, name=name, L=self.L, nProc=1, save=save)
-      
-      # ks
-      p2d_ks = np.empty((self.nBins), dtype=object)
-      for iBin in range(self.nBins):
-         # auto-correlation: same bin
-         p2d_ks[iBin] = P2d(u, u, w_k, w_s[iBin], fPnoise=lambda l:0., doT=False, name=name, L=self.L, nProc=1, save=save)
-
       # gg: do not impose same bin
       p2d_gg = np.empty((self.nBins, self.nBins), dtype=object)
       for iBin1 in range(self.nBins):
@@ -664,13 +613,12 @@ class FisherLsst(object):
             # so that the order doesn't matter
             p2d_ss[iBin2, iBin1] = p2d_ss[iBin1, iBin2]
 
-      return p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss
+      return p2d_gg, p2d_gs, p2d_ss
 
 
    ##################################################################################
 
-
-   def generateDataVector(self, p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss):
+   def generateDataVector(self, p2d_gg, p2d_gs, p2d_ss):
       '''The data vector is made of the various power spectra,
       with a choice of units that makes the covariance matrix for gg and ss more similar,
       and with an ell^alpha factor that makes the covariance matrix more ell-independent.
@@ -680,33 +628,6 @@ class FisherLsst(object):
       dataVector = np.zeros(self.nData)
       shotNoiseVector = np.zeros(self.nData)
       iData = 0
-      
-      # kk
-      dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_kk.fPinterp, self.L))
-      dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-      #
-      shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_kk.fPnoise, self.L))
-      shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-      #
-      iData += 1
-      # kg
-      for iBin1 in range(self.nBins):
-         dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_kg[iBin1].fPinterp, self.L))
-         dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-         #
-         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_kg[iBin1].fPnoise, self.L))
-         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-         #
-         iData += 1
-      # ks
-      for iBin1 in range(self.nBins):
-         dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ks[iBin1].fPinterp, self.L))
-         dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-         #
-         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ks[iBin1].fPnoise, self.L))
-         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-         #
-         iData += 1
       # gg
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
@@ -746,226 +667,15 @@ class FisherLsst(object):
    def generateCov(self, p2d_gg, p2d_gs, p2d_ss):
       covMat = np.zeros((self.nData, self.nData))
       # below, i1 and i2 define the row and column of the nL*nL blocks for each pair of 2-point function
-      # i1, i2 \in [0, n2pt]
-      
-      # "kk-kk"
-      i1 = 0
-      i2 = 0
-      covBlock = CovP2d(p2d_kk, p2d_kk, p2d_kk, p2d_kk, self.Nmodes)
-      covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-      
-      # "kk-kg"
-      i1 = 0
-      i2 = self.nKK
-      # considering kg[i1]
-      for iBin1 in range(self.nBins):
-         covBlock = CovP2d(p2d_kk, p2d_kg[iBin1], p2d_kg[iBin1], p2d_kk, self.Nmodes)
-         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-         # move to next column
-         i2 += 1
-      
-      # "kk-ks"
-      i1 = 0
-      i2 = self.nKK + self.nKG
-      # considering ks[i1]
-      for iBin1 in range(self.nBins):
-         covBlock = CovP2d(p2d_kk, p2d_ks[iBin1], p2d_ks[iBin1], p2d_kk, self.Nmodes)
-         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-         # move to next column
-         i2 += 1
-
-      # "kk-gg"
-      i1 = 0
-      i2 = self.nKK + self.nKG + self.nKS
-      # considering gg[i1, j1]
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(iBin1, self.nBins):
-            covBlock = CovP2d(p2d_kg[iBin1], p2d_kg[iBin2], p2d_kg[iBin2], p2d_kg[iBin1], self.Nmodes)
-            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-            # move to next column
-            i2 += 1
-
-      # "kk-gs"
-      i1 = 0
-      i2 = self.nKK + self.nKG + self.nKS + self.nGG
-      # considering gs[i1, j1]
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(self.nBins):
-            covBlock = CovP2d(p2d_kg[iBin1], p2d_ks[iBin2], p2d_ks[iBin2], p2d_kg[iBin1], self.Nmodes)
-            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-            # move to next column
-            i2 += 1
-
-      # "kk-ss"
-      i1 = 0
-      i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
-      # considering ss[i1, j1]
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(iBin1, self.nBins):
-            covBlock = CovP2d(p2d_ks[iBin1], p2d_ks[iBin2], p2d_ks[iBin2], p2d_ks[iBin1], self.Nmodes)
-            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-            # move to next column
-            i2 += 1
-
-      # "kg-kg"
-      i1 = self.nKK
-      # considering kg[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK
-         # considering kg[j1]
-         for jBin1 in range(self.nBins):
-            # compute only upper diagonal
-            if i2>=i1:
-               covBlock = CovP2d(p2d_kk, p2d_gg[iBin1, jBin1], p2d_kg[jBin1], p2d_kg[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-            # move to next column
-            i2 += 1
-         # move to next row
-         i1 += 1
-         
-      # "kg-ks"
-      i1 = self.nKK
-      # considering kg[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG
-         # considering ks[j1]
-         for jBin1 in range(self.nBins):
-            # compute only upper diagonal
-            if i2>=i1:
-               covBlock = CovP2d(p2d_kk, p2d_gs[iBin1, jBin1], p2d_ks[jBin1], p2d_kg[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-            # move to next column
-            i2 += 1
-         # move to next row
-         i1 += 1
-
-      # "kg-gg"
-      i1 = self.nKK
-      # considering kg[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.nKS
-         # considering gg[j1, j2]
-         for jBin1 in range(self.nBins):
-            for jBin2 in range(jBin1, self.nBins):
-               # compute only upper diagonal
-               if i2>=i1:
-                  covBlock = CovP2d(p2d_kg[jBin1], p2d_gg[iBin1, jBin2], p2d_kg[jBin2], p2d_gg[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-               # move to next column
-               i2 += 1
-         # move to next row
-         i1 += 1
-
-      # "kg-gs"
-      i1 = self.nKK
-      # considering kg[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.nKS + self.nGG
-         # considering gs[j1, j2]
-         for jBin1 in range(self.nBins):
-            for jBin2 in range(self.nBins):
-               # compute only upper diagonal
-               if i2>=i1:
-                  covBlock = CovP2d(p2d_kg[jBin1], p2d_gs[iBin1, jBin2], p2d_ks[jBin2], p2d_gg[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-               # move to next column
-               i2 += 1
-         # move to next row
-         i1 += 1
-
-      # "kg-ss"
-      # considering kg[i1]
-      i1 = self.nKK
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
-         # considering ss[j1, j2]
-         for jBin1 in range(self.nBins):
-            for jBin2 in range(jBin1, self.nBins):
-               # compute only upper diagonal
-               if i2>=i1:
-                  covBlock = CovP2d(p2d_ks[jBin1], p2d_gs[iBin1, jBin2], p2d_ks[jBin2], p2d_gs[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-               # move to next column
-               i2 += 1
-         # move to next row
-         i1 += 1
-
-      # "ks-ks"
-      i1 = self.nKK + self.nKG
-      # considering ks[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG
-         # considering ks[j1]
-         for jBin1 in range(self.nBins):
-            # compute only upper diagonal
-            if i2>=i1:
-               covBlock = CovP2d(p2d_kk, p2d_ss[iBin1, jBin1], p2d_ks[jBin1], p2d_ks[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-            # move to next column
-            i2 += 1
-         # move to next row
-         i1 += 1
-
-      # "ks-gg"
-      i1 = self.nKK + self.nKG
-      # considering ks[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.KS
-         # considering gg[j1, j2]
-         for jBin1 in range(self.nBins):
-            for jBin2 in range(jBin1, self.nBins):
-               # compute only upper diagonal
-               if i2>=i1:
-                  # watch the order for gs
-                  covBlock = CovP2d(p2d_kg[jBin1], p2d_gs[jBin2, iBin1], p2d_kg[jBin2], p2d_gs[jBin1, iBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-               # move to next column
-               i2 += 1
-         # move to next row
-         i1 += 1
-
-      # "ks-gs"
-      i1 = self.nKK + self.nKG
-      # considering ks[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.KS + self.nGG
-         # considering gs[j1, j2]
-         for jBin1 in range(self.nBins):
-            for jBin2 in range(self.nBins):
-               # compute only upper diagonal
-               if i2>=i1:
-                  # watch the order for gs
-                  covBlock = CovP2d(p2d_kg[jBin1], p2d_ss[iBin1, jBin2], p2d_ks[jBin2], p2d_gs[jBin1, iBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-               # move to next column
-               i2 += 1
-         # move to next row
-         i1 += 1
-
-      # "ks-ss"
-      i1 = self.nKK + self.nKG
-      # considering ks[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.KS + self.nGG + self.nGS
-         # considering ss[j1, j2]
-         for jBin1 in range(self.nBins):
-            for jBin2 in range(jBin1, self.nBins):
-               # compute only upper diagonal
-               if i2>=i1:
-                  covBlock = CovP2d(p2d_ks[jBin1], p2d_ss[iBin1, jBin2], p2d_ks[jBin2], p2d_ss[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
-               # move to next column
-               i2 += 1
-         # move to next row
-         i1 += 1
+      # i1, i2 \in [0, nGG+nGS+nSS]
       
       #print "gg-gg"
       # considering gg[i1,i2]
-      i1 = self.nKK + self.nKG + self.nKS
+      i1 = 0
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
             # considering gg[j1,j2]
-            i2 = self.nKK + self.nKG + self.nKS
+            i2 = 0
             for jBin1 in range(self.nBins):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
@@ -979,11 +689,11 @@ class FisherLsst(object):
 
       #print "gg-gs"
       # considering gg[i1,i2]
-      i1 = self.nKK + self.nKG + self.nKS
+      i1 = 0
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
             # considering gs[j1,j2]
-            i2 = self.nKK + self.nKG + self.nKS + self.nGG
+            i2 = self.nGG
             for jBin1 in range(self.nBins):
                for jBin2 in range(self.nBins):
                   # compute only upper diagonal
@@ -997,11 +707,11 @@ class FisherLsst(object):
 
       #print "gg-ss"
       # considering gg[i1,i2]
-      i1 = self.nKK + self.nKG + self.nKS
+      i1 = 0
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
             # considering ss[j1,j2]
-            i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+            i2 = self.nGG + self.nGS
             for jBin1 in range(self.nBins):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
@@ -1015,11 +725,11 @@ class FisherLsst(object):
 
       #print "gs-gs"
       # considering gs[i1,i2]
-      i1 = self.nKK + self.nKG + self.nKS + self.nGG
+      i1 = self.nGG
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
             # considering gs[j1,j2]
-            i2 = self.nKK + self.nKG + self.nKS + self.nGG
+            i2 = self.nGG
             for jBin1 in range(self.nBins):
                for jBin2 in range(self.nBins):
                   # compute only upper diagonal
@@ -1034,11 +744,11 @@ class FisherLsst(object):
 
       #print "gs-ss"
       # considering gs[i1,i2]
-      i1 = self.nKK + self.nKG + self.nKS + self.nGG
+      i1 = self.nGG
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
             # considering ss[j1,j2]
-            i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+            i2 = self.nGG + self.nGS
             for jBin1 in range(self.nBins):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
@@ -1052,11 +762,11 @@ class FisherLsst(object):
 
       #print "ss-ss"
       # considering ss[i1,i2]
-      i1 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+      i1 = self.nGG + self.nGS
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
             # considering ss[j1,j2]
-            i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+            i2 = self.nGG + self.nGS
             for jBin1 in range(self.nBins):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
@@ -1074,6 +784,9 @@ class FisherLsst(object):
          for i2 in range(i1):
             covMat[i1, i2] = covMat[i2, i1]
 
+#      # apply mask for lMaxG
+#      J = np.ix_(self.lMaxMask, self.lMaxMask)
+#      covMat = ma.masked_array(covMat, mask=J)
       return covMat
 
 
@@ -1282,17 +995,17 @@ class FisherLsst(object):
          cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyHigh[self.cosmoPar.names[iPar]]
 #         print cosmoParClassy
          u = Universe(cosmoParClassy)
-         w_k, w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
-         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
-         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
+         w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
+         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
+         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
          # low
          name = self.name+self.cosmoPar.names[iPar]+"low"
          cosmoParClassy = self.cosmoPar.paramsClassy.copy()
          cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyLow[self.cosmoPar.names[iPar]]
          u = Universe(cosmoParClassy)
-         w_k, w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
-         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
-         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
+         w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
+         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_g, w_s, name=name, save=True)
+         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
          # derivative
          derivative[iPar,:] = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
 #         derivative[iPar,:] = (dataVectorHigh-self.dataVector) / (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
@@ -1319,15 +1032,15 @@ class FisherLsst(object):
          # high
          name = "_"+self.name+self.nuisancePar.names[iPar]+"high"
          params[iPar] = self.nuisancePar.high[iPar]
-         w_k, w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
-         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
-         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
+         w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
+         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_g, w_s, name=name, save=True)
+         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
          # low
          name = self.name+self.nuisancePar.names[iPar]+"low"
          params[iPar] = self.nuisancePar.low[iPar]
-         w_k, w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
-         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
-         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
+         w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
+         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_g, w_s, name=name, save=True)
+         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(p2d_gg, p2d_gs, p2d_ss)
          # derivative
          derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-dataVectorLow) / (self.nuisancePar.high[iPar]-self.nuisancePar.low[iPar])
 #         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-self.dataVector) / (self.nuisancePar.high[iPar]-self.nuisancePar.fiducial[iPar])
@@ -1462,11 +1175,6 @@ class FisherLsst(object):
          # plot it
          ax.fill_between(Z, 0., dndz, facecolor=plt.cm.autumn(1.*iBin/self.nBins), edgecolor='', alpha=0.7)
       #
-      # CMB lensing kernel
-      W = np.array(map(self.w_k.f, 1./(1.+Z)))
-      H = self.U.hubble(1./A-1.) / 3.e5   # H/c in (h Mpc^-1)
-      ax.plot(Z, W/H, 'k', label=r'$W_{\kappa_\text{CMB}}$')
-      #
       ax.set_ylim((0., 23.))
       ax.set_xlim((0.,4.))
       ax.set_xlabel(r'$z$')
@@ -1515,7 +1223,7 @@ class FisherLsst(object):
          newNuisancePar.addParams(newPhotoZPar)
          
          # generate the corresponding dn/dz for the particular sample
-         w_k, w_g, zBounds = self.generateTomoBins(self.u, newNuisancePar.fiducial, doS=False)
+         w_g, zBounds = self.generateTomoBins(self.u, newNuisancePar.fiducial, doS=False)
    
          # add it to the plot
          for iBin in range(self.nBins):
@@ -1796,9 +1504,7 @@ class FisherLsst(object):
 
 
    def plotPowerSpectra(self):
-
-# Manuwarning: the autos are smaller than some of the crosses!!?? Check this
-
+      
       # gg: panels
       Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
       #

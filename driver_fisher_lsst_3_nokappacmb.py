@@ -83,9 +83,6 @@ fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nB
 #fish.plotUncertaintyPowerSpectra()
 #fish.plotCovMat()
 #fish.plotInvCovMat()
-
-# Manuwarning: fix everything below to add CMB lensing
-
 fish.printSnrPowerSpectra(path=fish.figurePath+"/snr.txt")
 fish.plotDerivativeDataVectorCosmo()
 #fish.plotSingleDerivative("gg", 0, 0)
