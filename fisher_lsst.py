@@ -23,9 +23,12 @@ from covp_2d import *
 
 class FisherLsst(object):
    
-   def __init__(self, cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=2, nL=20, fsky=1., magBias=False, name=None, nProc=3, save=True):   #, fullCross=True
+   def __init__(self, cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=2, nL=20, fsky=1., fNk=lambda l:0., magBias=False, name=None, nProc=3, save=True):   #, fullCross=True
       self.save = save
       self.nProc = nProc
+      
+      # CMB lensing noise
+      self.fNk = fNk
       
       # sky fraction
       self.fsky = fsky
@@ -124,15 +127,14 @@ class FisherLsst(object):
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
       
-      print "Mask for lMaxG, noNull, gOnly, sOnly",
+      print "Masks to select specific ells or 2-point functions",
       tStart = time()
+      # 0 for data to keep, 1 for data to discard
       self.lMaxMask = self.generatelMaxMask(kMaxG=0.3)
-
-
-# Manuwarning: fix all the functions below
+      #
       self.noNullMask = self.generateNoNullMask()
       self.gsOnlyMask = self.generateGSOnlyMask()
-      self.gsOnlyNoNullMask = self.generateGSOnlyNoNullMask()
+#      self.gsOnlyNoNullMask = self.generateGSOnlyNoNullMask()
       self.gOnlyMask = self.generateGOnlyMask()
       self.sOnlyMask = self.generateSOnlyMask()
       tStop = time()
@@ -265,30 +267,30 @@ class FisherLsst(object):
       return gsOnlyMask
 
 
-   def generateGSOnlyNoNullMask(self):
-      '''Creates a mask to discard KK, KG, KS and all the spectra that would be null
-      if photo-z were perfect.
-      I.e. discard gg crosses, and gs where z_g>z_s.
-      '''
-      noNullMask = np.zeros(self.nData)
-      iData = 0
-      # kk, kg, ks
-      gsOnlyMask[:(self.nKK+self.nKG+self.nKS)*self.nL] = 1
-      iData += self.nKK + self.nKG + self.nKS
-      # gg
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(iBin1, self.nBins):
-            if (iBin2<>iBin1):
-               noNullMask[iData*self.nL:(iData+1)*self.nL] = 1
-            iData += 1
-      # gs
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(self.nBins):
-            if (iBin2<iBin1):
-               noNullMask[iData*self.nL:(iData+1)*self.nL] = 1
-            iData += 1
-      return noNullMask
-   
+#   def generateGSOnlyNoNullMask(self):
+#      '''Creates a mask to discard KK, KG, KS and all the spectra that would be null
+#      if photo-z were perfect.
+#      I.e. discard gg crosses, and gs where z_g>z_s.
+#      '''
+#      gsOnlyNoNullMask = np.zeros(self.nData)
+#      iData = 0
+#      # kk, kg, ks
+#      gsOnlyNoNullMask[:(self.nKK+self.nKG+self.nKS)*self.nL] = 1
+#      iData += self.nKK + self.nKG + self.nKS
+#      # gg
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(iBin1, self.nBins):
+#            if (iBin2<>iBin1):
+#               gsOnlyNoNullMask[iData*self.nL:(iData+1)*self.nL] = 1
+#            iData += 1
+#      # gs
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(self.nBins):
+#            if (iBin2<iBin1):
+#               gsOnlyNoNullMask[iData*self.nL:(iData+1)*self.nL] = 1
+#            iData += 1
+#      return gsOnlyNoNullMask
+
 
    def generateKOnlyMask(self):
       '''Creates a mask to keep only CMB lensing:
@@ -324,8 +326,11 @@ class FisherLsst(object):
       since the s bins take much longer to generate (by a factor ~100).
       '''
       # CMB lensing kernel
+#      tStart = time()
       w_k = WeightLensSingle(u, z_source=1100., name="cmblens")
-      
+#      tStop = time()
+#      print "CMB lensing kernel took", tStop-tStart, "sec"
+
       # split the nuisance parameters
       galaxyBiasPar = nuisancePar[:self.galaxyBiasPar.nPar]
       shearMultBiasPar = nuisancePar[self.galaxyBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar]
@@ -622,7 +627,7 @@ class FisherLsst(object):
       # kk
       #cmb = CMB(beam=1., noise=1., nu1=143.e9, nu2=143.e9, lMin=1., lMaxT=3.e3, lMaxP=5.e3, atm=False, name="cmbs4")
       #cmbLensRec = CMBLensRec(cmb, save=False, nProc=3)
-      p2d_kk = P2d(u, u, w_k, fPnoise=lambda l:0., doT=False, name=name, L=self.L, nProc=1, save=save)
+      p2d_kk = P2d(u, u, w_k, fPnoise=self.fNk, doT=False, name=name, L=self.L, nProc=1, save=save)
       
       # kg
       p2d_kg = np.empty((self.nBins), dtype=object)
@@ -743,7 +748,7 @@ class FisherLsst(object):
 
    ##################################################################################
 
-   def generateCov(self, p2d_gg, p2d_gs, p2d_ss):
+   def generateCov(self, p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss):
       covMat = np.zeros((self.nData, self.nData))
       # below, i1 and i2 define the row and column of the nL*nL blocks for each pair of 2-point function
       # i1, i2 \in [0, n2pt]
@@ -910,7 +915,7 @@ class FisherLsst(object):
       i1 = self.nKK + self.nKG
       # considering ks[i1]
       for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.KS
+         i2 = self.nKK + self.nKG + self.nKS
          # considering gg[j1, j2]
          for jBin1 in range(self.nBins):
             for jBin2 in range(jBin1, self.nBins):
@@ -928,7 +933,7 @@ class FisherLsst(object):
       i1 = self.nKK + self.nKG
       # considering ks[i1]
       for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.KS + self.nGG
+         i2 = self.nKK + self.nKG + self.nKS + self.nGG
          # considering gs[j1, j2]
          for jBin1 in range(self.nBins):
             for jBin2 in range(self.nBins):
@@ -946,7 +951,7 @@ class FisherLsst(object):
       i1 = self.nKK + self.nKG
       # considering ks[i1]
       for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.KS + self.nGG + self.nGS
+         i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
          # considering ss[j1, j2]
          for jBin1 in range(self.nBins):
             for jBin2 in range(jBin1, self.nBins):
@@ -1082,14 +1087,77 @@ class FisherLsst(object):
    def printSnrPowerSpectra(self, path):
       with open(path, 'w') as f:
          f.write("SNR\n\n")
+
+         ###########################################################
+         # kk
          
+         f.write("KK\n")
+         I = range(0*self.nL, self.nKK*self.nL)
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("total kk: "+str(snr)+"\n\n")
+ 
+
+         ###########################################################
+         # kg
+         
+         f.write("KG\n")
+         f.write("all\n")
+         i1 = self.nKK
+         for iBin1 in range(self.nBins):
+            I = range(i1*self.nL, (i1+1)*self.nL)
+            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+            invCov = np.linalg.inv(cov)
+            snr = np.dot(d.transpose(), np.dot(invCov, d))
+            snr = np.sqrt(snr)
+            f.write("   "+str(iBin1)+": "+str(snr)+"\n")
+            i1 += 1
+         # total
+         I = range(self.nKK*self.nL, (self.nKK+self.nKG)*self.nL)
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("total kg: "+str(snr)+"\n\n")
+
+
+         ###########################################################
+         # ks
+
+         f.write("KS\n")
+         f.write("all\n")
+         i1 = self.nKK + self.nKG
+         for iBin1 in range(self.nBins):
+            I = range(i1*self.nL, (i1+1)*self.nL)
+            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+            invCov = np.linalg.inv(cov)
+            snr = np.dot(d.transpose(), np.dot(invCov, d))
+            snr = np.sqrt(snr)
+            f.write("   "+str(iBin1)+": "+str(snr)+"\n")
+            i1 += 1
+         # total
+         I = range((self.nKK+self.nKG)*self.nL, (self.nKK+self.nKG+self.nKS)*self.nL)
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("total ks: "+str(snr)+"\n\n")
+
+
          ###########################################################
          # gg
          
          # gg: auto
          f.write("GG\n")
          f.write("auto\n")
-         i1 = 0
+         i1 = self.nKK + self.nKG + self.nKS
          Itotal = []
          for iBin1 in range(self.nBins):
             I = range(i1*self.nL, (i1+1)*self.nL)
@@ -1112,7 +1180,7 @@ class FisherLsst(object):
          
          # gg: cross i,i+1
          f.write("cross i,i+1\n")
-         i1 = 1
+         i1 = self.nKK + self.nKG + self.nKS + 1
          Itotal = []
          for iBin1 in range(self.nBins-1):
             I = range(i1*self.nL, (i1+1)*self.nL)
@@ -1135,7 +1203,7 @@ class FisherLsst(object):
 
          # gg: cross i,i+2
          f.write("cross i,i+2\n")
-         i1 = 2
+         i1 = self.nKK + self.nKG + self.nKS + 2
          Itotal = []
          for iBin1 in range(self.nBins-2):
             I = range(i1*self.nL, (i1+1)*self.nL)
@@ -1157,7 +1225,7 @@ class FisherLsst(object):
          
          # gg: all
          f.write("all\n")
-         i1 = 0
+         i1 = self.nKK + self.nKG + self.nKS
          for iBin1 in range(self.nBins):
             for iBin2 in range(iBin1, self.nBins):
                I = range(i1*self.nL, (i1+1)*self.nL)
@@ -1169,7 +1237,7 @@ class FisherLsst(object):
                f.write("   "+str(iBin1)+","+str(iBin2)+": "+str(snr)+"\n")
                i1 += 1
          # gg: total
-         I = range(self.nGG*self.nL)
+         I = range((self.nKK+self.nKG+self.nKS)*self.nL, (self.nKK+self.nKG+self.nKS+self.nGG)*self.nL)
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
          invCov = np.linalg.inv(cov)
@@ -1183,7 +1251,7 @@ class FisherLsst(object):
          # gs: all
          f.write("GS\n")
          f.write("all\n")
-         i1 = self.nGG
+         i1 = self.nKK + self.nKG + self.nKS + self.nGG
          for iBin1 in range(self.nBins):
             for iBin2 in range(self.nBins):
                I = range(i1*self.nL, (i1+1)*self.nL)
@@ -1195,7 +1263,7 @@ class FisherLsst(object):
                f.write("   "+str(iBin1)+","+str(iBin2)+": "+str(snr)+"\n")
                i1 += 1
          # gs: total
-         I = range(self.nGG*self.nL, (self.nGG+self.nGS)*self.nL)
+         I = range((self.nKK+self.nKG+self.nKS+self.nGG)*self.nL, (self.nKK+self.nKG+self.nKS+self.nGG+self.nGS)*self.nL)
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
          invCov = np.linalg.inv(cov)
@@ -1210,7 +1278,7 @@ class FisherLsst(object):
          
          # ss: auto
          f.write("auto\n")
-         i1 = self.nGG + self.nGS
+         i1 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
          Itotal = []
          for iBin1 in range(self.nBins):
             I = range(i1*self.nL, (i1+1)*self.nL)
@@ -1232,7 +1300,7 @@ class FisherLsst(object):
 
          # ss: all
          f.write("all\n")
-         i1 = self.nGG + self.nGS
+         i1 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
          for iBin1 in range(self.nBins):
             for iBin2 in range(iBin1, self.nBins):
                I = range(i1*self.nL, (i1+1)*self.nL)
@@ -1244,7 +1312,7 @@ class FisherLsst(object):
                f.write("   "+str(iBin1)+","+str(iBin2)+": "+str(snr)+"\n")
                i1 += 1
          # ss: total
-         I = range((self.nGG+self.nGS)*self.nL, (self.nGG+self.nGS+self.nSS)*self.nL)
+         I = range((self.nKK+self.nKG+self.nKS+self.nGG+self.nGS)*self.nL, (self.nKK+self.nKG+self.nKS+self.nGG+self.nGS+self.nSS)*self.nL)
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
          invCov = np.linalg.inv(cov)
@@ -1283,7 +1351,7 @@ class FisherLsst(object):
 #         print cosmoParClassy
          u = Universe(cosmoParClassy)
          w_k, w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
-         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
+         p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
          dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
          # low
          name = self.name+self.cosmoPar.names[iPar]+"low"
@@ -1291,7 +1359,7 @@ class FisherLsst(object):
          cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyLow[self.cosmoPar.names[iPar]]
          u = Universe(cosmoParClassy)
          w_k, w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
-         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
+         p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
          dataVectorLow, shotNoiseVectorLow = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
          # derivative
          derivative[iPar,:] = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
@@ -1320,13 +1388,13 @@ class FisherLsst(object):
          name = "_"+self.name+self.nuisancePar.names[iPar]+"high"
          params[iPar] = self.nuisancePar.high[iPar]
          w_k, w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
-         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
+         p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
          dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
          # low
          name = self.name+self.nuisancePar.names[iPar]+"low"
          params[iPar] = self.nuisancePar.low[iPar]
          w_k, w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
-         p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
+         p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
          dataVectorLow, shotNoiseVectorLow = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
          # derivative
          derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-dataVectorLow) / (self.nuisancePar.high[iPar]-self.nuisancePar.low[iPar])
@@ -1464,7 +1532,7 @@ class FisherLsst(object):
       #
       # CMB lensing kernel
       W = np.array(map(self.w_k.f, 1./(1.+Z)))
-      H = self.U.hubble(1./A-1.) / 3.e5   # H/c in (h Mpc^-1)
+      H = self.u.hubble(1./A-1.) / 3.e5   # H/c in (h Mpc^-1)
       ax.plot(Z, W/H, 'k', label=r'$W_{\kappa_\text{CMB}}$')
       #
       ax.set_ylim((0., 23.))
@@ -1796,8 +1864,101 @@ class FisherLsst(object):
 
 
    def plotPowerSpectra(self):
-
 # Manuwarning: the autos are smaller than some of the crosses!!?? Check this
+
+      # kk
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      i1 = 0
+      I = range(i1*self.nL, (i1+1)*self.nL)
+      L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+      d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+      shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+      cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+      std = L * np.sqrt(np.diag(cov))
+      #
+      ax.errorbar(L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color='b')
+      ax.plot(L, shot, ls='--', lw=1, color='grey')
+      #
+      ax.set_xscale('log')
+      ax.set_yscale('log', nonposy='clip')
+      plt.setp(ax0.get_xticklabels(), visible=False)
+      #
+      ax.set_title(r'CMB lensing')
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$\ell C_\ell^{\kappa_\text{CMB} \kappa_\text{CMB}}$', fontsize=18)
+      #
+      fig.savefig(self.figurePath+"/p2d_kk.pdf")
+      fig.clf()
+
+      # kg
+      Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
+      #
+      fig=plt.figure(0)
+      ax=fig.add_subbplot(111)
+      #
+      i1 = self.nKK
+      for iBin1 in range(self.nBins):
+         I = range(i1*self.nL, (i1+1)*self.nL)
+         L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+         shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+         std = L * np.sqrt(np.diag(cov))
+         #
+         color = Colors[iBin1]
+         ax.errorbar(L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
+#         ax.plot(L, shot, ls='--', lw=1, color=color)  # different color for each tomo bin
+         ax.plot(L, shot, ls='--', lw=1, color='grey')  # same color for all tomo bins, since they have the same n_gal
+         # advance counter in data vector
+         i1 += 1
+      #
+      ax.set_xscale('log')
+      ax.set_yscale('log', nonposy='clip')
+      plt.setp(ax.get_xticklabels(), visible=False)
+      #
+      ax.set_title(r'Galaxy - CMB lensing')
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$\ell C_\ell^{g \kappa_\text{CMB}}$', fontsize=18)
+      #
+      fig.savefig(self.figurePath+"/p2d_kg.pdf")
+      fig.clf()
+      
+
+      # ks
+      Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
+      #
+      fig=plt.figure(0)
+      ax=fig.add_subbplot(111)
+      #
+      i1 = self.nKK + self.nKG
+      for iBin1 in range(self.nBins):
+         I = range(i1*self.nL, (i1+1)*self.nL)
+         L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+         shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+         std = L * np.sqrt(np.diag(cov))
+         #
+         color = Colors[iBin1]
+         ax.errorbar(L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
+#         ax.plot(L, shot, ls='--', lw=1, color=color)  # different color for each tomo bin
+         ax.plot(L, shot, ls='--', lw=1, color='grey')  # same color for all tomo bins, since they have the same n_gal
+         # advance counter in data vector
+         i1 += 1
+      #
+      ax.set_xscale('log')
+      ax.set_yscale('log', nonposy='clip')
+      plt.setp(ax.get_xticklabels(), visible=False)
+      #
+      ax.set_title(r'CMB lensing - galaxy lensing')
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$\ell C_\ell^{\kappa_\text{CMB} \gamma}$', fontsize=18)
+      #
+      fig.savefig(self.figurePath+"/p2d_ks.pdf")
+      fig.clf()
+
 
       # gg: panels
       Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
@@ -1808,7 +1969,7 @@ class FisherLsst(object):
       
       # auto
       ax0=plt.subplot(gs[0])
-      i1 = 0
+      i1 = self.nKK + self.nKG + self.nKS
       for iBin1 in range(self.nBins):
          I = range(i1*self.nL, (i1+1)*self.nL)
          L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
@@ -1834,7 +1995,7 @@ class FisherLsst(object):
 
       # cross i,i+1
       ax1=plt.subplot(gs[1])
-      i1 = 1
+      i1 = self.nKK + self.nKG + self.nKS + 1
       for iBin1 in range(self.nBins-1):
          I = range(i1*self.nL, (i1+1)*self.nL)
          L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
@@ -1855,7 +2016,7 @@ class FisherLsst(object):
 
       # cross i,i+2
       ax2=plt.subplot(gs[2])
-      i1 = 2
+      i1 = self.nKK + self.nKG + self.nKS + 2
       for iBin1 in range(self.nBins-2):
          I = range(i1*self.nL, (i1+1)*self.nL)
          L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
@@ -1884,10 +2045,11 @@ class FisherLsst(object):
       fig=plt.figure(1)
       ax=fig.add_subplot(111)
       #
-      i1 = self.nGG
+      i1 = self.nKK + self.nKG + self.nKS + self.nGG
       for iBin1 in range(self.nBins):
          color = Colors[iBin1]
-         for iBin2 in range(self.nBins):
+#         for iBin2 in range(self.nBins):  # show all the cross-correlations
+         for iBin2 in [-1]:  # show only the ones with the highest z shear
             I = range(i1*self.nL, (i1+1)*self.nL)
             L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
             d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
@@ -1914,13 +2076,15 @@ class FisherLsst(object):
       fig=plt.figure(2)
       ax=fig.add_subplot(111)
       #
-      i1 = self.nGG + self.nGS
+      i1 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
       for iBin1 in range(self.nBins):
          # add entry to caption
          color = Colors[iBin1]
          ax.plot([], [], c=color, label=r'$\langle\gamma_{i} \gamma_{i+'+str(iBin1)+r'} \rangle $')
-         for iBin2 in range(iBin1, self.nBins):
-            color = Colors[iBin2-iBin1]
+#         for iBin2 in range(iBin1, self.nBins): # show all the cross-correlations
+#            color = Colors[iBin2-iBin1]
+         for iBin2 in [iBin1]: # show only the auto
+            color = Colors[iBin1]
             #
             I = range(i1*self.nL, (i1+1)*self.nL)
             L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
@@ -1949,6 +2113,96 @@ class FisherLsst(object):
 
    def plotUncertaintyPowerSpectra(self):
 
+      # kk
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      i1 = 0
+      I = range(i1*self.nL, (i1+1)*self.nL)
+      L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+      d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+      shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+      cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+      std = L * np.sqrt(np.diag(cov))
+      #
+      ax.plot(L, std / d, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color='b')
+      #
+      ax.set_xscale('log')
+      ax.set_yscale('log', nonposy='clip')
+      plt.setp(ax0.get_xticklabels(), visible=False)
+      #
+      ax.set_title(r'CMB lensing')
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$\sigma \left( C_\ell^{\kappa_\text{CMB} \kappa_\text{CMB}} \right) / C_\ell^{\kappa_\text{CMB} \kappa_\text{CMB}}$', fontsize=18)
+      #
+      fig.savefig(self.figurePath+"/sp2d_kk.pdf")
+      fig.clf()
+
+
+      # kg
+      Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
+      #
+      fig=plt.figure(0)
+      ax=fig.add_subbplot(111)
+      #
+      i1 = self.nKK
+      for iBin1 in range(self.nBins):
+         I = range(i1*self.nL, (i1+1)*self.nL)
+         L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+         shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+         std = L * np.sqrt(np.diag(cov))
+         #
+         color = Colors[iBin1]
+         ax.plot(L, std/d, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
+         # advance counter in data vector
+         i1 += 1
+      #
+      ax.set_xscale('log')
+      ax.set_yscale('log', nonposy='clip')
+      plt.setp(ax.get_xticklabels(), visible=False)
+      #
+      ax.set_title(r'Galaxy - CMB lensing')
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$\sigma \left( C_\ell^{g \kappa_\text{CMB}} \right) / C_\ell^{g \kappa_\text{CMB}}$', fontsize=18)
+      #
+      fig.savefig(self.figurePath+"/sp2d_kg.pdf")
+      fig.clf()
+      
+
+      # ks
+      Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
+      #
+      fig=plt.figure(0)
+      ax=fig.add_subbplot(111)
+      #
+      i1 = self.nKK + self.nKG
+      for iBin1 in range(self.nBins):
+         I = range(i1*self.nL, (i1+1)*self.nL)
+         L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+         shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+         std = L * np.sqrt(np.diag(cov))
+         #
+         color = Colors[iBin1]
+         ax.plot(L, std/d, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
+         # advance counter in data vector
+         i1 += 1
+      #
+      ax.set_xscale('log')
+      ax.set_yscale('log', nonposy='clip')
+      plt.setp(ax.get_xticklabels(), visible=False)
+      #
+      ax.set_title(r'CMB lensing - galaxy lensing')
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$\sigma \left( C_\ell^{\kappa_\text{CMB} \gamma} \right) / C_\ell^{\kappa_\text{CMB} \gamma}$', fontsize=18)
+      #
+      fig.savefig(self.figurePath+"/sp2d_ks.pdf")
+      fig.clf()
+
+
       # gg: panels
       Colors = plt.cm.autumn(1.*np.arange(self.nBins)/(self.nBins-1.))
       #
@@ -1958,7 +2212,7 @@ class FisherLsst(object):
       
       # auto
       ax0=plt.subplot(gs[0])
-      i1 = 0
+      i1 = self.nKK + self.nKG + self.nKS
       for iBin1 in range(self.nBins):
 #         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
 #         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
@@ -1983,7 +2237,7 @@ class FisherLsst(object):
 
       # cross i,i+1
       ax1=plt.subplot(gs[1])
-      i1 = 1
+      i1 = self.nKK + self.nKG + self.nKS + 1
       for iBin1 in range(self.nBins-1):
 #         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
 #         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
@@ -2006,7 +2260,7 @@ class FisherLsst(object):
 
       # cross i,i+2
       ax2=plt.subplot(gs[2])
-      i1 = 2
+      i1 = self.nKK + self.nKG + self.nKS + 2
       for iBin1 in range(self.nBins-2):
 #         d = self.dataVector[i1*self.nL:(i1+1)*self.nL]
 #         std = np.sqrt(np.diag(self.covMat[i1*self.nL:(i1+1)*self.nL, i1*self.nL:(i1+1)*self.nL]))
@@ -2029,7 +2283,6 @@ class FisherLsst(object):
       #
       fig.savefig(self.figurePath+"/sp2d_gg.pdf")
       fig.clf()
-      
 
 
       # gs
@@ -2037,7 +2290,7 @@ class FisherLsst(object):
       fig=plt.figure(1)
       ax=fig.add_subplot(111)
       #
-      i1 = self.nGG
+      i1 = self.nKK + self.nKG + self.nKS + self.nGG
       for iBin1 in range(self.nBins):
          color = Colors[iBin1]
          for iBin2 in range(self.nBins):
@@ -2069,7 +2322,7 @@ class FisherLsst(object):
       fig=plt.figure(2)
       ax=fig.add_subplot(111)
       #
-      i1 = self.nGG + self.nGS
+      i1 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
       for iBin1 in range(self.nBins):
          # add entry to caption
          color = Colors[iBin1]
@@ -2121,16 +2374,122 @@ class FisherLsst(object):
 #      silver, gray, darkgray
 #      saddlebrown, sienna, brown
 
-      Colors = ['purple', 'orange', 'lime', 'darkolivegreen', 'r', 'royalblue', 'navy', 'gold', 'silver', 'saddlebrown']
-      
-      
 #      fontsize : int or float or {'xx-small', 'x-small', 'small', 'medium', 'large', 'x-large', 'xx-large'}
 #      labelspacing: vertical spacing
 #      handlelength=0.5
 #      handletextpad=0.01
 #      columnspacing=0.4
 
+      Colors = ['purple', 'orange', 'lime', 'darkolivegreen', 'r', 'royalblue', 'navy', 'gold', 'silver', 'saddlebrown']
       
+      
+
+
+
+      # kk
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      # for each cosmo parameter
+      for iPar in range(self.cosmoPar.nPar)[::-1]:
+#      for iPar in [6]:  # Mnu
+#      for iPar in [9]:  # curvature
+         # plot all the 2pt functions
+         for i2pt in range(self.nKK):
+#            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            I = range(i2pt*self.nL, (i2pt+1)*self.nL)
+            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+            dlnDdlnP = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
+            dlnDdlnP /= extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+            if self.cosmoPar.fiducial[iPar] <> 0.:
+               dlnDdlnP *= self.cosmoPar.fiducial[iPar]
+            color = Colors[iPar]
+            color = darkerLighter(color, amount=-0.5*i2pt/self.nGG)
+            ax.plot(L, dlnDdlnP, c=color, lw=3)
+         ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
+      #
+      #ax.grid()
+#      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
+      ax.set_xscale('log', nonposx='clip')
+      ax.set_ylim((-4., 4.))
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$d\ln C_\ell^{\kappa_\text{CMB}\kappa_\text{CMB}} / d\ln \text{Param.}$')
+      #
+      fig.savefig(self.figurePath+"/dp2d_kk_cosmo.pdf")
+      fig.clf()
+
+
+      # kg
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      # for each cosmo parameter
+      for iPar in range(self.cosmoPar.nPar)[::-1]:
+#      for iPar in [6]:  # Mnu
+#      for iPar in [9]:  # curvature
+         # plot all the 2pt functions
+         for i2pt in range(self.nKK, self.nKK+self.nKG):
+#            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            I = range(i2pt*self.nL, (i2pt+1)*self.nL)
+            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+            dlnDdlnP = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
+            dlnDdlnP /= extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+            if self.cosmoPar.fiducial[iPar] <> 0.:
+               dlnDdlnP *= self.cosmoPar.fiducial[iPar]
+            color = Colors[iPar]
+            color = darkerLighter(color, amount=-0.5*i2pt/self.nGG)
+            ax.plot(L, dlnDdlnP, c=color, lw=3)
+         ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
+      #
+      #ax.grid()
+#      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
+      ax.set_xscale('log', nonposx='clip')
+      ax.set_ylim((-4., 4.))
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$d\ln C_\ell^{g\kappa_\text{CMB}} / d\ln \text{Param.}$')
+      #
+      fig.savefig(self.figurePath+"/dp2d_kg_cosmo.pdf")
+      fig.clf()
+
+
+      # ks
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      # for each cosmo parameter
+      for iPar in range(self.cosmoPar.nPar)[::-1]:
+#      for iPar in [6]:  # Mnu
+#      for iPar in [9]:  # curvature
+         # plot all the 2pt functions
+         for i2pt in range(self.nKK+self.nKG, self.nKK+self.nKG+self.nKS):
+#            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            I = range(i2pt*self.nL, (i2pt+1)*self.nL)
+            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+            dlnDdlnP = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
+            dlnDdlnP /= extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+            if self.cosmoPar.fiducial[iPar] <> 0.:
+               dlnDdlnP *= self.cosmoPar.fiducial[iPar]
+            color = Colors[iPar]
+            color = darkerLighter(color, amount=-0.5*i2pt/self.nGG)
+            ax.plot(L, dlnDdlnP, c=color, lw=3)
+         ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
+      #
+      #ax.grid()
+#      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
+      ax.set_xscale('log', nonposx='clip')
+      ax.set_ylim((-4., 4.))
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'$d\ln C_\ell^{\gamma\kappa_\text{CMB}} / d\ln \text{Param.}$')
+      #
+      fig.savefig(self.figurePath+"/dp2d_ks_cosmo.pdf")
+      fig.clf()
+
       
       # gg
       fig=plt.figure(0)
@@ -2141,7 +2500,7 @@ class FisherLsst(object):
 #      for iPar in [6]:  # Mnu
 #      for iPar in [9]:  # curvature
          # plot all the 2pt functions
-         for i2pt in range(self.nGG):
+         for i2pt in range(self.nKK+self.nKG+self.nKS, self.nKK+self.nKG+self.nKS+self.nGG):
 #            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
             I = range(i2pt*self.nL, (i2pt+1)*self.nL)
             L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
@@ -2175,7 +2534,7 @@ class FisherLsst(object):
 #      for iPar in range(self.cosmoPar.nPar):
 #      for iPar in [9]:  # curvature
          # plot all the 2pt functions
-         for i2pt in range(self.nGG, self.nGG+self.nGS):
+         for i2pt in range(self.nKK+self.nKG+self.nKS+self.nGG, self.nKK+self.nKG+self.nKS+self.nGG+self.nGS):
 #            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
             I = range(i2pt*self.nL, (i2pt+1)*self.nL)
             L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
@@ -2209,7 +2568,7 @@ class FisherLsst(object):
 #      for iPar in range(self.cosmoPar.nPar):
 #      for iPar in [9]:  # curvature
          # plot all the 2pt functions
-         for i2pt in range(self.nGG+self.nGS, self.nGG+self.nGS+self.nSS):
+         for i2pt in range(self.nKK+self.nKG+self.nKS+self.nGG+self.nGS, self.nKK+self.nKG+self.nKS+self.nGG+self.nGS+self.nSS):
 #            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
             I = range(i2pt*self.nL, (i2pt+1)*self.nL)
             L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
@@ -2242,12 +2601,18 @@ class FisherLsst(object):
       print "2-pt function:", ab, i2pt
       print "Parameter:", self.fullPar.names[iPar]
       
-      if ab=='gg':
+      if ab=='kk':
          i2pt += 0
+      elif ab=='kg':
+         i2pt += self.nKK
+      elif ab=='ks':
+         i2pt += self.nKK + self.nKG
+      elif ab=='gg':
+         i2pt += self.nKK + self.nKG + self.nKS
       elif ab=='gs':
-         i2pt += self.nGG
+         i2pt += self.nKK + self.nKG + self.nKS + self.nGG
       elif ab=='ss':
-         i2pt += self.nGG+self.nGS
+         i2pt += self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
       else:
          return
       
