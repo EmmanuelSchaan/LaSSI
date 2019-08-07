@@ -81,6 +81,8 @@ class FisherLsst(object):
          self.name += "_gphotoz"
       if name is not None:
          self.name += "_"+name
+      if self.photoZSPar is not None:
+         self.name += "_diffGS"
       print "Ouput file name:", self.name
       
       # create folder for figures
@@ -3023,6 +3025,7 @@ class FisherLsst(object):
       at the level of the LSST requirements.
       The outlier fractions are kept at 10%,
       but the priors on the outlier fractions are varied.
+      !!! May not be super happy with having differing g and s bins
       '''
       if mask is None:
          mask=self.lMaxMask
@@ -3069,72 +3072,77 @@ class FisherLsst(object):
             newPhotoZPar = PhotoZParams(nBins=self.nBins, dzFid=0., szFid=0.05, dzStd=1.e-5, szStd=1.e-5, outliers=0.1, outliersStd=photoz)
          elif Gphotoz=='noprior':
             newPhotoZPar = PhotoZParams(nBins=self.nBins, dzFid=0., szFid=0.05, dzStd=1., szStd=1., outliers=0.1, outliersStd=photoz)
+         # if g and s bins are different
+         if self.photoZSPar is not None:
+            newPhotoZPar.addParams(newPhotoZPar)
          
          # update the full parameter object
          newPar = self.cosmoPar.copy()
          newPar.addParams(self.galaxyBiasPar)
          newPar.addParams(self.shearMultBiasPar)
          newPar.addParams(newPhotoZPar)
+         # if g and s bins are different
+         if self.photoZSPar is not None:
+            newPar.addParams(newPhotoZPar)
          # get the new posterior Fisher matrix, including the prior
          newPar.fisher += fisherData
          
          # Extract full uncertainties
          sFull[:,iPhotoz] = newPar.paramUncertainties(marg=True)
          
+         
+         ##################################################################################
          # Extract parameter combinations:
-         #
+         
          # Full: LCDM + Mnu + curv + w0,wa
          # reject unwanted cosmo params
          I = self.cosmoPar.IFull + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
-         if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_full_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
+         # for the best/worse photo-z prior, save the forecast to file
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:            par.printParams(path=self.figurePath+"/posterior_full_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
          # cosmology
          parCosmoFull = par.extractParams(range(len(self.cosmoPar.IFull)), marg=True)
          sCosmoFull[:, iPhotoz] = parCosmoFull.paramUncertainties(marg=True)
          # photo-z
          parPhotozFull = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
          sPhotozFull[:, iPhotoz] = parPhotozFull.paramUncertainties(marg=True)
-         #
+         
          # LCDM + Mnu
          # reject unwanted cosmo params
          I = self.cosmoPar.ILCDMMnu + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
-         if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_ldcmmnu_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:            par.printParams(path=self.figurePath+"/posterior_ldcmmnu_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
          # cosmology
          parCosmoLCDMMnu = par.extractParams(range(len(self.cosmoPar.ILCDMMnu)), marg=True)
          sCosmoLCDMMnu[:, iPhotoz] = parCosmoLCDMMnu.paramUncertainties(marg=True)
          # photo-z
          parPhotozLCDMMnu = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
          sPhotozLCDMMnu[:, iPhotoz] = parPhotozLCDMMnu.paramUncertainties(marg=True)
-         #
+         
          # LCDM + Mnu + w0,wa
          # reject unwanted cosmo params
          I = self.cosmoPar.ILCDMMnuW0Wa + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
-         if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_lcdmmnuw0wa_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:            par.printParams(path=self.figurePath+"/posterior_lcdmmnuw0wa_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
          # cosmology
          parCosmoLCDMMnuW0Wa = par.extractParams(range(len(self.cosmoPar.ILCDMMnuW0Wa)), marg=True)
          sCosmoLCDMMnuW0Wa[:, iPhotoz] = parCosmoLCDMMnuW0Wa.paramUncertainties(marg=True)
          # photo-z
          parPhotozLCDMMnuW0Wa = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
          sPhotozLCDMMnuW0Wa[:, iPhotoz] = parPhotozLCDMMnuW0Wa.paramUncertainties(marg=True)
-         #
+         
          # LCDM + Mnu + curv
          # reject unwanted cosmo params
          I = self.cosmoPar.ILCDMMnuCurv + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
-         if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_lcdmmnucurv_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:            par.printParams(path=self.figurePath+"/posterior_lcdmmnucurv_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
          # cosmology
          parCosmoLCDMMnuCurv = par.extractParams(range(len(self.cosmoPar.ILCDMMnuCurv)), marg=True)
          sCosmoLCDMMnuCurv[:, iPhotoz] = parCosmoLCDMMnuCurv.paramUncertainties(marg=True)
          # photo-z
          parPhotozLCDMMnuCurv = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
          sPhotozLCDMMnuCurv[:, iPhotoz] = parPhotozLCDMMnuCurv.paramUncertainties(marg=True)
-         #
+         
          # LCDM + w0,wa
          # reject unwanted cosmo params
          I = self.cosmoPar.ILCDMW0Wa + range(self.cosmoPar.nPar, self.fullPar.nPar)
@@ -3147,7 +3155,7 @@ class FisherLsst(object):
          # photo-z
          parPhotozLCDMW0Wa = par.extractParams(range(-self.photoZPar.nPar, 0), marg=True)
          sPhotozLCDMW0Wa[:, iPhotoz] = parPhotozLCDMW0Wa.paramUncertainties(marg=True)
-         #
+         
          # LCDM + w0,wa + curvature
          # reject unwanted cosmo params
          I = self.cosmoPar.ILCDMW0WaCurv + range(self.cosmoPar.nPar, self.fullPar.nPar)
