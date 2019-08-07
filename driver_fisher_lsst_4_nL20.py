@@ -14,7 +14,7 @@ from fisher_lsst import *
 # Forecast parameters
 
 nBins = 10  #5   #10
-nL = 100  # 20, 100
+nL = 20  # 100
 fsky = 0.4
 
 # cosmological parameters to include
@@ -81,7 +81,7 @@ fNk = cmbLensRec.fN_k_mv
 
 fsky = 0.35 # 0.4
 
-fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=True)
+fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=False)
 
 
 ##################################################################################
@@ -93,9 +93,9 @@ fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nB
 # Show observables and uncertainties
 #fish.plotEllBins()
 #fish.plotDndz()
-fish.plotPowerSpectra()
-fish.plotUncertaintyPowerSpectra()
-fish.plotCovMat()
+#fish.plotPowerSpectra()
+#fish.plotUncertaintyPowerSpectra()
+#fish.plotCovMat()
 fish.plotInvCovMat()
 fish.printSnrPowerSpectra(path=fish.figurePath+"/snr.txt")
 fish.plotDerivativeDataVectorCosmo()

@@ -1334,15 +1334,12 @@ class FisherLsst(object):
    
    ##################################################################################
 
-
    def saveDerivativeDataVector(self):
       # Derivatives of the data vector:
       # matrix of size self.params.nPar x self.nData
       derivative = np.zeros((self.fullPar.nPar, self.nData))
       
-      
-      
-      def derivativeWrtCosmoPar(iPar):
+      for iPar in range(self.cosmoPar.nPar):
          print "Derivative wrt "+self.cosmoPar.names[iPar],
          tStart = time()
          # high
@@ -1355,7 +1352,7 @@ class FisherLsst(object):
          u = Universe(cosmoParClassy)
          w_k, w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
          p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
-         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss)
+         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
          # low
          name = self.name+self.cosmoPar.names[iPar]+"low"
          cosmoParClassy = self.cosmoPar.paramsClassy.copy()
@@ -1363,10 +1360,9 @@ class FisherLsst(object):
          u = Universe(cosmoParClassy)
          w_k, w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
          p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
-         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss)
+         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
          # derivative
-         result = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
-#         derivative[iPar,:] = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
+         derivative[iPar,:] = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
 #         derivative[iPar,:] = (dataVectorHigh-self.dataVector) / (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
 
 #         print "all zero?"
@@ -1381,27 +1377,10 @@ class FisherLsst(object):
             print "low value = "+str(self.cosmoPar.fiducial[iPar])
          tStop = time()
          print "("+str(np.round(tStop-tStart,1))+" sec)"
-         
-         return result
-      
-      
-#      with sharedmem.MapReduce(np=self.nProc) as pool:
-#         result = pool.map(derivativeWrtCosmoPar, range(self.cosmoPar.nPar))
-#         derivative[:self.cosmoPar.nPar,:] = result.copy()
-      derivative[:self.cosmoPar.nPar,:] = np.array(map(derivativeWrtCosmoPar, range(self.cosmoPar.nPar)))
-      
-      
-      
-      
-      
-      
-      
-      
-      
       
       
       # Nuisance parameters
-      def derivativeWrtNuisancePar(iPar):
+      for iPar in range(self.nuisancePar.nPar):
          print "Derivative wrt "+self.nuisancePar.names[iPar],
          tStart = time()
          params = self.nuisancePar.fiducial.copy()
@@ -1410,16 +1389,15 @@ class FisherLsst(object):
          params[iPar] = self.nuisancePar.high[iPar]
          w_k, w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
          p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
-         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss)
+         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
          # low
          name = self.name+self.nuisancePar.names[iPar]+"low"
          params[iPar] = self.nuisancePar.low[iPar]
          w_k, w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
          p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
-         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss)
+         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
          # derivative
-         result = (dataVectorHigh-dataVectorLow) / (self.nuisancePar.high[iPar]-self.nuisancePar.low[iPar])
-#         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-dataVectorLow) / (self.nuisancePar.high[iPar]-self.nuisancePar.low[iPar])
+         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-dataVectorLow) / (self.nuisancePar.high[iPar]-self.nuisancePar.low[iPar])
 #         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-self.dataVector) / (self.nuisancePar.high[iPar]-self.nuisancePar.fiducial[iPar])
          # check that all went well
          if not all(np.isfinite(derivative[self.cosmoPar.nPar+iPar,:])):
@@ -1430,99 +1408,9 @@ class FisherLsst(object):
          
          tStop = time()
          print "("+str(np.round(tStop-tStart,1))+" sec)"
-
-         return result
-
-
-#      with sharedmem.MapReduce(np=self.nProc) as pool:
-#         result = pool.map(derivativeWrtCosmoPar, range(self.nuisancePar.nPar))
-#         derivative[:self.nuisancePar.nPar,:] = result.copy()
-      derivative[self.cosmoPar.nPar:self.cosmoPar.nPar+self.nuisancePar.nPar,:] = np.array(map(derivativeWrtNuisancePar, range(self.nuisancePar.nPar)))
-
+      
       path = "./output/dDatadPar/dDatadPar_"+self.name
       np.savetxt(path, derivative)
-
-
-
-
-##! Non-parallel version, working.
-#   def saveDerivativeDataVector(self):
-#      # Derivatives of the data vector:
-#      # matrix of size self.params.nPar x self.nData
-#      derivative = np.zeros((self.fullPar.nPar, self.nData))
-#
-#      for iPar in range(self.cosmoPar.nPar):
-#         print "Derivative wrt "+self.cosmoPar.names[iPar],
-#         tStart = time()
-#         # high
-#         name = self.name+self.cosmoPar.names[iPar]+"high"
-#         cosmoParClassy = self.cosmoPar.paramsClassy.copy()
-##         print cosmoParClassy
-##         print "#"
-#         cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyHigh[self.cosmoPar.names[iPar]]
-##         print cosmoParClassy
-#         u = Universe(cosmoParClassy)
-#         w_k, w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
-#         p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
-#         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss)
-#         # low
-#         name = self.name+self.cosmoPar.names[iPar]+"low"
-#         cosmoParClassy = self.cosmoPar.paramsClassy.copy()
-#         cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyLow[self.cosmoPar.names[iPar]]
-#         u = Universe(cosmoParClassy)
-#         w_k, w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
-#         p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
-#         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss)
-#         # derivative
-#         derivative[iPar,:] = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
-##         derivative[iPar,:] = (dataVectorHigh-self.dataVector) / (self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar])
-#
-##         print "all zero?"
-##         print np.mean(dataVectorHigh-self.dataVector) / np.std(self.dataVector)
-##         print self.cosmoPar.high[iPar]-self.cosmoPar.fiducial[iPar]
-#
-#         # check that all went well
-#         if not all(np.isfinite(derivative[iPar,:])):
-#            print "########"
-#            print "problem with "+self.cosmoPar.names[iPar]
-#            print "high value = "+str(self.cosmoPar.high[iPar])
-#            print "low value = "+str(self.cosmoPar.fiducial[iPar])
-#         tStop = time()
-#         print "("+str(np.round(tStop-tStart,1))+" sec)"
-#
-#
-#      # Nuisance parameters
-#      for iPar in range(self.nuisancePar.nPar):
-#         print "Derivative wrt "+self.nuisancePar.names[iPar],
-#         tStart = time()
-#         params = self.nuisancePar.fiducial.copy()
-#         # high
-#         name = "_"+self.name+self.nuisancePar.names[iPar]+"high"
-#         params[iPar] = self.nuisancePar.high[iPar]
-#         w_k, w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
-#         p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
-#         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss)
-#         # low
-#         name = self.name+self.nuisancePar.names[iPar]+"low"
-#         params[iPar] = self.nuisancePar.low[iPar]
-#         w_k, w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
-#         p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
-#         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss)
-#         # derivative
-#         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-dataVectorLow) / (self.nuisancePar.high[iPar]-self.nuisancePar.low[iPar])
-##         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-self.dataVector) / (self.nuisancePar.high[iPar]-self.nuisancePar.fiducial[iPar])
-#         # check that all went well
-#         if not all(np.isfinite(derivative[self.cosmoPar.nPar+iPar,:])):
-#            print "########"
-#            print "problem with "+self.nuisancePar.names[iPar]
-#            print "high value = "+str(self.nuisancePar.high[iPar])
-#            print "low value = "+str(self.nuisancePar.fiducial[iPar])
-#
-#         tStop = time()
-#         print "("+str(np.round(tStop-tStart,1))+" sec)"
-#
-#      path = "./output/dDatadPar/dDatadPar_"+self.name
-#      np.savetxt(path, derivative)
 
    def loadDerivativeDataVector(self):
       path = "./output/dDatadPar/dDatadPar_"+self.name
@@ -2097,7 +1985,6 @@ class FisherLsst(object):
          # advance counter in data vector
          i1 += self.nBins - iBin1
       #
-      ax0.set_ylim((9.e-3, 5e-1))
       ax0.set_xscale('log')
       ax0.set_yscale('log', nonposy='clip')
       plt.setp(ax0.get_xticklabels(), visible=False)
