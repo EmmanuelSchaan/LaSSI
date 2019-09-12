@@ -81,7 +81,7 @@ class FisherLsst(object):
          self.name += "_gphotoz"
       if name is not None:
          self.name += "_"+name
-      if self.photoZSPar is not None:
+      if photoZSPar is not None:
          self.name += "_diffGS"
       print "Ouput file name:", self.name
       
@@ -340,7 +340,7 @@ class FisherLsst(object):
       # split the nuisance parameters
       galaxyBiasPar = nuisancePar[:self.galaxyBiasPar.nPar]
       shearMultBiasPar = nuisancePar[self.galaxyBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar]
-      photoZPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar:]
+      photoZPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar+self.photoZPar.nPar]
       # option to allow different
       if self.photoZSPar is not None:
          photoZSPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar+self.photoZPar.nPar:]
@@ -418,6 +418,7 @@ class FisherLsst(object):
 
             f = lambda zp,z: dndzp_outliers(zp) * p_z_given_zp(zp,z)
             dndz_tForInterp = lambda z: integrate.quad(f, zMin, zMax, args=(z), epsabs=0., epsrel=1.e-3)[0]
+
          else:
             print "Error: PhotoZPar does not have the right size"
          tStop = time()
@@ -630,10 +631,10 @@ class FisherLsst(object):
       # ks
       for iBin1 in range(self.nBins):
          dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ks[iBin1].fPinterp, self.L))
-         dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
+         dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * sself.L**self.alpha
          #
          shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ks[iBin1].fPnoise, self.L))
-         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
+         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * sself.L**self.alpha
          #
          iData += 1
       # gg
@@ -699,7 +700,7 @@ class FisherLsst(object):
       # considering ks[i1]
       for iBin1 in range(self.nBins):
          covBlock = CovP2d(p2d_kk, p2d_ks[iBin1], p2d_ks[iBin1], p2d_kk, self.Nmodes)
-         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * sself.L**(2*self.alpha) * covBlock.covMat
          # move to next column
          i2 += 1
 
@@ -721,7 +722,7 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
             covBlock = CovP2d(p2d_kg[iBin1], p2d_ks[iBin2], p2d_ks[iBin2], p2d_kg[iBin1], self.Nmodes)
-            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * sself.L**(2*self.alpha) * covBlock.covMat
             # move to next column
             i2 += 1
 
@@ -732,7 +733,7 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
             covBlock = CovP2d(p2d_ks[iBin1], p2d_ks[iBin2], p2d_ks[iBin2], p2d_ks[iBin1], self.Nmodes)
-            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * sself.L**(2*self.alpha) * covBlock.covMat
             # move to next column
             i2 += 1
 
@@ -762,7 +763,7 @@ class FisherLsst(object):
             # compute only upper diagonal
             if i2>=i1:
                covBlock = CovP2d(p2d_kk, p2d_gs[iBin1, jBin1], p2d_ks[jBin1], p2d_kg[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * sself.L**(2*self.alpha) * covBlock.covMat
             # move to next column
             i2 += 1
          # move to next row
@@ -796,7 +797,7 @@ class FisherLsst(object):
                # compute only upper diagonal
                if i2>=i1:
                   covBlock = CovP2d(p2d_kg[jBin1], p2d_gs[iBin1, jBin2], p2d_ks[jBin2], p2d_gg[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * sself.L**(2*self.alpha) * covBlock.covMat
                # move to next column
                i2 += 1
          # move to next row
@@ -813,7 +814,7 @@ class FisherLsst(object):
                # compute only upper diagonal
                if i2>=i1:
                   covBlock = CovP2d(p2d_ks[jBin1], p2d_gs[iBin1, jBin2], p2d_ks[jBin2], p2d_gs[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * sself.L**(2*self.alpha) * covBlock.covMat
                # move to next column
                i2 += 1
          # move to next row
@@ -829,7 +830,7 @@ class FisherLsst(object):
             # compute only upper diagonal
             if i2>=i1:
                covBlock = CovP2d(p2d_kk, p2d_ss[iBin1, jBin1], p2d_ks[jBin1], p2d_ks[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * sself.L**(2*self.alpha) * covBlock.covMat
             # move to next column
             i2 += 1
          # move to next row
@@ -847,7 +848,7 @@ class FisherLsst(object):
                if i2>=i1:
                   # watch the order for gs
                   covBlock = CovP2d(p2d_kg[jBin1], p2d_gs[jBin2, iBin1], p2d_kg[jBin2], p2d_gs[jBin1, iBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * sself.L**(2*self.alpha) * covBlock.covMat
                # move to next column
                i2 += 1
          # move to next row
@@ -865,7 +866,7 @@ class FisherLsst(object):
                if i2>=i1:
                   # watch the order for gs
                   covBlock = CovP2d(p2d_kg[jBin1], p2d_ss[iBin1, jBin2], p2d_ks[jBin2], p2d_gs[jBin1, iBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * sself.L**(2*self.alpha) * covBlock.covMat
                # move to next column
                i2 += 1
          # move to next row
@@ -882,7 +883,7 @@ class FisherLsst(object):
                # compute only upper diagonal
                if i2>=i1:
                   covBlock = CovP2d(p2d_ks[jBin1], p2d_ss[iBin1, jBin2], p2d_ks[jBin2], p2d_ss[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * sself.L**(2*self.alpha) * covBlock.covMat
                # move to next column
                i2 += 1
          # move to next row
@@ -918,7 +919,7 @@ class FisherLsst(object):
                   # compute only upper diagonal
                   if i2>=i1:
                      covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit *self.L**(2*self.alpha) *  covBlock.covMat
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) *  covBlock.covMat
                   # move to next column
                   i2 += 1
             # move to next row
@@ -1909,10 +1910,10 @@ class FisherLsst(object):
       i1 = 0
       I = range(i1*self.nL, (i1+1)*self.nL)
       L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-      d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-      shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+      d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+      shot = extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
       cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-      std = L * np.sqrt(np.diag(cov))
+      std = np.sqrt(np.diag(cov))
       #
       ax.errorbar(L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color='b')
       ax.plot(L, shot, ls='--', lw=1, color='grey')
@@ -1938,10 +1939,10 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          I = range(i1*self.nL, (i1+1)*self.nL)
          L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+         shot = extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-         std = L * np.sqrt(np.diag(cov))
+         std = np.sqrt(np.diag(cov))
          #
          color = Colors[iBin1]
          ax.errorbar(L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
@@ -1972,10 +1973,10 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          I = range(i1*self.nL, (i1+1)*self.nL)
          L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I) / self.sUnit
+         shot = extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I) / self.sUnit
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-         std = L * np.sqrt(np.diag(cov))
+         std = np.sqrt(np.diag(cov)) / self.sUnit
          #
          color = Colors[iBin1]
          ax.errorbar(L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
@@ -2009,10 +2010,10 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          I = range(i1*self.nL, (i1+1)*self.nL)
          L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+         shot = extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-         std = L * np.sqrt(np.diag(cov))
+         std = np.sqrt(np.diag(cov))
          #
          color = Colors[iBin1]
          ax0.errorbar(L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
@@ -2036,9 +2037,9 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins-1):
          I = range(i1*self.nL, (i1+1)*self.nL)
          L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-         std = L * np.sqrt(np.diag(cov))
+         std = np.sqrt(np.diag(cov))
          #
          color = Colors[iBin1]
          ax1.errorbar(L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
@@ -2057,9 +2058,9 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins-2):
          I = range(i1*self.nL, (i1+1)*self.nL)
          L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-         std = L * np.sqrt(np.diag(cov))
+         std = np.sqrt(np.diag(cov))
          #
          color = Colors[iBin1]
          ax2.errorbar(L, d, yerr=std, ls='-', lw=2, elinewidth=1.5, marker='.', markersize=2, color=color)
@@ -2089,9 +2090,9 @@ class FisherLsst(object):
          for iBin2 in [-1]:  # show only the ones with the highest z shear
             I = range(i1*self.nL, (i1+1)*self.nL)
             L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-            d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I) / self.sUnit
             cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-            std = L * np.sqrt(np.diag(cov))
+            std = np.sqrt(np.diag(cov)) / self.sUnit
             #
             ax.errorbar(L*(1.+0.01*i1/self.nGS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)# label=r'$\ell \langle g_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+r'}\rangle$')
             # move to next row
@@ -2125,10 +2126,10 @@ class FisherLsst(object):
             #
             I = range(i1*self.nL, (i1+1)*self.nL)
             L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-            d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-            shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I) / self.sUnit**2
+            shot = extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I) / self.sUnit**2
             cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-            std = L * np.sqrt(np.diag(cov))
+            std = np.sqrt(np.diag(cov)) / self.sUnit**2
             #
             ax.errorbar(L*(1.+0.01*i1/self.nSS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)#, label=r'$\gamma_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
 #            ax.plot(L*(1.+0.01*i1/self.nSS), shot, ls='--', lw=1, color=color)   # different color for each bin
@@ -2157,10 +2158,10 @@ class FisherLsst(object):
       i1 = 0
       I = range(i1*self.nL, (i1+1)*self.nL)
       L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-      d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-      shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+      d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+      shot = extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
       cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-      std = L * np.sqrt(np.diag(cov))
+      std = np.sqrt(np.diag(cov))
       #
       ax.plot(L, std / d, '.-', lw=2, color='b')
       #
@@ -2186,10 +2187,10 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          I = range(i1*self.nL, (i1+1)*self.nL)
          L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+         shot = extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-         std = L * np.sqrt(np.diag(cov))
+         std = np.sqrt(np.diag(cov))
          #
          color = Colors[iBin1]
          ax.plot(L, std/d, '.-', lw=2, color=color)
@@ -2218,10 +2219,10 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          I = range(i1*self.nL, (i1+1)*self.nL)
          L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-         d = L * extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
-         shot = L * extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
+         shot = extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-         std = L * np.sqrt(np.diag(cov))
+         std = np.sqrt(np.diag(cov))
          #
          color = Colors[iBin1]
          ax.plot(L, std/d, '.-', lw=2, color=color)
