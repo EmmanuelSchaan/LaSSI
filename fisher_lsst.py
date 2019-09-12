@@ -2086,17 +2086,31 @@ class FisherLsst(object):
       i1 = self.nKK + self.nKG + self.nKS + self.nGG
       for iBin1 in range(self.nBins):
          color = Colors[iBin1]
+
+         # show only gs for the highes z s bin 
+         i1 += self.nBins - 1
+         #
+         I = range(i1*self.nL, (i1+1)*self.nL)
+         L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I) / self.sUnit
+         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+         std = np.sqrt(np.diag(cov)) / self.sUnit
+         #
+         ax.errorbar(L*(1.+0.01*i1/self.nGS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)# label=r'$\ell \langle g_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+r'}\rangle$')
+         # move to next row
+         i1 += 1
+
 #         for iBin2 in range(self.nBins):  # show all the cross-correlations
-         for iBin2 in [-1]:  # show only the ones with the highest z shear
-            I = range(i1*self.nL, (i1+1)*self.nL)
-            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I) / self.sUnit
-            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-            std = np.sqrt(np.diag(cov)) / self.sUnit
-            #
-            ax.errorbar(L*(1.+0.01*i1/self.nGS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)# label=r'$\ell \langle g_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+r'}\rangle$')
-            # move to next row
-            i1 += 1
+#            I = range(i1*self.nL, (i1+1)*self.nL)
+#            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+#            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I) / self.sUnit
+#            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+#            std = np.sqrt(np.diag(cov)) / self.sUnit
+#            #
+#            ax.errorbar(L*(1.+0.01*i1/self.nGS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)# label=r'$\ell \langle g_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+r'}\rangle$')
+#            # move to next row
+#            i1 += 1
+
       #
       ax.legend(loc=1)
       ax.set_xscale('log')
@@ -2119,23 +2133,40 @@ class FisherLsst(object):
          # add entry to caption
          color = Colors[iBin1]
          ax.plot([], [], c=color, label=r'$\langle\gamma_{i} \gamma_{i+'+str(iBin1)+r'} \rangle $')
-#         for iBin2 in range(iBin1, self.nBins): # show all the cross-correlations
-#            color = Colors[iBin2-iBin1]
-         for iBin2 in [iBin1]: # show only the auto
-            color = Colors[iBin1]
-            #
-            I = range(i1*self.nL, (i1+1)*self.nL)
-            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
-            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I) / self.sUnit**2
-            shot = extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I) / self.sUnit**2
-            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-            std = np.sqrt(np.diag(cov)) / self.sUnit**2
-            #
-            ax.errorbar(L*(1.+0.01*i1/self.nSS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)#, label=r'$\gamma_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
+
+
+         # show only the auto
+         I = range(i1*self.nL, (i1+1)*self.nL)
+         L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I) / self.sUnit**2
+         shot = extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I) / self.sUnit**2
+         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+         std = np.sqrt(np.diag(cov)) / self.sUnit**2
+         #
+         ax.errorbar(L*(1.+0.01*i1/self.nSS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)#, label=r'$\gamma_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
 #            ax.plot(L*(1.+0.01*i1/self.nSS), shot, ls='--', lw=1, color=color)   # different color for each bin
-            ax.plot(L*(1.+0.01*i1/self.nSS), shot, ls='--', lw=1, color='grey')   # same color for all bins
-            # move to next row
-            i1 += 1
+         ax.plot(L*(1.+0.01*i1/self.nSS), shot, ls='--', lw=1, color='grey')   # same color for all bins
+         # move to next row
+         i1 += self.nBins + 1
+
+#         # show all the cross-correlations
+#         for iBin2 in range(iBin1, self.nBins):
+#            color = Colors[iBin2-iBin1]
+#            color = Colors[iBin1]
+#            #
+#            I = range(i1*self.nL, (i1+1)*self.nL)
+#            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+#            d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I) / self.sUnit**2
+#            shot = extractMaskedVec(self.shotNoiseVector, mask=self.lMaxMask, I=I) / self.sUnit**2
+#            cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
+#            std = np.sqrt(np.diag(cov)) / self.sUnit**2
+#            #
+#            ax.errorbar(L*(1.+0.01*i1/self.nSS), d, yerr=std, ls='-', lw=1, elinewidth=1.5, marker='.', markersize=2, color=color)#, label=r'$\gamma_{'+str(iBin1)+'} \gamma_{'+str(iBin2)+'}$')
+##            ax.plot(L*(1.+0.01*i1/self.nSS), shot, ls='--', lw=1, color=color)   # different color for each bin
+#            ax.plot(L*(1.+0.01*i1/self.nSS), shot, ls='--', lw=1, color='grey')   # same color for all bins
+#            # move to next row
+#            i1 += 1
+
       #
       ax.legend(loc=1, labelspacing=0.05, handlelength=0.4, borderaxespad=0.01)
       ax.set_xscale('log')
