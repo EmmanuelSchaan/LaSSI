@@ -326,22 +326,63 @@ class FisherLsst(object):
 
    ##################################################################################
 
-   def generateTomoBins(self, u, nuisancePar, save=True, doS=True, test=False):
+
+
+   def cij(self, cijPar):
+      """Extract the contamination matrix c_ij
+      from the photo-z parameters, enforcing the constraint
+      c_ii = 1 - sum_{j\neq i} c_{ij}
+      The input given should be photoZPar[2*self.nBins:]
+      """
+      cij = np.zeros((self.nBins, self.nBins))
+      par = cijPar
+      
+      iPar = 0
+      for i in range(self.nBins):
+         # left of the diagonal
+         for j in range(i):
+            cij[i,j] = par[iPar]
+            iPar += 1
+         # right of the diagonal
+         for j in range(i+1, self.nBins):
+            cij[i,j] = par[iPar]
+            iPar += 1
+         # diagonal element
+         cij[i,i] = 1. - np.sum(cij[i,:])   # ok to include c[i,i] in the sum: it is 0
+
+      return cij
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   def generateTomoBins(self, u, nuisancePar, save=True, doS=True, test=True):
       '''The option doS=False is only used to save time when sampling dn/dz,
       since the s bins take much longer to generate (by a factor ~100).
       !!! I am using loose mean redshifts for tomo bins at several places.
       '''
       # CMB lensing kernel
-#      tStart = time()
+      tStart = time()
       w_k = WeightLensSingle(u, z_source=1100., name="cmblens")
-#      tStop = time()
-#      print "CMB lensing kernel took", tStop-tStart, "sec"
+      tStop = time()
+      if test:
+         print "CMB lensing kernel took", tStop-tStart, "sec"
 
       # split the nuisance parameters
       galaxyBiasPar = nuisancePar[:self.galaxyBiasPar.nPar]
       shearMultBiasPar = nuisancePar[self.galaxyBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar]
       photoZPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar+self.photoZPar.nPar]
-      # option to allow different
+      # option to allow different photo-z params for g and s
       if self.photoZSPar is not None:
          photoZSPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar+self.photoZPar.nPar:]
       
@@ -349,6 +390,9 @@ class FisherLsst(object):
       w_glsst = WeightTracerLSSTSourcesDESCSRDV1(u, name='glsst')
       # split it into bins
       zBounds = w_glsst.splitBins(self.nBins)
+      # every tomo bin spans the whole redshift range
+      zMin = 1./w_glsst.aMax-1.  #max(zMinP - 5.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
+      zMax = 1./w_glsst.aMin-1.  #min(zMaxP + 5.*sz, 1./w_glsst.aMin-1.)   # 1./w_glsst.aMin-1.
       
       
       ##########################################################################
@@ -360,85 +404,67 @@ class FisherLsst(object):
 
       # extract the outlier contamination matrix, if needed
       if len(photoZPar)==self.nBins*(self.nBins+1):
-         cij = photoZPar[2*self.nBins:]
+         cij = self.cij(photoZPar[2*self.nBins:])
       # same for the s bins, if different
       if self.photoZSPar is not None:
          if len(photoZSPar)==self.nBins*(self.nBins+1):
-            cSij = photoZSPar[2*self.nBins:]
+            cSij = self.cij(photoZSPar[2*self.nBins:])
 
 
       ##########################################################################
 
-      for iBin in range(self.nBins):
-      
 
+      ##########################################################################
+      # tomo bin for g
+
+      # Gaussian photo-z
+      dndzG = {}
+      for iBin in range(self.nBins):
          tStart = time()
          # sharp photo-z cuts
          zMinP = zBounds[iBin]
          zMaxP = zBounds[iBin+1]
-         # every tomo bin spans the whole redshift range
-         zMin = 1./w_glsst.aMax-1.  #max(zMinP - 5.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
-         zMax = 1./w_glsst.aMin-1.  #min(zMaxP + 5.*sz, 1./w_glsst.aMin-1.)   # 1./w_glsst.aMin-1.
-         
-         
-         ##########################################################################
-         # tomo bin for g
-         
          # photo-z bias and uncertainty for this bin:
          dz = photoZPar[iBin]
          sz = photoZPar[self.nBins+iBin] * (1.+0.5*(zMinP+zMaxP))
 
          # Gaussian photo-z error
          p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
+         f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
+         dndz_GForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-2)[0]
 
-         # If outliers are not included
-         if len(photoZPar)==2*self.nBins:
-            f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
-            dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-3)[0]
-
-         # If outliers are included
-         elif len(photoZPar)==self.nBins*(self.nBins+1):
-
-            def dndzp_outliers(zp):
-               ''' This is the dn/dz_p, such that for bin i:
-               n_i^new = n_i * (1-sum_{j \neq i} c_ij) + sum_{j \neq i} c_ji n_j.
-               '''
-               result = w_glsst.dndz(zp)
-               # if zp is in the bin
-               if zp>=zBounds[iBin] and zp<zBounds[iBin+1]:
-                  result *= 1. - np.sum([cij[iBin*(self.nBins-1)+j] for j in range(self.nBins-1)])
-               # if zp is in another bin
-               else:
-                  # find which bin this is
-                  jBin = np.where(np.array([(zp>=zBounds[j])*(zp<zBounds[j+1]) for j in range(self.nBins)])==1)[0][0]
-                  # since the diagonal c_ii is not encoded, make sure to skip it if iBin > jBin
-                  i = iBin - (iBin>jBin)
-                  result *= cij[jBin*(self.nBins-1)+i]
-               return result
-
-            f = lambda zp,z: dndzp_outliers(zp) * p_z_given_zp(zp,z)
-            dndz_tForInterp = lambda z: integrate.quad(f, zMin, zMax, args=(z), epsabs=0., epsrel=1.e-3)[0]
-
-         else:
-            print "Error: PhotoZPar does not have the right size"
          tStop = time()
          if test:
             print "-- before dn/dz took", tStop-tStart, "sec"
+
          # interpolate it for speed (for lensing kernel calculation)
          tStart = time()
-         Z = np.linspace(zMin, zMax, 501)
+         Z = np.linspace(zMin, zMax, 201)
          with sharedmem.MapReduce(np=self.nProc) as pool:
-            F = np.array(pool.map(dndz_tForInterp, Z))
-         dndz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
+            F = np.array(pool.map(dndz_GForInterp, Z))
+         dndzG[iBin] = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
          tStop = time()
          if test:
             print "-- getting dn/dz took", tStop-tStart, "sec"
+
+      # Create g bin,
+      # taking into account potential outliers 
+      dndz_t = {}
+      for iBin in range(self.nBins):
+         # If outliers are not included
+         if len(photoZPar)==2*self.nBins:
+            dndz_t[iBin] = lambda z: dndzG[iBin](z)
+         # If outliers are included
+         elif len(photoZPar)==self.nBins*(self.nBins+1):
+            dndz_t[iBin] = lambda z: np.sum(cij[:,iBin] * dndzG[iBin](z))
+         else:
+            print "Error: PhotoZPar does not have the right size"
 
          tStart = time()
          # tracer bin
          w_g[iBin] = WeightTracerCustom(u,
                                         lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
-                                        dndz_t, # dn/dz_true
+                                        dndz_t[iBin], # dn/dz_true
                                         zMin=zMin,
                                         zMax=zMax,
                                         name='g'+str(iBin))
@@ -452,96 +478,187 @@ class FisherLsst(object):
             print "bin "+str(iBin)+": mag bias alpha="+str(alpha)
             w_g_nomagbias[iBin] = WeightTracerCustom(u,
                                            lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
-                                           dndz_t, # dn/dz_true
+                                           dndz_t[iBin], # dn/dz_true
                                            zMin=zMin,
                                            zMax=zMax,
                                            name='g'+str(iBin))
             w_g[iBin].f = lambda a: w_g_nomagbias[iBin].f(a) + 2.*(alpha-1.)*w_s[iBin].f(a)
+
+
+
+
+
+
+
+
+
+#         # If outliers are not included
+#         if len(photoZPar)==2*self.nBins:
+#            f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
+#            dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-3)[0]
+#
+#         # If outliers are included
+#         elif len(photoZPar)==self.nBins*(self.nBins+1):
+#
+#            def dndzp_outliers(zp):
+#               ''' This is the dn/dz_p, such that for bin i:
+#               n_i^new = n_i * (1-sum_{j \neq i} c_ij) + sum_{j \neq i} c_ji n_j.
+#               '''
+#               t0 = time()
+#               result = w_glsst.dndz(zp)
+#               t1 = time()
+#               print "    -- w_glsst.dndz", t1-t0, "sec"
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#               # if zp is in the bin
+#               if zp>=zBounds[iBin] and zp<zBounds[iBin+1]:
+#                  result *= 1. - np.sum([cij[iBin*(self.nBins-1)+j] for j in range(self.nBins-1)])
+#               # if zp is in another bin
+#               else:
+#                  # find which bin this is
+#                  jBin = np.where(np.array([(zp>=zBounds[j])*(zp<zBounds[j+1]) for j in range(self.nBins)])==1)[0][0]
+#                  # since the diagonal c_ii is not encoded, make sure to skip it if iBin > jBin
+#                  i = iBin - (iBin>jBin)
+#                  result *= cij[jBin*(self.nBins-1)+i]
+#               t2 = time()
+#               print "    -- cij search", t2-t1, "sec"
+#               return result
+#
+#            f = lambda zp,z: dndzp_outliers(zp) * p_z_given_zp(zp,z)
+#            dndz_tForInterp = lambda z: integrate.quad(f, zMin, zMax, args=(z), epsabs=0., epsrel=1.e-3)[0]
+#
+#         else:
+#            print "Error: PhotoZPar does not have the right size"
+#         tStop = time()
+#         if test:
+#            print "-- before dn/dz took", tStop-tStart, "sec"
+#         # interpolate it for speed (for lensing kernel calculation)
+#         tStart = time()
+#         Z = np.linspace(zMin, zMax, 501)
+#         with sharedmem.MapReduce(np=self.nProc) as pool:
+#            F = np.array(pool.map(dndz_tForInterp, Z))
+#         dndz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
+#         tStop = time()
+#         if test:
+#            print "-- getting dn/dz took", tStop-tStart, "sec"
+#
+#         tStart = time()
+#         # tracer bin
+#         w_g[iBin] = WeightTracerCustom(u,
+#                                        lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
+#                                        dndz_t, # dn/dz_true
+#                                        zMin=zMin,
+#                                        zMax=zMax,
+#                                        name='g'+str(iBin))
+#         tStop = time()
+#         if test:
+#            print "-- clustering bin took", tStop-tStart, "sec"
+#
+#         # add magnification bias, if requested
+#         if self.magBias:
+#            alpha = w_glsst.magnificationBias(0.5*(zMinP+zMaxP))
+#            print "bin "+str(iBin)+": mag bias alpha="+str(alpha)
+#            w_g_nomagbias[iBin] = WeightTracerCustom(u,
+#                                           lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
+#                                           dndz_t, # dn/dz_true
+#                                           zMin=zMin,
+#                                           zMax=zMax,
+#                                           name='g'+str(iBin))
+#            w_g[iBin].f = lambda a: w_g_nomagbias[iBin].f(a) + 2.*(alpha-1.)*w_s[iBin].f(a)
       
       
          ##########################################################################
          # tomo bin for s
-      
-         tStart = time()
-         if doS:
+          
+      if doS:
          
+         for iBin in range(self.nBins):
+
+            tStart = time()
             # if same bins for g and s
             if self.photoZSPar is None:
                w_s[iBin] = WeightLensCustom(u,
-                                            dndz_t, # dn/dz_true
+                                            dndz_t[iBin], # dn/dz_true
                                             m=lambda z: shearMultBiasPar[iBin], # multiplicative shear bias
                                             zMinG=zMin,
                                             zMaxG=zMax,
                                             name='s'+str(iBin),
                                             nProc=self.nProc)
 
-            # if different bins for g and s
-            else:
-               # photo-z bias and uncertainty for this bin:
-               dz = photoZSPar[iBin]
-               sz = photoZSPar[self.nBins+iBin] * (1.+0.5*(zMinP+zMaxP))
-
-               # Gaussian photo-z error
-               p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
-
-               # If outliers are not included
-               if len(photoZSPar)==2*self.nBins:
-                  f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
-                  dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-3)[0]
-
-               # If outliers are included
-               elif len(photoZSPar)==self.nBins*(self.nBins+1):
-
-                  def dndzp_outliers(zp):
-                     ''' This is the dn/dz_p, such that for bin i:
-                     n_i^new = n_i * (1-sum_{j \neq i} c_ij) + sum_{j \neq i} c_ji n_j.
-                     '''
-                     result = w_glsst.dndz(zp)
-                     # if zp is in the bin
-                     if zp>=zBounds[iBin] and zp<zBounds[iBin+1]:
-                        result *= 1. - np.sum([cSij[iBin*(self.nBins-1)+j] for j in range(self.nBins-1)])
-                     # if zp is in another bin
-                     else:
-                        # find which bin this is
-                        jBin = np.where(np.array([(zp>=zBounds[j])*(zp<zBounds[j+1]) for j in range(self.nBins)])==1)[0][0]
-                        # since the diagonal c_ii is not encoded, make sure to skip it if iBin > jBin
-                        i = iBin - (iBin>jBin)
-                        result *= cSij[jBin*(self.nBins-1)+i]
-                     return result
-
-                  f = lambda zp,z: dndzp_outliers(zp) * p_z_given_zp(zp,z)
-                  dndz_tForInterp = lambda z: integrate.quad(f, zMin, zMax, args=(z), epsabs=0., epsrel=1.e-3)[0]
-               else:
-                  print "Error: PhotoZPar does not have the right size"
-               tStop = time()
-               if test:
-                  print "-- before dn/dz took", tStop-tStart, "sec"
-               # interpolate it for speed (for lensing kernel calculation)
-               tStart = time()
-               Z = np.linspace(zMin, zMax, 501)
-               with sharedmem.MapReduce(np=self.nProc) as pool:
-                  F = np.array(pool.map(dndz_tForInterp, Z))
-               dnSdz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
-               tStop = time()
-               if test:
-                  print "-- getting dn/dz took", tStop-tStart, "sec"
-               w_s[iBin] = WeightLensCustom(u,
-                                            dnSdz_t, # dn/dz_true
-                                            m=lambda z: shearMultBiasPar[iBin], # multiplicative shear bias
-                                            zMinG=zMin,
-                                            zMaxG=zMax,
-                                            name='s'+str(iBin),
-                                            nProc=self.nProc)
-
-         tStop = time()
-         if test:
-            print "-- shear bin took", tStop-tStart, "sec"
+#            # if different bins for g and s
+#            else:
+#               # photo-z bias and uncertainty for this bin:
+#               dz = photoZSPar[iBin]
+#               sz = photoZSPar[self.nBins+iBin] * (1.+0.5*(zMinP+zMaxP))
+#
+#               # Gaussian photo-z error
+#               p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
+#
+#               # If outliers are not included
+#               if len(photoZSPar)==2*self.nBins:
+#                  f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
+#                  dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-3)[0]
+#
+#               # If outliers are included
+#               elif len(photoZSPar)==self.nBins*(self.nBins+1):
+#
+#                  def dndzp_outliers(zp):
+#                     ''' This is the dn/dz_p, such that for bin i:
+#                     n_i^new = n_i * (1-sum_{j \neq i} c_ij) + sum_{j \neq i} c_ji n_j.
+#                     '''
+#                     result = w_glsst.dndz(zp)
+#                     # if zp is in the bin
+#                     if zp>=zBounds[iBin] and zp<zBounds[iBin+1]:
+#                        result *= 1. - np.sum([cSij[iBin*(self.nBins-1)+j] for j in range(self.nBins-1)])
+#                     # if zp is in another bin
+#                     else:
+#                        # find which bin this is
+#                        jBin = np.where(np.array([(zp>=zBounds[j])*(zp<zBounds[j+1]) for j in range(self.nBins)])==1)[0][0]
+#                        # since the diagonal c_ii is not encoded, make sure to skip it if iBin > jBin
+#                        i = iBin - (iBin>jBin)
+#                        result *= cSij[jBin*(self.nBins-1)+i]
+#                     return result
+#
+#                  f = lambda zp,z: dndzp_outliers(zp) * p_z_given_zp(zp,z)
+#                  dndz_tForInterp = lambda z: integrate.quad(f, zMin, zMax, args=(z), epsabs=0., epsrel=1.e-3)[0]
+#               else:
+#                  print "Error: PhotoZPar does not have the right size"
+#               tStop = time()
+#               if test:
+#                  print "-- before dn/dz took", tStop-tStart, "sec"
+#               # interpolate it for speed (for lensing kernel calculation)
+#               tStart = time()
+#               Z = np.linspace(zMin, zMax, 501)
+#               with sharedmem.MapReduce(np=self.nProc) as pool:
+#                  F = np.array(pool.map(dndz_tForInterp, Z))
+#               dnSdz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
+#               tStop = time()
+#               if test:
+#                  print "-- getting dn/dz took", tStop-tStart, "sec"
+#               w_s[iBin] = WeightLensCustom(u,
+#                                            dnSdz_t, # dn/dz_true
+#                                            m=lambda z: shearMultBiasPar[iBin], # multiplicative shear bias
+#                                            zMinG=zMin,
+#                                            zMaxG=zMax,
+#                                            name='s'+str(iBin),
+#                                            nProc=self.nProc)
+#
+            tStop = time()
+            if test:
+               print "-- shear bin took", tStop-tStart, "sec"
       
       if doS:
          return w_k, w_g, w_s, zBounds
       else:
          return w_k, w_g, zBounds
-
+      
 
    ##################################################################################
 
@@ -631,10 +748,10 @@ class FisherLsst(object):
       # ks
       for iBin1 in range(self.nBins):
          dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ks[iBin1].fPinterp, self.L))
-         dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * sself.L**self.alpha
+         dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
          #
          shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ks[iBin1].fPnoise, self.L))
-         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * sself.L**self.alpha
+         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
          #
          iData += 1
       # gg
@@ -700,7 +817,7 @@ class FisherLsst(object):
       # considering ks[i1]
       for iBin1 in range(self.nBins):
          covBlock = CovP2d(p2d_kk, p2d_ks[iBin1], p2d_ks[iBin1], p2d_kk, self.Nmodes)
-         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * sself.L**(2*self.alpha) * covBlock.covMat
+         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
          # move to next column
          i2 += 1
 
@@ -722,7 +839,7 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
             covBlock = CovP2d(p2d_kg[iBin1], p2d_ks[iBin2], p2d_ks[iBin2], p2d_kg[iBin1], self.Nmodes)
-            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * sself.L**(2*self.alpha) * covBlock.covMat
+            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
             # move to next column
             i2 += 1
 
@@ -733,7 +850,7 @@ class FisherLsst(object):
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
             covBlock = CovP2d(p2d_ks[iBin1], p2d_ks[iBin2], p2d_ks[iBin2], p2d_ks[iBin1], self.Nmodes)
-            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * sself.L**(2*self.alpha) * covBlock.covMat
+            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
             # move to next column
             i2 += 1
 
@@ -763,7 +880,7 @@ class FisherLsst(object):
             # compute only upper diagonal
             if i2>=i1:
                covBlock = CovP2d(p2d_kk, p2d_gs[iBin1, jBin1], p2d_ks[jBin1], p2d_kg[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * sself.L**(2*self.alpha) * covBlock.covMat
+               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
             # move to next column
             i2 += 1
          # move to next row
@@ -797,7 +914,7 @@ class FisherLsst(object):
                # compute only upper diagonal
                if i2>=i1:
                   covBlock = CovP2d(p2d_kg[jBin1], p2d_gs[iBin1, jBin2], p2d_ks[jBin2], p2d_gg[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * sself.L**(2*self.alpha) * covBlock.covMat
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
                # move to next column
                i2 += 1
          # move to next row
@@ -814,7 +931,7 @@ class FisherLsst(object):
                # compute only upper diagonal
                if i2>=i1:
                   covBlock = CovP2d(p2d_ks[jBin1], p2d_gs[iBin1, jBin2], p2d_ks[jBin2], p2d_gs[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * sself.L**(2*self.alpha) * covBlock.covMat
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
                # move to next column
                i2 += 1
          # move to next row
@@ -830,7 +947,7 @@ class FisherLsst(object):
             # compute only upper diagonal
             if i2>=i1:
                covBlock = CovP2d(p2d_kk, p2d_ss[iBin1, jBin1], p2d_ks[jBin1], p2d_ks[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * sself.L**(2*self.alpha) * covBlock.covMat
+               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
             # move to next column
             i2 += 1
          # move to next row
@@ -848,7 +965,7 @@ class FisherLsst(object):
                if i2>=i1:
                   # watch the order for gs
                   covBlock = CovP2d(p2d_kg[jBin1], p2d_gs[jBin2, iBin1], p2d_kg[jBin2], p2d_gs[jBin1, iBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * sself.L**(2*self.alpha) * covBlock.covMat
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
                # move to next column
                i2 += 1
          # move to next row
@@ -866,7 +983,7 @@ class FisherLsst(object):
                if i2>=i1:
                   # watch the order for gs
                   covBlock = CovP2d(p2d_kg[jBin1], p2d_ss[iBin1, jBin2], p2d_ks[jBin2], p2d_gs[jBin1, iBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * sself.L**(2*self.alpha) * covBlock.covMat
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
                # move to next column
                i2 += 1
          # move to next row
@@ -883,7 +1000,7 @@ class FisherLsst(object):
                # compute only upper diagonal
                if i2>=i1:
                   covBlock = CovP2d(p2d_ks[jBin1], p2d_ss[iBin1, jBin2], p2d_ks[jBin2], p2d_ss[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * sself.L**(2*self.alpha) * covBlock.covMat
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock.covMat
                # move to next column
                i2 += 1
          # move to next row

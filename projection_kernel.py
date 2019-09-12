@@ -12,7 +12,7 @@ class Projection(object):
       #self.aMax
 
       # interpolate the projection kernel, for speed
-      nA = 501
+      nA = 201
       A = np.linspace(self.aMin, self.aMax, nA)
       F = np.array(map(self.fForInterp, A))
 
