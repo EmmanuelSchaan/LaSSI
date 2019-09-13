@@ -510,6 +510,7 @@ class WeightLensCustom(Projection):
 #         result *= (1.+self.m(1./a-1.))  # shear multiplicative bias
 #         return result
 
+
    def fSingleSource(self, a, aSource):
       """lensing projection kernel
       for single source,
@@ -565,6 +566,125 @@ class WeightLensCustom(Projection):
       #fig.savefig("./figures/weight/W_cmblens.pdf")
       
       plt.show()
+
+
+
+##################################################################################
+##################################################################################
+
+class WeightLensCustomFast(Projection):
+   
+   def __init__(self, U, fdndz, m=lambda z: 0., zMinG=1.e-4, zMaxG=2., name='lens', nProc=1):
+      '''Here zMinG and zMaxG are those of the galaxy sample,
+      not those of the resulting lensing kernel.
+      m is the shear multiplicative bias.
+      '''
+      # copy U
+      self.U = U
+      self.name=name
+      self.nProc=nProc
+      # bounds for the tracer sample (dn/dz)
+      self.aMinG = 1./(1.+zMaxG)
+      self.aMaxG = 1./(1.+zMinG)
+      
+      # bounds for the lensing kernel
+      self.aMin = self.aMinG
+      self.aMax = 1.-0.005
+      
+      # shear multiplicative bias m(z)
+      self.m = m
+      
+      # fdndz doesn't need to be normalized to anything, for lensing purposes
+      self.fdndz = lambda z: fdndz(z) * (z>=zMinG) * (z<=zMaxG)
+      self.ngal = integrate.quad(self.fdndz, zMinG, zMaxG, epsabs=0., epsrel=1.e-2)[0]
+      # dpdz normalized such that int dz dpdz = 1
+      self.fdpdz = lambda z: self.fdndz(z) / self.ngal
+   
+
+      # interpolate the projection kernel, for speed
+      nA = 501
+      a = np.linspace(self.aMin, self.aMax, nA)
+      aSource = a.copy()
+      z = 1./a - 1.
+      zSource = 1./aSource - 1.
+      
+      # integrand
+      # axes: [z, zSource]
+      aa = a[:,None]
+      zz = z[:,None]
+      aaSource = aSource[None,:]
+      zzSource = zSource[None,:]
+      #
+      d_L = self.U.bg.comoving_transverse_distance(zz)
+      d_S = self.U.bg.comoving_transverse_distance(zzSource)
+      chi_L = self.U.bg.comoving_distance(zz)
+      chi_S = self.U.bg.comoving_distance(zzSource)
+      d_LS = self.U.fK(chi_S - chi_L)
+      #
+      integrand = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m
+      integrand *= d_L/a * d_LS / d_S
+      integrand *= np.array(map(self.fdpdz, zSource))[None,:]
+      integrand /= aaSource**2
+      integrand *= zzSource>zz
+      # compute integral 
+      wlensing = np.trapz(integrand, aSource, axis=-1)
+      wlensing *= (1.+self.m(z))
+      # interpolate
+      self.f = interp1d(a, wlensing, kind='linear', bounds_error=False, fill_value=0.)
+
+
+#      # integrand
+#      # axes: [z, zSource]
+#      d_L = self.U.bg.comoving_transverse_distance(z)[:,None]
+#      d_S = self.U.bg.comoving_transverse_distance(zSource)[None,:]
+#      chi_L = self.U.bg.comoving_distance(z)[:,None]
+#      chi_S = self.U.bg.comoving_distance(zSource)[None,:]
+#      d_LS = self.U.fK(chi_S - chi_L)
+#      #
+#      integrand = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m
+#      integrand *= d_L/a * d_LS / d_S
+#      integrand *= np.array(map(self.fdpdz, zSource))[None,:]
+#      integrand /= aSource[None,:]**2
+#      integrand *= zSource[None,:]>z[:,None]
+#      integrand = integrand[:,:-1] * (aSource[1:] - aSource[:-1])
+#      # compute integral 
+#      wlensing = np.sum(integrand, axis=1)
+#      wlensing *= (1.+self.m(1./a-1.))
+#      # interpolate
+#      self.f = interp1d(a, wlensing, kind='linear', bounds_error=False, fill_value=0.)
+
+#      # interpolate the projection kernel, for speed
+#      nA = 201
+#      a = np.linspace(self.aMin, self.aMax, nA)
+#      aSource = a.copy()
+#
+#      z = 1./a - 1.
+#      zSource = 1./aSource - 1.
+#      
+#      # axes: [z, zSource]
+#      d_L = self.U.bg.comoving_transverse_distance(z)[:,None]
+#      d_S = self.U.bg.comoving_transverse_distance(zSource)[None,:]
+#      chi_L = self.U.bg.comoving_distance(z)[:,None]
+#      chi_S = self.U.bg.comoving_distance(zSource)[None,:]
+#      d_LS = self.U.fK(chi_S - chi_L)
+#
+#      integrand = 1.5 * (100./3.e5)**2 * self.U.bg.Omega0_m
+#      integrand *= d_L/a * d_LS / d_S
+#
+#      integrand *= np.array(map(self.fdpdz, zSource))[None,:]
+#      integrand /= aSource[None,:]**2
+#
+#      integrand *= zSource[None,:]>z[:,None]
+#      
+#      integrand = integrand[:,:-1] * (aSource[1:] - aSource[:-1])
+#      
+#      wlensing = np.sum(integrand, axis=1)
+#      wlensing *= (1.+self.m(1./a-1.))
+#
+#      self.f = interp1d(a, wlensing, kind='linear', bounds_error=False, fill_value=0.)
+
+
+
 
 ##################################################################################
 ##################################################################################
