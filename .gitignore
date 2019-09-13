@@ -4,6 +4,7 @@
 
 # python compiled files
 *.pyc
+*.swp
 
 # all output files
 output/
