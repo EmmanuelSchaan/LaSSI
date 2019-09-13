@@ -10,13 +10,13 @@ import projection_kernel
 reload(projection_kernel)
 from projection_kernel import *
 
-import pn_2d
-reload(pn_2d)
-from pn_2d import *
-
-import covp_2d
-reload(covp_2d)
-from covp_2d import *
+#import pn_2d
+#reload(pn_2d)
+#from pn_2d import *
+#
+#import covp_2d
+#reload(covp_2d)
+#from covp_2d import *
 
 
 ##################################################################################
@@ -147,19 +147,19 @@ class FisherLsst(object):
       
       print "Power spectra",
       tStart = time()
-      self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss = self.generatePowerSpectra(self.u, self.w_k, self.w_g, self.w_s, save=self.save)
+      self.p_kk, self.p_kg, self.p_ks, self.p_gg, self.p_gs, self.p_ss, self.p_kk_shot, self.p_gg_shot, self.p_ss_shot = self.generatePowerSpectra(self.u, self.w_k, self.w_g, self.w_s, save=self.save)
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
 
       print "Data vector",
       tStart = time()
-      self.dataVector, self.shotNoiseVector = self.generateDataVector(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
+      self.dataVector, self.shotNoiseVector = self.generateDataVector(self.p_kk, self.p_kg, self.p_ks, self.p_gg, self.p_gs, self.p_ss, self.p_kk_shot, self.p_gg_shot, self.p_ss_shot)
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
 
       print "Covariance matrix",
       tStart = time()
-      self.covMat = self.generateCov(self.p2d_kk, self.p2d_kg, self.p2d_ks, self.p2d_gg, self.p2d_gs, self.p2d_ss)
+      self.covMat = self.generateCov(self.p_kk, self.p_kg, self.p_ks, self.p_gg, self.p_gs, self.p_ss, self.p_kk_shot, self.p_gg_shot, self.p_ss_shot)
       self.invCov = np.linalg.inv(self.covMat)
 #      self.invCov = invertMatrixSvdTruncated(self.covMat, epsilon=1.e-8, keepLow=True)
       tStop = time()
@@ -708,148 +708,322 @@ class FisherLsst(object):
       if name is None:
          name = "_"+self.name
       
+      # Generate all power spectra
+      # common for all power spectra
+      # axes: [ell, a]
+      nA = 501
+      aMin = 1./(1. + 6.)
+      aMax = 1./(1.+1.e-5)
+      a = np.linspace(aMin, aMax, nA)
+      z = 1./a-1.
+      chi = u.bg.comoving_distance(z)
+      #
+      integrand = 3.e5/( u.hubble(z) * a**2 )
+      fp3d = np.vectorize(u.fPinterp)
+      f = lambda l: fp3d((l + 0.5)/chi, z)
+      integrand = integrand[None,:] * np.array(map(f, self.L))
+      #integrand *= fp3d((self.L[:,None] + 0.5)/chi[None,:], z[None,:]+0.*self.L[:,None])
+      #
+      # specific for each power spectrum
+      def fp2d(w1, w2=None):
+         if w2 is None:
+            return np.trapz(integrand * w1.f(a)[None,:]**2 / chi[None,:]**2, a, axis=-1)
+         else:
+            return np.trapz(integrand * w1.f(a)[None,:] * w2.f(a)[None,:] / chi[None,:]**2, a, axis=-1)
+   
       # kk
-      #cmb = CMB(beam=1., noise=1., nu1=143.e9, nu2=143.e9, lMin=1., lMaxT=3.e3, lMaxP=5.e3, atm=False, name="cmbs4")
-      #cmbLensRec = CMBLensRec(cmb, save=False, nProc=3)
-      p2d_kk = P2d(u, u, w_k, fPnoise=self.fNk, doT=False, name=name, L=self.L, nProc=1, save=save)
-      
+      p_kk = fp2d(w_k)
+      p_kk_shot = self.fNk(self.L)
       # kg
-      p2d_kg = np.empty((self.nBins), dtype=object)
+      p_kg = {}
       for iBin in range(self.nBins):
-         # auto-correlation: same bin
-         p2d_kg[iBin] = P2d(u, u, w_k, w_g[iBin], fPnoise=lambda l:0., doT=False, name=name, L=self.L, nProc=1, save=save)
-      
+         p_kg[iBin] = fp2d(w_k, w_g[iBin])
       # ks
-      p2d_ks = np.empty((self.nBins), dtype=object)
+      p_ks = {}
       for iBin in range(self.nBins):
-         # auto-correlation: same bin
-         p2d_ks[iBin] = P2d(u, u, w_k, w_s[iBin], fPnoise=lambda l:0., doT=False, name=name, L=self.L, nProc=1, save=save)
-
-      # gg: do not impose same bin
-      p2d_gg = np.empty((self.nBins, self.nBins), dtype=object)
+         p_ks[iBin] = fp2d(w_k, w_s[iBin])
+      # gg
+      p_gg = {}
+      p_gg_shot = {}
       for iBin1 in range(self.nBins):
-         # auto-correlation: same bin
-         p2d_gg[iBin1, iBin1] = P2d(u, u, w_g[iBin1], fPnoise=lambda l:1./w_g[iBin1].ngal, doT=False, name=name, L=self.L, nProc=1, save=save)
-         # cross-correlation: different bins
+         p_gg[iBin1, iBin1] = fp2d(w_g[iBin1])
+         p_gg_shot[iBin1, iBin1] = 1. / w_g[iBin1].ngal
          for iBin2 in range(iBin1+1, self.nBins):
-            p2d_gg[iBin1, iBin2] = P2d(u, u, w_g[iBin1], w_g[iBin2], doT=False, name=name, L=self.L, nProc=1, save=save)
-            # so that the order doesn't matter
-            p2d_gg[iBin2, iBin1] = p2d_gg[iBin1, iBin2]
-
-      # gs: do not impose higher z s than g
-      p2d_gs = np.empty((self.nBins, self.nBins), dtype=object)
+               p_gg[iBin1, iBin2] = fp2d(w_g[iBin1], w_g[iBin2])
+               p_gg[iBin2, iBin1] = p_gg[iBin1, iBin2]
+               p_gg_shot[iBin1, iBin2] = 0. * self.L
+      # gs
+      p_gs = {}
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
-            p2d_gs[iBin1, iBin2] = P2d(u, u, w_g[iBin1], w_s[iBin2], doT=False, name=name, L=self.L, nProc=1, save=save)
-      
+               p_gs[iBin1, iBin2] = fp2d(w_g[iBin1], w_s[iBin2])
       # ss
-      p2d_ss = np.empty((self.nBins, self.nBins), dtype=object)
+      p_ss = {}
+      p_ss_shot = {}
       for iBin1 in range(self.nBins):
-         # auto-correlation: same bin
-         p2d_ss[iBin1, iBin1] = P2d(u, u, w_s[iBin1], fPnoise=lambda l:0.26**2/w_s[iBin1].ngal, doT=False, name=name, L=self.L, nProc=1, save=save)
-         # cross correlation: different bins
+         p_ss[iBin1, iBin1] = fp2d(w_s[iBin1])
+         p_ss_shot[iBin1, iBin1]  = 0.26**2 / w_s[iBin1].ngal
          for iBin2 in range(iBin1+1, self.nBins):
-            p2d_ss[iBin1, iBin2] = P2d(u, u, w_s[iBin1], w_s[iBin2], doT=False, name=name, L=self.L, nProc=1, save=save)
-            # so that the order doesn't matter
-            p2d_ss[iBin2, iBin1] = p2d_ss[iBin1, iBin2]
+               p_ss[iBin1, iBin2] = fp2d(w_s[iBin1], w_s[iBin2])
+               p_ss[iBin2, iBin1] = p_ss[iBin1, iBin2]
+               p_ss_shot[iBin1, iBin2] = 0. * self.L
 
-      return p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss
+      return p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_kk_shot, p_gg_shot, p_ss_shot
+
+
+
+#   def generatePowerSpectra(self, u, w_k, w_g, w_s, name=None, save=True):
+#      if name is None:
+#         name = "_"+self.name
+#   
+#      # common for all power spectra
+#      # axes: [ell, a]
+#      nA = 501
+#      aMin = 1./(1. + 6.)
+#      aMax = 1./(1.+1.e-5)
+#      a = np.linspace(aMin, aMax, nA)
+#      z = 1./a-1.
+#      chi = u.bg.comoving_distance(z)
+#      #
+#      integrand = 3.e5/( u.hubble(z) * a**2 )
+#      fp3d = np.vectorize(u.fPinterp)
+#      f = lambda l: fp3d((l + 0.5)/chi, z)
+#      integrand = integrand[None,:] * np.array(map(f, self.L))
+#      #integrand *= fp3d((self.L[:,None] + 0.5)/chi[None,:], z[None,:]+0.*self.L[:,None])
+#   
+#      # kk
+#      p2d_kk = np.trapz(integrand * w_k.f(a)[None,:]**2 / chi[None,:]**2, a, axis=-1)
+#      # kg
+#      p2d_kg = {}
+#      for iBin in range(self.nBins):
+#         p2d_kg[iBin] = np.trapz(integrand * w_k.f(a)[None,:] * w_g[iBin].f(a)[None,:] / chi[None,:]**2, a, axis=-1)
+#      # ks
+#      p2d_ks = {}
+#      for iBin in range(self.nBins):
+#         p2d_ks[iBin] = np.trapz(integrand * w_k.f(a)[None,:] * w_s[iBin].f(a)[None,:] / chi[None,:]**2, a, axis=-1)
+#      # gg
+#      p2d_gg = {}
+#      for iBin1 in range(self.nBins):
+#         p2d_gg[iBin1, iBin1] = np.trapz(integrand * w_g[iBin1].f(a)[None,:]**2 / chi[None,:]**2, a, axis=-1)
+#         for iBin2 in range(iBin1+1, self.nBins):
+#               p2d_gg[iBin1, iBin2] = np.trapz(integrand * w_g[iBin1].f(a)[None,:] * w_g[iBin2].f(a)[None,:] / chi[None,:]**2, a, axis=-1)
+#               p2d_gg[iBin2, iBin1] = p2d_gg[iBin1, iBin2]
+#      # gs
+#      p2d_gs = {}
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(self.nBins):
+#               p2d_gs[iBin1, iBin2] = np.trapz(integrand * w_g[iBin1].f(a)[None,:] * w_s[iBin2].f(a)[None,:] / chi[None,:]**2, a, axis=-1)
+#      # ss
+#      p2d_ss = {}
+#      for iBin1 in range(self.nBins):
+#         p2d_ss[iBin1, iBin1] = np.trapz(integrand * w_s[iBin1].f(a)[None,:]**2 / chi[None,:]**2, a, axis=-1)
+#         for iBin2 in range(iBin1+1, self.nBins):
+#               p2d_ss[iBin1, iBin2] = np.trapz(integrand * w_s[iBin1].f(a)[None,:] * w_s[iBin2].f(a)[None,:] / chi[None,:]**2, a, axis=-1)
+#               p2d_ss[iBin2, iBin1] = p2d_ss[iBin1, iBin2]
+#
+#
+#      return p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss
+
+
+#   def generatePowerSpectra(self, u, w_k, w_g, w_s, name=None, save=True):
+#      if name is None:
+#         name = "_"+self.name
+#      
+#      # kk
+#      #cmb = CMB(beam=1., noise=1., nu1=143.e9, nu2=143.e9, lMin=1., lMaxT=3.e3, lMaxP=5.e3, atm=False, name="cmbs4")
+#      #cmbLensRec = CMBLensRec(cmb, save=False, nProc=3)
+#      p2d_kk = P2d(u, u, w_k, fPnoise=self.fNk, doT=False, name=name, L=self.L, nProc=1, save=save)
+#      
+#      # kg
+#      p2d_kg = np.empty((self.nBins), dtype=object)
+#      for iBin in range(self.nBins):
+#         # auto-correlation: same bin
+#         p2d_kg[iBin] = P2d(u, u, w_k, w_g[iBin], fPnoise=lambda l:0., doT=False, name=name, L=self.L, nProc=1, save=save)
+#      
+#      # ks
+#      p2d_ks = np.empty((self.nBins), dtype=object)
+#      for iBin in range(self.nBins):
+#         # auto-correlation: same bin
+#         p2d_ks[iBin] = P2d(u, u, w_k, w_s[iBin], fPnoise=lambda l:0., doT=False, name=name, L=self.L, nProc=1, save=save)
+#
+#      # gg: do not impose same bin
+#      p2d_gg = np.empty((self.nBins, self.nBins), dtype=object)
+#      for iBin1 in range(self.nBins):
+#         # auto-correlation: same bin
+#         p2d_gg[iBin1, iBin1] = P2d(u, u, w_g[iBin1], fPnoise=lambda l:1./w_g[iBin1].ngal, doT=False, name=name, L=self.L, nProc=1, save=save)
+#         # cross-correlation: different bins
+#         for iBin2 in range(iBin1+1, self.nBins):
+#            p2d_gg[iBin1, iBin2] = P2d(u, u, w_g[iBin1], w_g[iBin2], doT=False, name=name, L=self.L, nProc=1, save=save)
+#            # so that the order doesn't matter
+#            p2d_gg[iBin2, iBin1] = p2d_gg[iBin1, iBin2]
+#
+#      # gs: do not impose higher z s than g
+#      p2d_gs = np.empty((self.nBins, self.nBins), dtype=object)
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(self.nBins):
+#            p2d_gs[iBin1, iBin2] = P2d(u, u, w_g[iBin1], w_s[iBin2], doT=False, name=name, L=self.L, nProc=1, save=save)
+#      
+#      # ss
+#      p2d_ss = np.empty((self.nBins, self.nBins), dtype=object)
+#      for iBin1 in range(self.nBins):
+#         # auto-correlation: same bin
+#         p2d_ss[iBin1, iBin1] = P2d(u, u, w_s[iBin1], fPnoise=lambda l:0.26**2/w_s[iBin1].ngal, doT=False, name=name, L=self.L, nProc=1, save=save)
+#         # cross correlation: different bins
+#         for iBin2 in range(iBin1+1, self.nBins):
+#            p2d_ss[iBin1, iBin2] = P2d(u, u, w_s[iBin1], w_s[iBin2], doT=False, name=name, L=self.L, nProc=1, save=save)
+#            # so that the order doesn't matter
+#            p2d_ss[iBin2, iBin1] = p2d_ss[iBin1, iBin2]
+#
+#      return p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss
 
 
    ##################################################################################
 
 
-   def generateDataVector(self, p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss):
+   def generateDataVector(self, p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_kk_shot, p_gg_shot, p_ss_shot):
       '''The data vector is made of the various power spectra,
       with a choice of units that makes the covariance matrix for gg and ss more similar,
       and with an ell^alpha factor that makes the covariance matrix more ell-independent.
       The "shotNoiseVector" is the vector of shot noises and shape noises, useful to see whether
       we are cosmic variance or shot noise limited
       '''
+      # Generate data vector, and shot noise vector
       dataVector = np.zeros(self.nData)
       shotNoiseVector = np.zeros(self.nData)
       iData = 0
-      
       # kk
-      dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_kk.fPinterp, self.L))
-      dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-      #
-      shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_kk.fPnoise, self.L))
-      shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-      #
+      dataVector[iData*self.nL:(iData+1)*self.nL] = p_kk * self.L**self.alpha
+      shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = p_kk_shot * self.L**self.alpha
       iData += 1
       # kg
       for iBin1 in range(self.nBins):
-         dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_kg[iBin1].fPinterp, self.L))
-         dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-         #
-         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_kg[iBin1].fPnoise, self.L))
-         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-         #
+         dataVector[iData*self.nL:(iData+1)*self.nL] = p_kg[iBin1] * self.L**self.alpha
          iData += 1
       # ks
       for iBin1 in range(self.nBins):
-         dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ks[iBin1].fPinterp, self.L))
-         dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
-         #
-         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ks[iBin1].fPnoise, self.L))
-         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
-         #
+         dataVector[iData*self.nL:(iData+1)*self.nL] = p_ks[iBin1] * self.sUnit * self.L**self.alpha
          iData += 1
       # gg
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gg[iBin1, iBin2].fPinterp, self.L))
-            dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-            #
-            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gg[iBin1, iBin2].fPnoise, self.L))
-            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
-            #
+            dataVector[iData*self.nL:(iData+1)*self.nL] = p_gg[iBin1, iBin2] * self.L**self.alpha
+            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = p_gg_shot[iBin1, iBin2] * self.L**self.alpha
             iData += 1
       # gs
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
-            dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gs[iBin1, iBin2].fPinterp, self.L))
-            dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
-            #
-            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gs[iBin1, iBin2].fPnoise, self.L))
-            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
-            #
+            dataVector[iData*self.nL:(iData+1)*self.nL] = p_gs[iBin1, iBin2] * self.sUnit * self.L**self.alpha
             iData += 1
       # ss
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ss[iBin1, iBin2].fPinterp, self.L))
-            dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit**2 * self.L**self.alpha
-            #
-            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ss[iBin1, iBin2].fPnoise, self.L))
-            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit**2 * self.L**self.alpha
-            #
+            dataVector[iData*self.nL:(iData+1)*self.nL] = p_ss[iBin1, iBin2] * self.sUnit**2 * self.L**self.alpha
+            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = p_ss_shot[iBin1, iBin2] * self.sUnit**2 * self.L**self.alpha
             iData += 1
 
       return dataVector, shotNoiseVector
 
 
+
+#   def generateDataVector(self, p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss):
+#      '''The data vector is made of the various power spectra,
+#      with a choice of units that makes the covariance matrix for gg and ss more similar,
+#      and with an ell^alpha factor that makes the covariance matrix more ell-independent.
+#      The "shotNoiseVector" is the vector of shot noises and shape noises, useful to see whether
+#      we are cosmic variance or shot noise limited
+#      '''
+#      dataVector = np.zeros(self.nData)
+#      shotNoiseVector = np.zeros(self.nData)
+#      iData = 0
+#      
+#      # kk
+#      dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_kk.fPinterp, self.L))
+#      dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
+#      #
+#      shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_kk.fPnoise, self.L))
+#      shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
+#      #
+#      iData += 1
+#      # kg
+#      for iBin1 in range(self.nBins):
+#         dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_kg[iBin1].fPinterp, self.L))
+#         dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
+#         #
+#         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_kg[iBin1].fPnoise, self.L))
+#         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
+#         #
+#         iData += 1
+#      # ks
+#      for iBin1 in range(self.nBins):
+#         dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ks[iBin1].fPinterp, self.L))
+#         dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
+#         #
+#         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ks[iBin1].fPnoise, self.L))
+#         shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
+#         #
+#         iData += 1
+#      # gg
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(iBin1, self.nBins):
+#            dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gg[iBin1, iBin2].fPinterp, self.L))
+#            dataVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
+#            #
+#            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gg[iBin1, iBin2].fPnoise, self.L))
+#            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.L**self.alpha
+#            #
+#            iData += 1
+#      # gs
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(self.nBins):
+#            dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gs[iBin1, iBin2].fPinterp, self.L))
+#            dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
+#            #
+#            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_gs[iBin1, iBin2].fPnoise, self.L))
+#            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit * self.L**self.alpha
+#            #
+#            iData += 1
+#      # ss
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(iBin1, self.nBins):
+#            dataVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ss[iBin1, iBin2].fPinterp, self.L))
+#            dataVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit**2 * self.L**self.alpha
+#            #
+#            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = np.array(map(p2d_ss[iBin1, iBin2].fPnoise, self.L))
+#            shotNoiseVector[iData*self.nL:(iData+1)*self.nL] *= self.sUnit**2 * self.L**self.alpha
+#            #
+#            iData += 1
+#
+#      return dataVector, shotNoiseVector
+
+
    ##################################################################################
 
-   def generateCov(self, p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss):
+   def generateCov(self, p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_kk_shot, p_gg_shot, p_ss_shot):
       covMat = np.zeros((self.nData, self.nData))
       # below, i1 and i2 define the row and column of the nL*nL blocks for each pair of 2-point function
       # i1, i2 \in [0, n2pt]
+   
+      # include the shot noises
+      p_kk += p_kk_shot
+      for iBin in range(self.nBins):
+         p_gg[iBin, iBin] += p_gg_shot[iBin, iBin]
+         p_ss[iBin, iBin] += p_ss_shot[iBin, iBin]
+      # generic Gaussian cov
+      cov = lambda Pac, Pbd, Pad, Pbc, Npairs: np.diagflat((Pac * Pbd + Pad * Pbc) / Npairs)
       
       # "kk-kk"
       i1 = 0
       i2 = 0
-      covBlock = CovP2d(p2d_kk, p2d_kk, p2d_kk, p2d_kk, self.Nmodes)
-      covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+      covBlock = cov(p_kk, p_kk, p_kk, p_kk, self.Nmodes)
+      covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
       
       # "kk-kg"
       i1 = 0
       i2 = self.nKK
       # considering kg[i1]
       for iBin1 in range(self.nBins):
-         covBlock = CovP2d(p2d_kk, p2d_kg[iBin1], p2d_kg[iBin1], p2d_kk, self.Nmodes)
-         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+         covBlock = cov(p_kk, p_kg[iBin1], p_kg[iBin1], p_kk, self.Nmodes)
+         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
          # move to next column
          i2 += 1
       
@@ -858,8 +1032,8 @@ class FisherLsst(object):
       i2 = self.nKK + self.nKG
       # considering ks[i1]
       for iBin1 in range(self.nBins):
-         covBlock = CovP2d(p2d_kk, p2d_ks[iBin1], p2d_ks[iBin1], p2d_kk, self.Nmodes)
-         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
+         covBlock = cov(p_kk, p_ks[iBin1], p_ks[iBin1], p_kk, self.Nmodes)
+         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
          # move to next column
          i2 += 1
 
@@ -869,8 +1043,8 @@ class FisherLsst(object):
       # considering gg[i1, j1]
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            covBlock = CovP2d(p2d_kg[iBin1], p2d_kg[iBin2], p2d_kg[iBin2], p2d_kg[iBin1], self.Nmodes)
-            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+            covBlock = cov(p_kg[iBin1], p_kg[iBin2], p_kg[iBin2], p_kg[iBin1], self.Nmodes)
+            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
             # move to next column
             i2 += 1
 
@@ -880,8 +1054,8 @@ class FisherLsst(object):
       # considering gs[i1, j1]
       for iBin1 in range(self.nBins):
          for iBin2 in range(self.nBins):
-            covBlock = CovP2d(p2d_kg[iBin1], p2d_ks[iBin2], p2d_ks[iBin2], p2d_kg[iBin1], self.Nmodes)
-            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
+            covBlock = cov(p_kg[iBin1], p_ks[iBin2], p_ks[iBin2], p_kg[iBin1], self.Nmodes)
+            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
             # move to next column
             i2 += 1
 
@@ -891,8 +1065,8 @@ class FisherLsst(object):
       # considering ss[i1, j1]
       for iBin1 in range(self.nBins):
          for iBin2 in range(iBin1, self.nBins):
-            covBlock = CovP2d(p2d_ks[iBin1], p2d_ks[iBin2], p2d_ks[iBin2], p2d_ks[iBin1], self.Nmodes)
-            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+            covBlock = cov(p_ks[iBin1], p_ks[iBin2], p_ks[iBin2], p_ks[iBin1], self.Nmodes)
+            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
             # move to next column
             i2 += 1
 
@@ -905,13 +1079,13 @@ class FisherLsst(object):
          for jBin1 in range(self.nBins):
             # compute only upper diagonal
             if i2>=i1:
-               covBlock = CovP2d(p2d_kk, p2d_gg[iBin1, jBin1], p2d_kg[jBin1], p2d_kg[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+               covBlock = cov(p_kk, p_gg[iBin1, jBin1], p_kg[jBin1], p_kg[iBin1], self.Nmodes)
+               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
             # move to next column
             i2 += 1
          # move to next row
          i1 += 1
-         
+      
       # "kg-ks"
       i1 = self.nKK
       # considering kg[i1]
@@ -921,8 +1095,8 @@ class FisherLsst(object):
          for jBin1 in range(self.nBins):
             # compute only upper diagonal
             if i2>=i1:
-               covBlock = CovP2d(p2d_kk, p2d_gs[iBin1, jBin1], p2d_ks[jBin1], p2d_kg[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
+               covBlock = cov(p_kk, p_gs[iBin1, jBin1], p_ks[jBin1], p_kg[iBin1], self.Nmodes)
+               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
             # move to next column
             i2 += 1
          # move to next row
@@ -938,8 +1112,8 @@ class FisherLsst(object):
             for jBin2 in range(jBin1, self.nBins):
                # compute only upper diagonal
                if i2>=i1:
-                  covBlock = CovP2d(p2d_kg[jBin1], p2d_gg[iBin1, jBin2], p2d_kg[jBin2], p2d_gg[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+                  covBlock = cov(p_kg[jBin1], p_gg[iBin1, jBin2], p_kg[jBin2], p_gg[iBin1, jBin1], self.Nmodes)
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
          # move to next row
@@ -955,8 +1129,8 @@ class FisherLsst(object):
             for jBin2 in range(self.nBins):
                # compute only upper diagonal
                if i2>=i1:
-                  covBlock = CovP2d(p2d_kg[jBin1], p2d_gs[iBin1, jBin2], p2d_ks[jBin2], p2d_gg[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
+                  covBlock = cov(p_kg[jBin1], p_gs[iBin1, jBin2], p_ks[jBin2], p_gg[iBin1, jBin1], self.Nmodes)
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
          # move to next row
@@ -972,8 +1146,8 @@ class FisherLsst(object):
             for jBin2 in range(jBin1, self.nBins):
                # compute only upper diagonal
                if i2>=i1:
-                  covBlock = CovP2d(p2d_ks[jBin1], p2d_gs[iBin1, jBin2], p2d_ks[jBin2], p2d_gs[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+                  covBlock = cov(p_ks[jBin1], p_gs[iBin1, jBin2], p_ks[jBin2], p_gs[iBin1, jBin1], self.Nmodes)
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
          # move to next row
@@ -988,8 +1162,8 @@ class FisherLsst(object):
          for jBin1 in range(self.nBins):
             # compute only upper diagonal
             if i2>=i1:
-               covBlock = CovP2d(p2d_kk, p2d_ss[iBin1, jBin1], p2d_ks[jBin1], p2d_ks[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+               covBlock = cov(p_kk, p_ss[iBin1, jBin1], p_ks[jBin1], p_ks[iBin1], self.Nmodes)
+               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
             # move to next column
             i2 += 1
          # move to next row
@@ -1006,8 +1180,8 @@ class FisherLsst(object):
                # compute only upper diagonal
                if i2>=i1:
                   # watch the order for gs
-                  covBlock = CovP2d(p2d_kg[jBin1], p2d_gs[jBin2, iBin1], p2d_kg[jBin2], p2d_gs[jBin1, iBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
+                  covBlock = cov(p_kg[jBin1], p_gs[jBin2, iBin1], p_kg[jBin2], p_gs[jBin1, iBin1], self.Nmodes)
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
          # move to next row
@@ -1024,8 +1198,8 @@ class FisherLsst(object):
                # compute only upper diagonal
                if i2>=i1:
                   # watch the order for gs
-                  covBlock = CovP2d(p2d_kg[jBin1], p2d_ss[iBin1, jBin2], p2d_ks[jBin2], p2d_gs[jBin1, iBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+                  covBlock = cov(p_kg[jBin1], p_ss[iBin1, jBin2], p_ks[jBin2], p_gs[jBin1, iBin1], self.Nmodes)
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
          # move to next row
@@ -1041,8 +1215,8 @@ class FisherLsst(object):
             for jBin2 in range(jBin1, self.nBins):
                # compute only upper diagonal
                if i2>=i1:
-                  covBlock = CovP2d(p2d_ks[jBin1], p2d_ss[iBin1, jBin2], p2d_ks[jBin2], p2d_ss[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock.covMat
+                  covBlock = cov(p_ks[jBin1], p_ss[iBin1, jBin2], p_ks[jBin2], p_ss[iBin1, jBin1], self.Nmodes)
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
          # move to next row
@@ -1059,8 +1233,8 @@ class FisherLsst(object):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gg[iBin2,jBin2], p2d_gg[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+                     covBlock = cov(p_gg[iBin1,jBin1], p_gg[iBin2,jBin2], p_gg[iBin1,jBin2], p_gg[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
@@ -1077,8 +1251,8 @@ class FisherLsst(object):
                for jBin2 in range(self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) *  covBlock.covMat
+                     covBlock = cov(p_gg[iBin1,jBin1], p_gs[iBin2,jBin2], p_gs[iBin1,jBin2], p_gg[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) *  covBlock
                   # move to next column
                   i2 += 1
             # move to next row
@@ -1095,8 +1269,8 @@ class FisherLsst(object):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[iBin2,jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+                     covBlock = cov(p_gs[iBin1,jBin1], p_gs[iBin2,jBin2], p_gs[iBin1,jBin2], p_gs[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
@@ -1114,8 +1288,8 @@ class FisherLsst(object):
                   # compute only upper diagonal
                   if i2>=i1:
                      # watch the order for gs
-                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[jBin1,iBin2], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+                     covBlock = cov(p_gg[iBin1,jBin1], p_ss[iBin2,jBin2], p_gs[iBin1,jBin2], p_gs[jBin1,iBin2], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
@@ -1132,8 +1306,8 @@ class FisherLsst(object):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_ss[iBin2,jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock.covMat
+                     covBlock = cov(p_gs[iBin1,jBin1], p_ss[iBin2,jBin2], p_gs[iBin1,jBin2], p_ss[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
@@ -1150,8 +1324,8 @@ class FisherLsst(object):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = CovP2d(p2d_ss[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_ss[iBin1,jBin2], p2d_ss[iBin2,jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**4 * self.L**(2*self.alpha) * covBlock.covMat
+                     covBlock = cov(p_ss[iBin1,jBin1], p_ss[iBin2,jBin2], p_ss[iBin1,jBin2], p_ss[iBin2,jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**4 * self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
@@ -1164,6 +1338,341 @@ class FisherLsst(object):
             covMat[i1, i2] = covMat[i2, i1]
 
       return covMat
+
+
+
+#   def generateCov(self, p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss):
+#      covMat = np.zeros((self.nData, self.nData))
+#      # below, i1 and i2 define the row and column of the nL*nL blocks for each pair of 2-point function
+#      # i1, i2 \in [0, n2pt]
+#      
+#      # "kk-kk"
+#      i1 = 0
+#      i2 = 0
+#      covBlock = CovP2d(p2d_kk, p2d_kk, p2d_kk, p2d_kk, self.Nmodes)
+#      covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+#      
+#      # "kk-kg"
+#      i1 = 0
+#      i2 = self.nKK
+#      # considering kg[i1]
+#      for iBin1 in range(self.nBins):
+#         covBlock = CovP2d(p2d_kk, p2d_kg[iBin1], p2d_kg[iBin1], p2d_kk, self.Nmodes)
+#         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+#         # move to next column
+#         i2 += 1
+#      
+#      # "kk-ks"
+#      i1 = 0
+#      i2 = self.nKK + self.nKG
+#      # considering ks[i1]
+#      for iBin1 in range(self.nBins):
+#         covBlock = CovP2d(p2d_kk, p2d_ks[iBin1], p2d_ks[iBin1], p2d_kk, self.Nmodes)
+#         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
+#         # move to next column
+#         i2 += 1
+#
+#      # "kk-gg"
+#      i1 = 0
+#      i2 = self.nKK + self.nKG + self.nKS
+#      # considering gg[i1, j1]
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(iBin1, self.nBins):
+#            covBlock = CovP2d(p2d_kg[iBin1], p2d_kg[iBin2], p2d_kg[iBin2], p2d_kg[iBin1], self.Nmodes)
+#            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+#            # move to next column
+#            i2 += 1
+#
+#      # "kk-gs"
+#      i1 = 0
+#      i2 = self.nKK + self.nKG + self.nKS + self.nGG
+#      # considering gs[i1, j1]
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(self.nBins):
+#            covBlock = CovP2d(p2d_kg[iBin1], p2d_ks[iBin2], p2d_ks[iBin2], p2d_kg[iBin1], self.Nmodes)
+#            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
+#            # move to next column
+#            i2 += 1
+#
+#      # "kk-ss"
+#      i1 = 0
+#      i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+#      # considering ss[i1, j1]
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(iBin1, self.nBins):
+#            covBlock = CovP2d(p2d_ks[iBin1], p2d_ks[iBin2], p2d_ks[iBin2], p2d_ks[iBin1], self.Nmodes)
+#            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+#            # move to next column
+#            i2 += 1
+#
+#      # "kg-kg"
+#      i1 = self.nKK
+#      # considering kg[i1]
+#      for iBin1 in range(self.nBins):
+#         i2 = self.nKK
+#         # considering kg[j1]
+#         for jBin1 in range(self.nBins):
+#            # compute only upper diagonal
+#            if i2>=i1:
+#               covBlock = CovP2d(p2d_kk, p2d_gg[iBin1, jBin1], p2d_kg[jBin1], p2d_kg[iBin1], self.Nmodes)
+#               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+#            # move to next column
+#            i2 += 1
+#         # move to next row
+#         i1 += 1
+#         
+#      # "kg-ks"
+#      i1 = self.nKK
+#      # considering kg[i1]
+#      for iBin1 in range(self.nBins):
+#         i2 = self.nKK + self.nKG
+#         # considering ks[j1]
+#         for jBin1 in range(self.nBins):
+#            # compute only upper diagonal
+#            if i2>=i1:
+#               covBlock = CovP2d(p2d_kk, p2d_gs[iBin1, jBin1], p2d_ks[jBin1], p2d_kg[iBin1], self.Nmodes)
+#               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
+#            # move to next column
+#            i2 += 1
+#         # move to next row
+#         i1 += 1
+#
+#      # "kg-gg"
+#      i1 = self.nKK
+#      # considering kg[i1]
+#      for iBin1 in range(self.nBins):
+#         i2 = self.nKK + self.nKG + self.nKS
+#         # considering gg[j1, j2]
+#         for jBin1 in range(self.nBins):
+#            for jBin2 in range(jBin1, self.nBins):
+#               # compute only upper diagonal
+#               if i2>=i1:
+#                  covBlock = CovP2d(p2d_kg[jBin1], p2d_gg[iBin1, jBin2], p2d_kg[jBin2], p2d_gg[iBin1, jBin1], self.Nmodes)
+#                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+#               # move to next column
+#               i2 += 1
+#         # move to next row
+#         i1 += 1
+#
+#      # "kg-gs"
+#      i1 = self.nKK
+#      # considering kg[i1]
+#      for iBin1 in range(self.nBins):
+#         i2 = self.nKK + self.nKG + self.nKS + self.nGG
+#         # considering gs[j1, j2]
+#         for jBin1 in range(self.nBins):
+#            for jBin2 in range(self.nBins):
+#               # compute only upper diagonal
+#               if i2>=i1:
+#                  covBlock = CovP2d(p2d_kg[jBin1], p2d_gs[iBin1, jBin2], p2d_ks[jBin2], p2d_gg[iBin1, jBin1], self.Nmodes)
+#                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
+#               # move to next column
+#               i2 += 1
+#         # move to next row
+#         i1 += 1
+#
+#      # "kg-ss"
+#      # considering kg[i1]
+#      i1 = self.nKK
+#      for iBin1 in range(self.nBins):
+#         i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+#         # considering ss[j1, j2]
+#         for jBin1 in range(self.nBins):
+#            for jBin2 in range(jBin1, self.nBins):
+#               # compute only upper diagonal
+#               if i2>=i1:
+#                  covBlock = CovP2d(p2d_ks[jBin1], p2d_gs[iBin1, jBin2], p2d_ks[jBin2], p2d_gs[iBin1, jBin1], self.Nmodes)
+#                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+#               # move to next column
+#               i2 += 1
+#         # move to next row
+#         i1 += 1
+#
+#      # "ks-ks"
+#      i1 = self.nKK + self.nKG
+#      # considering ks[i1]
+#      for iBin1 in range(self.nBins):
+#         i2 = self.nKK + self.nKG
+#         # considering ks[j1]
+#         for jBin1 in range(self.nBins):
+#            # compute only upper diagonal
+#            if i2>=i1:
+#               covBlock = CovP2d(p2d_kk, p2d_ss[iBin1, jBin1], p2d_ks[jBin1], p2d_ks[iBin1], self.Nmodes)
+#               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+#            # move to next column
+#            i2 += 1
+#         # move to next row
+#         i1 += 1
+#
+#      # "ks-gg"
+#      i1 = self.nKK + self.nKG
+#      # considering ks[i1]
+#      for iBin1 in range(self.nBins):
+#         i2 = self.nKK + self.nKG + self.nKS
+#         # considering gg[j1, j2]
+#         for jBin1 in range(self.nBins):
+#            for jBin2 in range(jBin1, self.nBins):
+#               # compute only upper diagonal
+#               if i2>=i1:
+#                  # watch the order for gs
+#                  covBlock = CovP2d(p2d_kg[jBin1], p2d_gs[jBin2, iBin1], p2d_kg[jBin2], p2d_gs[jBin1, iBin1], self.Nmodes)
+#                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock.covMat
+#               # move to next column
+#               i2 += 1
+#         # move to next row
+#         i1 += 1
+#
+#      # "ks-gs"
+#      i1 = self.nKK + self.nKG
+#      # considering ks[i1]
+#      for iBin1 in range(self.nBins):
+#         i2 = self.nKK + self.nKG + self.nKS + self.nGG
+#         # considering gs[j1, j2]
+#         for jBin1 in range(self.nBins):
+#            for jBin2 in range(self.nBins):
+#               # compute only upper diagonal
+#               if i2>=i1:
+#                  # watch the order for gs
+#                  covBlock = CovP2d(p2d_kg[jBin1], p2d_ss[iBin1, jBin2], p2d_ks[jBin2], p2d_gs[jBin1, iBin1], self.Nmodes)
+#                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+#               # move to next column
+#               i2 += 1
+#         # move to next row
+#         i1 += 1
+#
+#      # "ks-ss"
+#      i1 = self.nKK + self.nKG
+#      # considering ks[i1]
+#      for iBin1 in range(self.nBins):
+#         i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+#         # considering ss[j1, j2]
+#         for jBin1 in range(self.nBins):
+#            for jBin2 in range(jBin1, self.nBins):
+#               # compute only upper diagonal
+#               if i2>=i1:
+#                  covBlock = CovP2d(p2d_ks[jBin1], p2d_ss[iBin1, jBin2], p2d_ks[jBin2], p2d_ss[iBin1, jBin1], self.Nmodes)
+#                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock.covMat
+#               # move to next column
+#               i2 += 1
+#         # move to next row
+#         i1 += 1
+#      
+#      #print "gg-gg"
+#      # considering gg[i1,i2]
+#      i1 = self.nKK + self.nKG + self.nKS
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(iBin1, self.nBins):
+#            # considering gg[j1,j2]
+#            i2 = self.nKK + self.nKG + self.nKS
+#            for jBin1 in range(self.nBins):
+#               for jBin2 in range(jBin1, self.nBins):
+#                  # compute only upper diagonal
+#                  if i2>=i1:
+#                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gg[iBin2,jBin2], p2d_gg[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
+#                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock.covMat
+#                  # move to next column
+#                  i2 += 1
+#            # move to next row
+#            i1 += 1
+#
+#      #print "gg-gs"
+#      # considering gg[i1,i2]
+#      i1 = self.nKK + self.nKG + self.nKS
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(iBin1, self.nBins):
+#            # considering gs[j1,j2]
+#            i2 = self.nKK + self.nKG + self.nKS + self.nGG
+#            for jBin1 in range(self.nBins):
+#               for jBin2 in range(self.nBins):
+#                  # compute only upper diagonal
+#                  if i2>=i1:
+#                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gg[iBin2,jBin1], self.Nmodes)
+#                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) *  covBlock.covMat
+#                  # move to next column
+#                  i2 += 1
+#            # move to next row
+#            i1 += 1
+#
+#      #print "gg-ss"
+#      # considering gg[i1,i2]
+#      i1 = self.nKK + self.nKG + self.nKS
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(iBin1, self.nBins):
+#            # considering ss[j1,j2]
+#            i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+#            for jBin1 in range(self.nBins):
+#               for jBin2 in range(jBin1, self.nBins):
+#                  # compute only upper diagonal
+#                  if i2>=i1:
+#                     covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_gs[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[iBin2,jBin1], self.Nmodes)
+#                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+#                  # move to next column
+#                  i2 += 1
+#            # move to next row
+#            i1 += 1
+#
+#      #print "gs-gs"
+#      # considering gs[i1,i2]
+#      i1 = self.nKK + self.nKG + self.nKS + self.nGG
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(self.nBins):
+#            # considering gs[j1,j2]
+#            i2 = self.nKK + self.nKG + self.nKS + self.nGG
+#            for jBin1 in range(self.nBins):
+#               for jBin2 in range(self.nBins):
+#                  # compute only upper diagonal
+#                  if i2>=i1:
+#                     # watch the order for gs
+#                     covBlock = CovP2d(p2d_gg[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_gs[jBin1,iBin2], self.Nmodes)
+#                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock.covMat
+#                  # move to next column
+#                  i2 += 1
+#            # move to next row
+#            i1 += 1
+#
+#      #print "gs-ss"
+#      # considering gs[i1,i2]
+#      i1 = self.nKK + self.nKG + self.nKS + self.nGG
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(self.nBins):
+#            # considering ss[j1,j2]
+#            i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+#            for jBin1 in range(self.nBins):
+#               for jBin2 in range(jBin1, self.nBins):
+#                  # compute only upper diagonal
+#                  if i2>=i1:
+#                     covBlock = CovP2d(p2d_gs[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_gs[iBin1,jBin2], p2d_ss[iBin2,jBin1], self.Nmodes)
+#                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock.covMat
+#                  # move to next column
+#                  i2 += 1
+#            # move to next row
+#            i1 += 1
+#
+#      #print "ss-ss"
+#      # considering ss[i1,i2]
+#      i1 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+#      for iBin1 in range(self.nBins):
+#         for iBin2 in range(iBin1, self.nBins):
+#            # considering ss[j1,j2]
+#            i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+#            for jBin1 in range(self.nBins):
+#               for jBin2 in range(jBin1, self.nBins):
+#                  # compute only upper diagonal
+#                  if i2>=i1:
+#                     covBlock = CovP2d(p2d_ss[iBin1,jBin1], p2d_ss[iBin2,jBin2], p2d_ss[iBin1,jBin2], p2d_ss[iBin2,jBin1], self.Nmodes)
+#                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**4 * self.L**(2*self.alpha) * covBlock.covMat
+#                  # move to next column
+#                  i2 += 1
+#            # move to next row
+#            i1 += 1
+#
+#      # fill lower diagonal by symmetry
+#      # here i1 and i2 don't index the matrix blocks, but the matrix elements
+#      for i1 in range(self.nData):
+#         for i2 in range(i1):
+#            covMat[i1, i2] = covMat[i2, i1]
+#
+#      return covMat
 
 
    ##################################################################################
@@ -1438,16 +1947,16 @@ class FisherLsst(object):
 #         print cosmoParClassy
          u = Universe(cosmoParClassy)
          w_k, w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
-         p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
-         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss)
+         p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_kk_shot, p_gg_shot, p_ss_shot = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
+         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_kk_shot, p_gg_shot, p_ss_shot)
          # low
          name = self.name+self.cosmoPar.names[iPar]+"low"
          cosmoParClassy = self.cosmoPar.paramsClassy.copy()
          cosmoParClassy[self.cosmoPar.names[iPar]] = self.cosmoPar.paramsClassyLow[self.cosmoPar.names[iPar]]
          u = Universe(cosmoParClassy)
          w_k, w_g, w_s, zBounds = self.generateTomoBins(u, self.nuisancePar.fiducial)
-         p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
-         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss)
+         p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_shot, p_gg_shot, p_ss_shot = self.generatePowerSpectra(u, w_k, w_g, w_s, name=name, save=True)
+         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_kk_shot, p_gg_shot, p_ss_shot)
          # derivative
          result = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
 #         derivative[iPar,:] = (dataVectorHigh-dataVectorLow) / (self.cosmoPar.high[iPar]-self.cosmoPar.low[iPar])
@@ -1493,14 +2002,14 @@ class FisherLsst(object):
          name = "_"+self.name+self.nuisancePar.names[iPar]+"high"
          params[iPar] = self.nuisancePar.high[iPar]
          w_k, w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
-         p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
-         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss)
+         p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_shot, p_gg_shot, p_ss_shot = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
+         dataVectorHigh, shotNoiseVectorHigh = self.generateDataVector(p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_shot, p_gg_shot, p_ss_shot)
          # low
          name = self.name+self.nuisancePar.names[iPar]+"low"
          params[iPar] = self.nuisancePar.low[iPar]
          w_k, w_g, w_s, zBounds = self.generateTomoBins(self.u, params)
-         p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
-         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(p2d_kk, p2d_kg, p2d_ks, p2d_gg, p2d_gs, p2d_ss)
+         p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_shot, p_gg_shot, p_ss_shot = self.generatePowerSpectra(self.u, w_k, w_g, w_s, name=name, save=True)
+         dataVectorLow, shotNoiseVectorLow = self.generateDataVector(p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_shot, p_gg_shot, p_ss_shot)
          # derivative
          result = (dataVectorHigh-dataVectorLow) / (self.nuisancePar.high[iPar]-self.nuisancePar.low[iPar])
 #         derivative[self.cosmoPar.nPar+iPar,:] = (dataVectorHigh-dataVectorLow) / (self.nuisancePar.high[iPar]-self.nuisancePar.low[iPar])

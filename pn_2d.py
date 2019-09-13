@@ -237,7 +237,41 @@ class P2d(object):
       np.savetxt("./output/pn_2d/p2d_"+self.name+".txt", data)
 
 
-
+#   def SaveP(self):
+#      '''Way faster implementation (factor 10)! But maybe less accurate...
+#      The bottleneck was looking up the projection kernel function from the projection class.
+#      The function itself is super fast, because interpolated, but the lookup is slow.
+#      By evaluating it on an array, do the lookup only once. Gain factor ~10 in speed.
+#      '''
+##      print "precomputing p2d "+self.name
+#      data = np.zeros((len(self.L), 5))
+#      data[:,0] = self.L.copy()
+#
+#      # Compute power spectrum
+#      # axes: [ell, a]
+#      nA = 501
+#      a = np.linspace(self.aMin, self.aMax, nA)
+#      z = 1./a-1.
+#      chi = self.U.bg.comoving_distance(z)
+#      #
+#      integrand = 3.e5/( self.U.hubble(z) * a**2 )
+#      if self.Weight2 is None:
+#         integrand *= self.Weight1.f(a)**2
+#      else:
+#         integrand *= self.Weight1.f(a) * self.Weight2.f(a)
+#      integrand /= chi**2
+#      #
+#      p = np.vectorize(self.Pn.fPinterp)
+#      integrand *= p((self.L[:,None] + 0.5)/chi[None,:], z[None,:])
+#      #integrand *= p((self.L[:,None] + 0.5)/chi[None,:], z[None,:]+0.*self.L[:,None])
+#      #
+#      data[:,3] = np.trapz(integrand, a, axis=-1)
+#      
+#      # Noise power spectrum
+#      data[:,4] = np.array(map(self.fPnoise, self.L))
+#      
+#      # save to file
+#      np.savetxt("./output/pn_2d/p2d_"+self.name+".txt", data)
 
 
 
