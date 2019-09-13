@@ -231,13 +231,6 @@ class FisherLsst(object):
 
 
 
-
-
-
-
-
-
-
    def generateNoNullMask(self):
       '''Creates a mask to discard all the spectra that would be null
       if photo-z were perfect.
@@ -354,12 +347,70 @@ class FisherLsst(object):
 
 
 
+   def dndzPhotoZ(self, u, photoZPar, test=False):
+      """Compute the true redshift distributions dn/dz_t of the tomographic bins,
+      given the Gaussian photo-z error and potentially the outlier contamination matrix,
+      encoded in photoZPar.
+      Outputs a dictionary dndz_t of functions dndz_t[iBin] for each bin.
+      """
+   
+      # LSST source sample
+      w_glsst = WeightTracerLSSTSourcesDESCSRDV1(u, name='glsst')
+      # split it into bins
+      zBounds = w_glsst.splitBins(self.nBins)
+      # every tomo bin spans the whole redshift range
+      zMin = 1./w_glsst.aMax-1.  #max(zMinP - 5.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
+      zMax = 1./w_glsst.aMin-1.  #min(zMaxP + 5.*sz, 1./w_glsst.aMin-1.)   # 1./w_glsst.aMin-1.
 
+      # extract the outlier contamination matrix, if needed
+      if len(photoZPar)==self.nBins*(self.nBins+1):
+         cij = self.cij(photoZPar[2*self.nBins:])
 
+      # Gaussian photo-z
+      dndzG = {}
+      tStart = time()
+      # Gaussian photo-z bias and uncertainty for all bins
+      dz = photoZPar[:self.nBins]
+      ddz = dz[:,None,None]
+      sz = photoZPar[self.nBins:2*self.nBins] * (1.+0.5*(zBounds[:-1]+zBounds[1:]))
+      ssz = sz[:,None,None]
+      
+      # axes: [iBin, z, zp]
+      z = np.linspace(zMin, zMax, 501)
+      zz = z[None,:,None]
+      zp = z.copy()
+      zzp = zp[None,None,:]
+      
+      # integrand
+      # sharp bins in zp
+      integrand = np.exp(-0.5*(zz-zzp-ddz)**2/ssz**2) / np.sqrt(2.*np.pi*ssz**2)
+      integrand *= (zBounds[:-1,None,None]<zzp) * (zzp<zBounds[1:,None,None])
+      integrand *= w_glsst.dndz(zzp)
+      
+      # integrals
+      # axes: [iBin, z]
+      result = np.trapz(integrand, zp, axis=-1)
+      
+      # interpolate
+      for iBin in range(self.nBins):
+         dndzG[iBin] = interp1d(z, result[iBin,:], kind='linear', bounds_error=False, fill_value=0.)
+      tStop = time()
+      if test:
+         print "-- getting dn/dz took", tStop-tStart, "sec"
 
+      # take into account potential outliers
+      dndz_t = {}
+      for iBin in range(self.nBins):
+         # If outliers are not included
+         if len(photoZPar)==2*self.nBins:
+            dndz_t[iBin] = lambda z: dndzG[iBin](z)
+         # If outliers are included
+         elif len(photoZPar)==self.nBins*(self.nBins+1):
+            dndz_t[iBin] = lambda z: np.sum(cij[:,iBin] * dndzG[iBin](z))
+         else:
+            print "Error: PhotoZPar does not have the right size"
 
-
-
+      return dndz_t
 
 
 
@@ -397,109 +448,21 @@ class FisherLsst(object):
       
       ##########################################################################
       
-      
       # generate the corresponding tracer and shear bins
       w_g = np.empty(self.nBins, dtype=object)
       w_s = np.empty(self.nBins, dtype=object)
 
-      # extract the outlier contamination matrix, if needed
-      if len(photoZPar)==self.nBins*(self.nBins+1):
-         cij = self.cij(photoZPar[2*self.nBins:])
-      # same for the s bins, if different
-      if self.photoZSPar is not None:
-         if len(photoZSPar)==self.nBins*(self.nBins+1):
-            cSij = self.cij(photoZSPar[2*self.nBins:])
-
-
-      ##########################################################################
-
-
       ##########################################################################
       # tomo bin for g
 
-#      # Gaussian photo-z
-#      dndzG = {}
-#      for iBin in range(self.nBins):
-#         tStart = time()
-#         # sharp photo-z cuts
-#         zMinP = zBounds[iBin]
-#         zMaxP = zBounds[iBin+1]
-#         # photo-z bias and uncertainty for this bin:
-#         dz = photoZPar[iBin]
-#         sz = photoZPar[self.nBins+iBin] * (1.+0.5*(zMinP+zMaxP))
-#
-#         # Gaussian photo-z error
-#         p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
-#         f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
-#         dndz_GForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-2)[0]
-#
-#         tStop = time()
-#         if test:
-#            print "-- before dn/dz took", tStop-tStart, "sec"
-#
-#         # interpolate it for speed (for lensing kernel calculation)
-#         tStart = time()
-#         Z = np.linspace(zMin, zMax, 201)
-#         with sharedmem.MapReduce(np=self.nProc) as pool:
-#            F = np.array(pool.map(dndz_GForInterp, Z))
-#         dndzG[iBin] = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
-#         tStop = time()
-#         if test:
-#            print "-- getting dn/dz took", tStop-tStart, "sec"
-      
 
-      # Gaussian photo-z
-      dndzG = {}
-      tStart = time()
-      # Gaussian photo-z bias and uncertainty for all bins
-      dz = photoZPar[:self.nBins]
-      ddz = dz[:,None,None]
-      sz = photoZPar[self.nBins:2*self.nBins] * (1.+0.5*(zBounds[:-1]+zBounds[1:]))
-      ssz = sz[:,None,None]
-      
-      # axes: [iBin, z, zp]
-      z = np.linspace(zMin, zMax, 501)
-      zz = z[None,:,None]
-      zp = z.copy()
-      zzp = zp[None,None,:]
-      
-      # integrand
-      # sharp bins in zp
-      integrand = np.exp(-0.5*(zz-zzp-ddz)**2/ssz**2) / np.sqrt(2.*np.pi*ssz**2)
-      integrand *= (zBounds[:-1,None,None]<zzp) * (zzp<zBounds[1:,None,None])
-      integrand *= w_glsst.dndz(zzp)
-      
-      # integrals
-      # axes: [iBin, z]
-      result = np.trapz(integrand, zp, axis=-1)
-      
-      # interpolate
+      dnGdz_t = self.dndzPhotoZ(u, photoZPar, test=test)
       for iBin in range(self.nBins):
-         dndzG[iBin] = interp1d(z, result[iBin,:], kind='linear', bounds_error=False, fill_value=0.)
-      tStop = time()
-      if test:
-         print "-- getting dn/dz took", tStop-tStart, "sec"
-
-
-
-      # Create g bin,
-      # taking into account potential outliers 
-      dndz_t = {}
-      for iBin in range(self.nBins):
-         # If outliers are not included
-         if len(photoZPar)==2*self.nBins:
-            dndz_t[iBin] = lambda z: dndzG[iBin](z)
-         # If outliers are included
-         elif len(photoZPar)==self.nBins*(self.nBins+1):
-            dndz_t[iBin] = lambda z: np.sum(cij[:,iBin] * dndzG[iBin](z))
-         else:
-            print "Error: PhotoZPar does not have the right size"
-
          tStart = time()
          # tracer bin
          w_g[iBin] = WeightTracerCustom(u,
                                         lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
-                                        dndz_t[iBin], # dn/dz_true
+                                        dnGdz_t[iBin], # dn/dz_true
                                         zMin=zMin,
                                         zMax=zMax,
                                         name='g'+str(iBin))
@@ -513,82 +476,145 @@ class FisherLsst(object):
             print "bin "+str(iBin)+": mag bias alpha="+str(alpha)
             w_g_nomagbias[iBin] = WeightTracerCustom(u,
                                            lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
-                                           dndz_t[iBin], # dn/dz_true
+                                           dnGdz_t[iBin], # dn/dz_true
                                            zMin=zMin,
                                            zMax=zMax,
                                            name='g'+str(iBin))
             w_g[iBin].f = lambda a: w_g_nomagbias[iBin].f(a) + 2.*(alpha-1.)*w_s[iBin].f(a)
 
+      
+      
+      ##########################################################################
+      # tomo bin for s
+          
+      if doS:
+         
+         for iBin in range(self.nBins):
+
+            tStart = time()
+            # if same bins for g and s
+            if self.photoZSPar is None:
+               dnSdz_t = dnGdz_t
+            else:
+               dnSdz_t = self.dndzPhotoZ(u, photoZSPar, test=test)
+
+            w_s[iBin] = WeightLensCustomFast(u,
+                                         dnSdz_t[iBin], # dn/dz_true
+                                         m=lambda z: shearMultBiasPar[iBin], # multiplicative shear bias
+                                         zMinG=zMin,
+                                         zMaxG=zMax,
+                                         name='s'+str(iBin),
+                                         nProc=self.nProc)
+
+            tStop = time()
+            if test:
+               print "-- shear bin took", tStop-tStart, "sec"
+      
+      if doS:
+         return w_k, w_g, w_s, zBounds
+      else:
+         return w_k, w_g, zBounds
 
 
 
-
-
-
-
-
+#   def generateTomoBins(self, u, nuisancePar, save=True, doS=True, test=False):
+#      '''The option doS=False is only used to save time when sampling dn/dz,
+#      since the s bins take much longer to generate (by a factor ~100).
+#      !!! I am using loose mean redshifts for tomo bins at several places.
+#      '''
+#      # CMB lensing kernel
+#      tStart = time()
+#      w_k = WeightLensSingle(u, z_source=1100., name="cmblens")
+#      tStop = time()
+#      if test:
+#         print "CMB lensing kernel took", tStop-tStart, "sec"
+#
+#      # split the nuisance parameters
+#      galaxyBiasPar = nuisancePar[:self.galaxyBiasPar.nPar]
+#      shearMultBiasPar = nuisancePar[self.galaxyBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar]
+#      photoZPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar+self.photoZPar.nPar]
+#      # option to allow different photo-z params for g and s
+#      if self.photoZSPar is not None:
+#         photoZSPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar+self.photoZPar.nPar:]
+#      
+#      # LSST source sample
+#      w_glsst = WeightTracerLSSTSourcesDESCSRDV1(u, name='glsst')
+#      # split it into bins
+#      zBounds = w_glsst.splitBins(self.nBins)
+#      # every tomo bin spans the whole redshift range
+#      zMin = 1./w_glsst.aMax-1.  #max(zMinP - 5.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
+#      zMax = 1./w_glsst.aMin-1.  #min(zMaxP + 5.*sz, 1./w_glsst.aMin-1.)   # 1./w_glsst.aMin-1.
+#      
+#      
+#      ##########################################################################
+#      
+#      # generate the corresponding tracer and shear bins
+#      w_g = np.empty(self.nBins, dtype=object)
+#      w_s = np.empty(self.nBins, dtype=object)
+#
+#      # extract the outlier contamination matrix, if needed
+#      if len(photoZPar)==self.nBins*(self.nBins+1):
+#         cij = self.cij(photoZPar[2*self.nBins:])
+#      # same for the s bins, if different
+#      if self.photoZSPar is not None:
+#         if len(photoZSPar)==self.nBins*(self.nBins+1):
+#            cSij = self.cij(photoZSPar[2*self.nBins:])
+#
+#      ##########################################################################
+#      # tomo bin for g
+#
+#      # Gaussian photo-z
+#      dndzG = {}
+#      tStart = time()
+#      # Gaussian photo-z bias and uncertainty for all bins
+#      dz = photoZPar[:self.nBins]
+#      ddz = dz[:,None,None]
+#      sz = photoZPar[self.nBins:2*self.nBins] * (1.+0.5*(zBounds[:-1]+zBounds[1:]))
+#      ssz = sz[:,None,None]
+#      
+#      # axes: [iBin, z, zp]
+#      z = np.linspace(zMin, zMax, 501)
+#      zz = z[None,:,None]
+#      zp = z.copy()
+#      zzp = zp[None,None,:]
+#      
+#      # integrand
+#      # sharp bins in zp
+#      integrand = np.exp(-0.5*(zz-zzp-ddz)**2/ssz**2) / np.sqrt(2.*np.pi*ssz**2)
+#      integrand *= (zBounds[:-1,None,None]<zzp) * (zzp<zBounds[1:,None,None])
+#      integrand *= w_glsst.dndz(zzp)
+#      
+#      # integrals
+#      # axes: [iBin, z]
+#      result = np.trapz(integrand, zp, axis=-1)
+#      
+#      # interpolate
+#      for iBin in range(self.nBins):
+#         dndzG[iBin] = interp1d(z, result[iBin,:], kind='linear', bounds_error=False, fill_value=0.)
+#      tStop = time()
+#      if test:
+#         print "-- getting dn/dz took", tStop-tStart, "sec"
+#
+#
+#
+#      # Create g bin,
+#      # taking into account potential outliers 
+#      dndz_t = {}
+#      for iBin in range(self.nBins):
 #         # If outliers are not included
 #         if len(photoZPar)==2*self.nBins:
-#            f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
-#            dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-3)[0]
-#
+#            dndz_t[iBin] = lambda z: dndzG[iBin](z)
 #         # If outliers are included
 #         elif len(photoZPar)==self.nBins*(self.nBins+1):
-#
-#            def dndzp_outliers(zp):
-#               ''' This is the dn/dz_p, such that for bin i:
-#               n_i^new = n_i * (1-sum_{j \neq i} c_ij) + sum_{j \neq i} c_ji n_j.
-#               '''
-#               t0 = time()
-#               result = w_glsst.dndz(zp)
-#               t1 = time()
-#               print "    -- w_glsst.dndz", t1-t0, "sec"
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#               # if zp is in the bin
-#               if zp>=zBounds[iBin] and zp<zBounds[iBin+1]:
-#                  result *= 1. - np.sum([cij[iBin*(self.nBins-1)+j] for j in range(self.nBins-1)])
-#               # if zp is in another bin
-#               else:
-#                  # find which bin this is
-#                  jBin = np.where(np.array([(zp>=zBounds[j])*(zp<zBounds[j+1]) for j in range(self.nBins)])==1)[0][0]
-#                  # since the diagonal c_ii is not encoded, make sure to skip it if iBin > jBin
-#                  i = iBin - (iBin>jBin)
-#                  result *= cij[jBin*(self.nBins-1)+i]
-#               t2 = time()
-#               print "    -- cij search", t2-t1, "sec"
-#               return result
-#
-#            f = lambda zp,z: dndzp_outliers(zp) * p_z_given_zp(zp,z)
-#            dndz_tForInterp = lambda z: integrate.quad(f, zMin, zMax, args=(z), epsabs=0., epsrel=1.e-3)[0]
-#
+#            dndz_t[iBin] = lambda z: np.sum(cij[:,iBin] * dndzG[iBin](z))
 #         else:
 #            print "Error: PhotoZPar does not have the right size"
-#         tStop = time()
-#         if test:
-#            print "-- before dn/dz took", tStop-tStart, "sec"
-#         # interpolate it for speed (for lensing kernel calculation)
-#         tStart = time()
-#         Z = np.linspace(zMin, zMax, 501)
-#         with sharedmem.MapReduce(np=self.nProc) as pool:
-#            F = np.array(pool.map(dndz_tForInterp, Z))
-#         dndz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
-#         tStop = time()
-#         if test:
-#            print "-- getting dn/dz took", tStop-tStart, "sec"
 #
 #         tStart = time()
 #         # tracer bin
 #         w_g[iBin] = WeightTracerCustom(u,
 #                                        lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
-#                                        dndz_t, # dn/dz_true
+#                                        dndz_t[iBin], # dn/dz_true
 #                                        zMin=zMin,
 #                                        zMax=zMax,
 #                                        name='g'+str(iBin))
@@ -602,104 +628,98 @@ class FisherLsst(object):
 #            print "bin "+str(iBin)+": mag bias alpha="+str(alpha)
 #            w_g_nomagbias[iBin] = WeightTracerCustom(u,
 #                                           lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
-#                                           dndz_t, # dn/dz_true
+#                                           dndz_t[iBin], # dn/dz_true
 #                                           zMin=zMin,
 #                                           zMax=zMax,
 #                                           name='g'+str(iBin))
 #            w_g[iBin].f = lambda a: w_g_nomagbias[iBin].f(a) + 2.*(alpha-1.)*w_s[iBin].f(a)
-      
-      
-         ##########################################################################
-         # tomo bin for s
-          
-      if doS:
-         
-         for iBin in range(self.nBins):
-
-            tStart = time()
-            # if same bins for g and s
-            if self.photoZSPar is None:
-#               w_s[iBin] = WeightLensCustom(u,
+#
+#      
+#      
+#         ##########################################################################
+#         # tomo bin for s
+#          
+#      if doS:
+#         
+#         for iBin in range(self.nBins):
+#
+#            tStart = time()
+#            # if same bins for g and s
+#            if self.photoZSPar is None:
+#               w_s[iBin] = WeightLensCustomFast(u,
 #                                            dndz_t[iBin], # dn/dz_true
 #                                            m=lambda z: shearMultBiasPar[iBin], # multiplicative shear bias
 #                                            zMinG=zMin,
 #                                            zMaxG=zMax,
 #                                            name='s'+str(iBin),
 #                                            nProc=self.nProc)
-               w_s[iBin] = WeightLensCustomFast(u,
-                                            dndz_t[iBin], # dn/dz_true
-                                            m=lambda z: shearMultBiasPar[iBin], # multiplicative shear bias
-                                            zMinG=zMin,
-                                            zMaxG=zMax,
-                                            name='s'+str(iBin),
-                                            nProc=self.nProc)
-
-#            # if different bins for g and s
-#            else:
-#               # photo-z bias and uncertainty for this bin:
-#               dz = photoZSPar[iBin]
-#               sz = photoZSPar[self.nBins+iBin] * (1.+0.5*(zMinP+zMaxP))
 #
-#               # Gaussian photo-z error
-#               p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
-#
-#               # If outliers are not included
-#               if len(photoZSPar)==2*self.nBins:
-#                  f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
-#                  dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-3)[0]
-#
-#               # If outliers are included
-#               elif len(photoZSPar)==self.nBins*(self.nBins+1):
-#
-#                  def dndzp_outliers(zp):
-#                     ''' This is the dn/dz_p, such that for bin i:
-#                     n_i^new = n_i * (1-sum_{j \neq i} c_ij) + sum_{j \neq i} c_ji n_j.
-#                     '''
-#                     result = w_glsst.dndz(zp)
-#                     # if zp is in the bin
-#                     if zp>=zBounds[iBin] and zp<zBounds[iBin+1]:
-#                        result *= 1. - np.sum([cSij[iBin*(self.nBins-1)+j] for j in range(self.nBins-1)])
-#                     # if zp is in another bin
-#                     else:
-#                        # find which bin this is
-#                        jBin = np.where(np.array([(zp>=zBounds[j])*(zp<zBounds[j+1]) for j in range(self.nBins)])==1)[0][0]
-#                        # since the diagonal c_ii is not encoded, make sure to skip it if iBin > jBin
-#                        i = iBin - (iBin>jBin)
-#                        result *= cSij[jBin*(self.nBins-1)+i]
-#                     return result
-#
-#                  f = lambda zp,z: dndzp_outliers(zp) * p_z_given_zp(zp,z)
-#                  dndz_tForInterp = lambda z: integrate.quad(f, zMin, zMax, args=(z), epsabs=0., epsrel=1.e-3)[0]
-#               else:
-#                  print "Error: PhotoZPar does not have the right size"
-#               tStop = time()
-#               if test:
-#                  print "-- before dn/dz took", tStop-tStart, "sec"
-#               # interpolate it for speed (for lensing kernel calculation)
-#               tStart = time()
-#               Z = np.linspace(zMin, zMax, 501)
-#               with sharedmem.MapReduce(np=self.nProc) as pool:
-#                  F = np.array(pool.map(dndz_tForInterp, Z))
-#               dnSdz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
-#               tStop = time()
-#               if test:
-#                  print "-- getting dn/dz took", tStop-tStart, "sec"
-#               w_s[iBin] = WeightLensCustom(u,
-#                                            dnSdz_t, # dn/dz_true
-#                                            m=lambda z: shearMultBiasPar[iBin], # multiplicative shear bias
-#                                            zMinG=zMin,
-#                                            zMaxG=zMax,
-#                                            name='s'+str(iBin),
-#                                            nProc=self.nProc)
-#
-            tStop = time()
-            if test:
-               print "-- shear bin took", tStop-tStart, "sec"
-      
-      if doS:
-         return w_k, w_g, w_s, zBounds
-      else:
-         return w_k, w_g, zBounds
+##            # if different bins for g and s
+##            else:
+##               # photo-z bias and uncertainty for this bin:
+##               dz = photoZSPar[iBin]
+##               sz = photoZSPar[self.nBins+iBin] * (1.+0.5*(zMinP+zMaxP))
+##
+##               # Gaussian photo-z error
+##               p_z_given_zp = lambda zp,z: np.exp(-0.5*(z-zp-dz)**2/sz**2) / np.sqrt(2.*np.pi*sz**2)
+##
+##               # If outliers are not included
+##               if len(photoZSPar)==2*self.nBins:
+##                  f = lambda zp,z: w_glsst.dndz(zp) * p_z_given_zp(zp,z)
+##                  dndz_tForInterp = lambda z: integrate.quad(f, zMinP, zMaxP, args=(z), epsabs=0., epsrel=1.e-3)[0]
+##
+##               # If outliers are included
+##               elif len(photoZSPar)==self.nBins*(self.nBins+1):
+##
+##                  def dndzp_outliers(zp):
+##                     ''' This is the dn/dz_p, such that for bin i:
+##                     n_i^new = n_i * (1-sum_{j \neq i} c_ij) + sum_{j \neq i} c_ji n_j.
+##                     '''
+##                     result = w_glsst.dndz(zp)
+##                     # if zp is in the bin
+##                     if zp>=zBounds[iBin] and zp<zBounds[iBin+1]:
+##                        result *= 1. - np.sum([cSij[iBin*(self.nBins-1)+j] for j in range(self.nBins-1)])
+##                     # if zp is in another bin
+##                     else:
+##                        # find which bin this is
+##                        jBin = np.where(np.array([(zp>=zBounds[j])*(zp<zBounds[j+1]) for j in range(self.nBins)])==1)[0][0]
+##                        # since the diagonal c_ii is not encoded, make sure to skip it if iBin > jBin
+##                        i = iBin - (iBin>jBin)
+##                        result *= cSij[jBin*(self.nBins-1)+i]
+##                     return result
+##
+##                  f = lambda zp,z: dndzp_outliers(zp) * p_z_given_zp(zp,z)
+##                  dndz_tForInterp = lambda z: integrate.quad(f, zMin, zMax, args=(z), epsabs=0., epsrel=1.e-3)[0]
+##               else:
+##                  print "Error: PhotoZPar does not have the right size"
+##               tStop = time()
+##               if test:
+##                  print "-- before dn/dz took", tStop-tStart, "sec"
+##               # interpolate it for speed (for lensing kernel calculation)
+##               tStart = time()
+##               Z = np.linspace(zMin, zMax, 501)
+##               with sharedmem.MapReduce(np=self.nProc) as pool:
+##                  F = np.array(pool.map(dndz_tForInterp, Z))
+##               dnSdz_t = interp1d(Z, F, kind='linear', bounds_error=False, fill_value=0.)
+##               tStop = time()
+##               if test:
+##                  print "-- getting dn/dz took", tStop-tStart, "sec"
+##               w_s[iBin] = WeightLensCustom(u,
+##                                            dnSdz_t, # dn/dz_true
+##                                            m=lambda z: shearMultBiasPar[iBin], # multiplicative shear bias
+##                                            zMinG=zMin,
+##                                            zMaxG=zMax,
+##                                            name='s'+str(iBin),
+##                                            nProc=self.nProc)
+##
+#            tStop = time()
+#            if test:
+#               print "-- shear bin took", tStop-tStart, "sec"
+#      
+#      if doS:
+#         return w_k, w_g, w_s, zBounds
+#      else:
+#         return w_k, w_g, zBounds
       
 
    ##################################################################################
@@ -2569,7 +2589,6 @@ class FisherLsst(object):
 
 
    def plotPowerSpectra(self):
-# Manuwarning: the autos are smaller than some of the crosses!!?? Check this
 
       # kk
       fig=plt.figure(0)
@@ -2815,7 +2834,7 @@ class FisherLsst(object):
 #            ax.plot(L*(1.+0.01*i1/self.nSS), shot, ls='--', lw=1, color=color)   # different color for each bin
          ax.plot(L*(1.+0.01*i1/self.nSS), shot, ls='--', lw=1, color='grey')   # same color for all bins
          # move to next row
-         i1 += self.nBins + 1
+         i1 += self.nBins - iBin1
 
 #         # show all the cross-correlations
 #         for iBin2 in range(iBin1, self.nBins):

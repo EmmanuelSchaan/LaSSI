@@ -14,7 +14,7 @@ from fisher_lsst import *
 # Forecast parameters
 
 nBins = 3  #5   #10
-nL = 10  # 20, 100
+nL = 20  # 20, 100
 fsky = 0.4
 
 # cosmological parameters to include
