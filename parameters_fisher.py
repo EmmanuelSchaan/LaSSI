@@ -30,28 +30,57 @@ class Parameters(object):
 
 
 
-   def addParams(self, newParams, pos=None):
+
+
+   def addParams(self, newParams):
       '''Adds new parameters to the parameter set.
-      The new parameters are inserted at index position pos:
-      pos=0 puts the new params at the start,
-      pos=self.nPar puts them at the end
+      The new parameters are inserted after the existing ones.
       '''
-      if pos is None:
-         pos = self.nPar
+      pos = self.nPar
       # concatenate parameter names and values
-      self.names = np.concatenate((self.names[:pos], newParams.names, self.names[pos:]))
-      self.namesLatex = np.concatenate((self.namesLatex[:pos], newParams.namesLatex, self.namesLatex[pos:]))
-      self.fiducial = np.concatenate((self.fiducial[:pos], newParams.fiducial, self.fiducial[pos:]))
-      self.high = np.concatenate((self.high[:pos], newParams.high, self.high[pos:]))
-      self.low = np.concatenate((self.low[:pos], newParams.low, self.low[pos:]))
+      self.names = np.concatenate((self.names, newParams.names))
+      self.namesLatex = np.concatenate((self.namesLatex, newParams.namesLatex))
+      self.fiducial = np.concatenate((self.fiducial, newParams.fiducial))
+      self.high = np.concatenate((self.high, newParams.high))
+      self.low = np.concatenate((self.low, newParams.low))
       # combine the Fisher priors
       combined = np.zeros((self.nPar+newParams.nPar, self.nPar+newParams.nPar))
       combined[:pos, :pos] = self.fisher[:pos, :pos]
       combined[pos:pos+newParams.nPar, pos:pos+newParams.nPar] = newParams.fisher[:,:]
-      combined[pos+newParams.nPar:, pos+newParams.nPar:] = self.fisher[pos:, pos:]
       self.fisher = combined
       # increase the number of parameters
       self.nPar += newParams.nPar
+
+
+
+
+
+
+
+
+#!!! weird useless pos argument, makes things break in some cases, somehow
+#   def addParams(self, newParams, pos=None):
+#      '''Adds new parameters to the parameter set.
+#      The new parameters are inserted at index position pos:
+#      pos=0 puts the new params at the start,
+#      pos=self.nPar puts them at the end
+#      '''
+#      if pos is None:
+#         pos = self.nPar
+#      # concatenate parameter names and values
+#      self.names = np.concatenate((self.names[:pos], newParams.names, self.names[pos:]))
+#      self.namesLatex = np.concatenate((self.namesLatex[:pos], newParams.namesLatex, self.namesLatex[pos:]))
+#      self.fiducial = np.concatenate((self.fiducial[:pos], newParams.fiducial, self.fiducial[pos:]))
+#      self.high = np.concatenate((self.high[:pos], newParams.high, self.high[pos:]))
+#      self.low = np.concatenate((self.low[:pos], newParams.low, self.low[pos:]))
+#      # combine the Fisher priors
+#      combined = np.zeros((self.nPar+newParams.nPar, self.nPar+newParams.nPar))
+#      combined[:pos, :pos] = self.fisher[:pos, :pos]
+#      combined[pos:pos+newParams.nPar, pos:pos+newParams.nPar] = newParams.fisher[:,:]
+#      combined[pos+newParams.nPar:, pos+newParams.nPar:] = self.fisher[pos:, pos:]
+#      self.fisher = combined
+#      # increase the number of parameters
+#      self.nPar += newParams.nPar
 
 
 

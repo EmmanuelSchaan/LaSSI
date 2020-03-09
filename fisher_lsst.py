@@ -352,12 +352,15 @@ class FisherLsst(object):
       given the Gaussian photo-z error and potentially the outlier contamination matrix,
       encoded in photoZPar.
       Outputs a dictionary dndz_t of functions dndz_t[iBin] for each bin.
+      Computation uses arrays rather than functions and quad, for speed.
       """
    
       # LSST source sample
       w_glsst = WeightTracerLSSTSourcesDESCSRDV1(u, name='glsst')
       # split it into bins
       zBounds = w_glsst.splitBins(self.nBins)
+      if test:
+         print "Redshift bounds for the bins:", zBounds
       # every tomo bin spans the whole redshift range
       zMin = 1./w_glsst.aMax-1.  #max(zMinP - 5.*sz, 1./w_glsst.aMax-1.)   # 1./w_glsst.aMax-1.
       zMax = 1./w_glsst.aMin-1.  #min(zMaxP + 5.*sz, 1./w_glsst.aMin-1.)   # 1./w_glsst.aMin-1.
@@ -384,12 +387,24 @@ class FisherLsst(object):
       # integrand
       # sharp bins in zp
       integrand = np.exp(-0.5*(zz-zzp-ddz)**2/ssz**2) / np.sqrt(2.*np.pi*ssz**2)
+      if test:
+         print integrand.shape
       integrand *= (zBounds[:-1,None,None]<zzp) * (zzp<zBounds[1:,None,None])
       integrand *= w_glsst.dndz(zzp)
       
-      # integrals
+      # do the integrals
       # axes: [iBin, z]
       result = np.trapz(integrand, zp, axis=-1)
+      if test:
+         fig=plt.figure(0)
+         ax=fig.add_subplot(111)
+         #
+         for iBin in range(self.nBins):
+            ax.plot(z, result[iBin,:])
+         #
+         ax.set_title('dn/dz: Gaussian photo-z')
+         plt.show()
+         
       
       # interpolate
       for iBin in range(self.nBins):
@@ -398,17 +413,27 @@ class FisherLsst(object):
       if test:
          print "-- getting dn/dz took", tStop-tStart, "sec"
 
-      # take into account potential outliers
+
       dndz_t = {}
-      for iBin in range(self.nBins):
-         # If outliers are not included
-         if len(photoZPar)==2*self.nBins:
-            dndz_t[iBin] = lambda z: dndzG[iBin](z)
-         # If outliers are included
-         elif len(photoZPar)==self.nBins*(self.nBins+1):
-            dndz_t[iBin] = lambda z: np.sum(cij[:,iBin] * dndzG[iBin](z))
-         else:
-            print "Error: PhotoZPar does not have the right size"
+      # If outliers are not included
+      if len(photoZPar)==2*self.nBins:
+         dndz_t = lambda iBin, z: dndzG[iBin](z)
+      # If outliers are included
+      elif len(photoZPar)==self.nBins*(self.nBins+1):
+         dndz_t = lambda iBin, z: np.sum([cij[iBin, j] * dndzG[j](z) for j in range(self.nBins)], axis=0)
+      else:
+         print "Error: PhotoZPar does not have the right size"
+
+      if test:
+         fig=plt.figure(0)
+         ax=fig.add_subplot(111)
+         #
+         for iBin in range(self.nBins):
+            ax.plot(z, dndz_t(iBin,z))
+         #
+         ax.set_title('dn/dz: including outliers')
+         plt.show()
+
 
       return dndz_t
 
@@ -422,6 +447,7 @@ class FisherLsst(object):
       since the s bins take much longer to generate (by a factor ~100).
       !!! I am using loose mean redshifts for tomo bins at several places.
       '''
+
       # CMB lensing kernel
       tStart = time()
       w_k = WeightLensSingle(u, z_source=1100., name="cmblens")
@@ -433,6 +459,7 @@ class FisherLsst(object):
       galaxyBiasPar = nuisancePar[:self.galaxyBiasPar.nPar]
       shearMultBiasPar = nuisancePar[self.galaxyBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar]
       photoZPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar:self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar+self.photoZPar.nPar]
+
       # option to allow different photo-z params for g and s
       if self.photoZSPar is not None:
          photoZSPar = nuisancePar[self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar+self.photoZPar.nPar:]
@@ -451,64 +478,86 @@ class FisherLsst(object):
       # generate the corresponding tracer and shear bins
       w_g = np.empty(self.nBins, dtype=object)
       w_s = np.empty(self.nBins, dtype=object)
+      # Only needed if magnification bias is included
+      w_g_nomagbias = np.empty(self.nBins, dtype=object)
 
       ##########################################################################
-      # tomo bin for g
+      # tomo bins for g and s
 
-
+      # dn/dz for g
       dnGdz_t = self.dndzPhotoZ(u, photoZPar, test=test)
+      # dn/dz for s
+      # if same bins for g and s
+      if self.photoZSPar is None:
+         dnSdz_t = dnGdz_t
+      else:
+         dnSdz_t = self.dndzPhotoZ(u, photoZSPar, test=test)
+
+      if test:
+         fig=plt.figure(0)
+         ax=fig.add_subplot(111)
+         #
+         for iBin in range(self.nBins):
+            z = np.linspace(zMin, zMax, 501)
+            ax.plot(z, dnGdz_t(iBin, z), '-', label=r'Clustering')
+            ax.plot(z, dnSdz_t(iBin, z), '--', label=r'Shear')
+         #
+         ax.legend(loc=1, fontsize='x-small', labelspacing=0.)
+         ax.set_title('dn/dz: including outliers')
+         plt.show()
+
+
+      ##########################################################################
+      # projection kernels for power spectra
+      
       for iBin in range(self.nBins):
+
+         # Shear bin
          tStart = time()
-         # tracer bin
+         w_s[iBin] = WeightLensCustomFast(u,
+                                      lambda z, iBin=iBin: dnSdz_t(iBin, z), # dn/dz_true
+                                      m=lambda z, iBin=iBin: shearMultBiasPar[iBin], # multiplicative shear bias
+                                      zMinG=zMin,
+                                      zMaxG=zMax,
+                                      name='s'+str(iBin),
+                                      nProc=self.nProc)
+         tStop = time()
+         if test:
+            print "-- shear bin took", tStop-tStart, "sec"
+
+         # Clustering bin
          w_g[iBin] = WeightTracerCustom(u,
-                                        lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
-                                        dnGdz_t[iBin], # dn/dz_true
+                                        lambda z, iBin=iBin: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
+                                        lambda z, iBin=iBin: dnGdz_t(iBin, z), # dn/dz_true
                                         zMin=zMin,
                                         zMax=zMax,
                                         name='g'+str(iBin))
          tStop = time()
          if test:
-            print "-- clustering bin took", tStop-tStart, "sec"
+            print "-- clustering bin "+str(iBin)+" took", tStop-tStart, "sec"
+            print "mean z = "+str(w_g[iBin].zMean())
 
          # add magnification bias, if requested
          if self.magBias:
-            alpha = w_glsst.magnificationBias(0.5*(zMinP+zMaxP))
-            print "bin "+str(iBin)+": mag bias alpha="+str(alpha)
+            alpha = w_glsst.magnificationBias(w_g[iBin].zMean())
+            #print "bin "+str(iBin)+": mag bias alpha="+str(alpha)
             w_g_nomagbias[iBin] = WeightTracerCustom(u,
-                                           lambda z: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
-                                           dnGdz_t[iBin], # dn/dz_true
+                                           lambda z, iBin=iBin: galaxyBiasPar[iBin] * w_glsst.b(z), # galaxy bias
+                                           lambda z, iBin=iBin: dnGdz_t(iBin, z), # dn/dz_true
                                            zMin=zMin,
                                            zMax=zMax,
                                            name='g'+str(iBin))
-            w_g[iBin].f = lambda a: w_g_nomagbias[iBin].f(a) + 2.*(alpha-1.)*w_s[iBin].f(a)
+            w_g[iBin].f = lambda a, iBin=iBin: w_g_nomagbias[iBin].f(a) + 2.*(alpha-1.)*w_s[iBin].f(a)
 
-      
-      
-      ##########################################################################
-      # tomo bin for s
-          
-      if doS:
-         
-         for iBin in range(self.nBins):
-
-            tStart = time()
-            # if same bins for g and s
-            if self.photoZSPar is None:
-               dnSdz_t = dnGdz_t
-            else:
-               dnSdz_t = self.dndzPhotoZ(u, photoZSPar, test=test)
-
-            w_s[iBin] = WeightLensCustomFast(u,
-                                         dnSdz_t[iBin], # dn/dz_true
-                                         m=lambda z: shearMultBiasPar[iBin], # multiplicative shear bias
-                                         zMinG=zMin,
-                                         zMaxG=zMax,
-                                         name='s'+str(iBin),
-                                         nProc=self.nProc)
-
-            tStop = time()
-            if test:
-               print "-- shear bin took", tStop-tStart, "sec"
+         if test:
+            z = np.linspace(zMin, zMax, 501)
+            plt.plot(z, w_s[iBin].f(z), ':', label=r'shear')
+            plt.plot(z, w_g[iBin].f(z), '-', label=r'g, no mag bias')
+            if self.magBias:
+               plt.plot(z, w_g_nomagbias[iBin].f(z), '--', label=r'g, mag bias')
+            plt.legend(loc=1, fontsize='x-small', labelspacing=0.)
+            plt.title(r'clustering bin '+str(iBin))
+            plt.show()
       
       if doS:
          return w_k, w_g, w_s, zBounds
@@ -2171,7 +2220,7 @@ class FisherLsst(object):
    ##################################################################################
    ##################################################################################
 
-   def plotEllBins(self):
+   def plotEllBins(self, show=False):
 
       Z = np.linspace(1.e-4, 4., 201)
 
@@ -2205,6 +2254,8 @@ class FisherLsst(object):
       ax.set_ylabel(r'$\ell$')
       #
       fig.savefig(self.figurePath+"/ell_bins.pdf", bbox_inches='tight')
+      if show:
+         plt.show()
       fig.clf()
 
 
@@ -2229,8 +2280,9 @@ class FisherLsst(object):
       else:
          print "--> Not OK"
 
-   
-   def plotDndz(self):
+
+   def plotDndz(self, show=False):
+
       fig=plt.figure(0)
       ax=fig.add_subplot(111)
       #
@@ -2239,18 +2291,15 @@ class FisherLsst(object):
       zMin = 1./w_glsst.aMax-1.
       zMax = 1./w_glsst.aMin-1.
       Z = np.linspace(zMin, zMax, 501)
-      dndz = w_glsst.dndz(Z)
-      dndz /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
-      ax.plot(Z, dndz, 'k')
+      dndzFull = w_glsst.dndz(Z)
+      dndzFull /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
+      ax.plot(Z, dndzFull, 'k', label=r'LSST galaxies')
       #
       # binned with photo-z uncertainties
+      dnGdz_t = self.dndzPhotoZ(self.u, self.photoZPar.fiducial, test=False)
       for iBin in range(self.nBins):
-         # redshift range for that bin
-         zMin = 1./self.w_g[iBin].aMax-1.
-         zMax = 1./self.w_g[iBin].aMin-1.
-         Z = np.linspace(zMin, zMax, 501)
          # evaluate dn/dz
-         dndz = np.array(map(self.w_g[iBin].dndz, Z))
+         dndz = dnGdz_t(iBin, Z)
          dndz /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
          # plot it
          ax.fill_between(Z, 0., dndz, facecolor=plt.cm.autumn(1.*iBin/self.nBins), edgecolor='', alpha=0.7)
@@ -2258,17 +2307,61 @@ class FisherLsst(object):
       # CMB lensing kernel
       W = np.array(map(self.w_k.f, 1./(1.+Z)))
       H = self.u.hubble(Z) / 3.e5   # H/c in (h Mpc^-1)
-      ax.plot(Z, W/H, 'k', label=r'$W_{\kappa_\text{CMB}}$')
+      ax.plot(Z, W/H * 0.5 * np.max(dndzFull)/np.max(W/H), 'b', label=r'$W_{\kappa_\text{CMB}}$')
       #
+      ax.legend(loc=1, fontsize='x-small')
       ax.set_ylim((0., 23.))
       ax.set_xlim((0.,4.))
       ax.set_xlabel(r'$z$')
       ax.set_ylabel(r'$dN / d\Omega\; dz$ [arcmin$^{-2}$]')
       #
       fig.savefig(self.figurePath+"/dndz.pdf")
+      if show:
+         plt.show()
       fig.clf()
 #      plt.show()
 
+
+   
+#   def plotDndz(self):
+#      fig=plt.figure(0)
+#      ax=fig.add_subplot(111)
+#      #
+#      # full LSST source sample
+#      w_glsst = WeightTracerLSSTSourcesDESCSRDV1(self.u, name='glsst')
+#      zMin = 1./w_glsst.aMax-1.
+#      zMax = 1./w_glsst.aMin-1.
+#      Z = np.linspace(zMin, zMax, 501)
+#      dndz = w_glsst.dndz(Z)
+#      dndz /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
+#      ax.plot(Z, dndz, 'k')
+#      #
+#      # binned with photo-z uncertainties
+#      for iBin in range(self.nBins):
+#         # redshift range for that bin
+#         zMin = 1./self.w_g[iBin].aMax-1.
+#         zMax = 1./self.w_g[iBin].aMin-1.
+#         Z = np.linspace(zMin, zMax, 501)
+#         # evaluate dn/dz
+#         dndz = np.array(map(self.w_g[iBin].dndz, Z))
+#         dndz /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
+#         # plot it
+#         ax.fill_between(Z, 0., dndz, facecolor=plt.cm.autumn(1.*iBin/self.nBins), edgecolor='', alpha=0.7)
+#      #
+#      # CMB lensing kernel
+#      W = np.array(map(self.w_k.f, 1./(1.+Z)))
+#      H = self.u.hubble(Z) / 3.e5   # H/c in (h Mpc^-1)
+#      ax.plot(Z, W/H, 'k', label=r'$W_{\kappa_\text{CMB}}$')
+#      #
+#      ax.set_ylim((0., 23.))
+#      ax.set_xlim((0.,4.))
+#      ax.set_xlabel(r'$z$')
+#      ax.set_ylabel(r'$dN / d\Omega\; dz$ [arcmin$^{-2}$]')
+#      #
+#      fig.savefig(self.figurePath+"/dndz.pdf")
+#      fig.clf()
+##      plt.show()
+#
 
    ##################################################################################
    
@@ -2309,6 +2402,8 @@ class FisherLsst(object):
          
          # generate the corresponding dn/dz for the particular sample
          w_k, w_g, zBounds = self.generateTomoBins(self.u, newNuisancePar.fiducial, doS=False)
+
+
    
          # add it to the plot
          for iBin in range(self.nBins):
@@ -2375,7 +2470,7 @@ class FisherLsst(object):
 
 
 
-   def plotCovMat(self, mask=None):
+   def plotCovMat(self, mask=None, show=False):
       if mask is None:
          mask=self.lMaxMask
       fig=plt.figure(0, figsize=(12,8))
@@ -2419,10 +2514,12 @@ class FisherLsst(object):
       #ax.set_title(r'Full cor: '+infile)
       #
       fig.savefig(self.figurePath+"/cor_mat.pdf", bbox_inches='tight', format='pdf', dpi=2400)
+      if show:
+         plt.show()
       fig.clf()
 
 
-   def plotInvCovMat(self):
+   def plotInvCovMat(self, show=False):
       fig=plt.figure(0, figsize=(12,8))
       ax=fig.add_subplot(111)
       #
@@ -2457,6 +2554,8 @@ class FisherLsst(object):
       ax.yaxis.set_ticks([])
       #
       fig.savefig(self.figurePath+"/invcov_mat.pdf", bbox_inches='tight', format='pdf', dpi=2400)
+      if show:
+         plt.show()
       fig.clf()
 
 
@@ -2588,7 +2687,7 @@ class FisherLsst(object):
 
 
 
-   def plotPowerSpectra(self):
+   def plotPowerSpectra(self, show=False):
 
       # kk
       fig=plt.figure(0)
@@ -2614,6 +2713,8 @@ class FisherLsst(object):
       ax.set_ylabel(r'$\ell C_\ell^{\kappa_\text{CMB} \kappa_\text{CMB}}$', fontsize=18)
       #
       fig.savefig(self.figurePath+"/p2d_kk.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
       # kg
@@ -2647,6 +2748,8 @@ class FisherLsst(object):
       ax.set_ylabel(r'$\ell C_\ell^{g \kappa_\text{CMB}}$', fontsize=18)
       #
       fig.savefig(self.figurePath+"/p2d_kg.pdf")
+      if show:
+         plt.show()
       fig.clf()
       
 
@@ -2681,6 +2784,8 @@ class FisherLsst(object):
       ax.set_ylabel(r'$\ell C_\ell^{\kappa_\text{CMB} \gamma}$', fontsize=18)
       #
       fig.savefig(self.figurePath+"/p2d_ks.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
 
@@ -2761,6 +2866,8 @@ class FisherLsst(object):
       ax2.set_xlabel(r'$\ell$')
       #
       fig.savefig(self.figurePath+"/p2d_gg.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
 
@@ -2807,6 +2914,8 @@ class FisherLsst(object):
       ax.set_title(r'Galaxy - galaxy lensing')
       #
       fig.savefig(self.figurePath+"/p2d_gs.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
 
@@ -2863,11 +2972,13 @@ class FisherLsst(object):
       ax.set_title(r'Shear tomography')
       #
       fig.savefig(self.figurePath+"/p2d_ss.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
 
 
-   def plotUncertaintyPowerSpectra(self):
+   def plotUncertaintyPowerSpectra(self, show=False):
 
       # kk
       fig=plt.figure(0)
@@ -2892,6 +3003,8 @@ class FisherLsst(object):
       ax.set_ylabel(r'$\sigma \left( C_\ell^{\kappa_\text{CMB} \kappa_\text{CMB}} \right) / C_\ell^{\kappa_\text{CMB} \kappa_\text{CMB}}$', fontsize=18)
       #
       fig.savefig(self.figurePath+"/sp2d_kk.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
 
@@ -2924,6 +3037,8 @@ class FisherLsst(object):
       ax.set_ylabel(r'$\sigma \left( C_\ell^{g \kappa_\text{CMB}} \right) / C_\ell^{g \kappa_\text{CMB}}$', fontsize=18)
       #
       fig.savefig(self.figurePath+"/sp2d_kg.pdf")
+      if show:
+         plt.show()
       fig.clf()
       
 
@@ -2956,6 +3071,8 @@ class FisherLsst(object):
       ax.set_ylabel(r'$\sigma \left( C_\ell^{\kappa_\text{CMB} \gamma} \right) / C_\ell^{\kappa_\text{CMB} \gamma}$', fontsize=18)
       #
       fig.savefig(self.figurePath+"/sp2d_ks.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
 
@@ -3038,6 +3155,8 @@ class FisherLsst(object):
       ax2.set_xlabel(r'$\ell$')
       #
       fig.savefig(self.figurePath+"/sp2d_gg.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
 
@@ -3070,6 +3189,8 @@ class FisherLsst(object):
       ax.set_title(r'Galaxy-galaxy lensing')
       #
       fig.savefig(self.figurePath+"/sp2d_gs.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
 
@@ -3106,6 +3227,8 @@ class FisherLsst(object):
       ax.set_title(r'Shear tomography')
       #
       fig.savefig(self.figurePath+"/sp2d_ss.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
 
@@ -3113,7 +3236,7 @@ class FisherLsst(object):
 
 
 
-   def plotDerivativeDataVectorCosmo(self):
+   def plotDerivativeDataVectorCosmo(self, show=False):
       """Derivative of the data vector wrt cosmo parameters.
       """
 #      # one color per cosmo param
@@ -3174,6 +3297,8 @@ class FisherLsst(object):
       ax.set_ylabel(r'$d\ln C_\ell^{\kappa_\text{CMB}\kappa_\text{CMB}} / d\ln \text{Param.}$')
       #
       fig.savefig(self.figurePath+"/dp2d_kk_cosmo.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
 
@@ -3209,6 +3334,8 @@ class FisherLsst(object):
       ax.set_ylabel(r'$d\ln C_\ell^{g\kappa_\text{CMB}} / d\ln \text{Param.}$')
       #
       fig.savefig(self.figurePath+"/dp2d_kg_cosmo.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
 
@@ -3244,6 +3371,8 @@ class FisherLsst(object):
       ax.set_ylabel(r'$d\ln C_\ell^{\gamma\kappa_\text{CMB}} / d\ln \text{Param.}$')
       #
       fig.savefig(self.figurePath+"/dp2d_ks_cosmo.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
       
@@ -3279,6 +3408,8 @@ class FisherLsst(object):
       ax.set_ylabel(r'$d\ln C_\ell^{gg} / d\ln \text{Param.}$')
       #
       fig.savefig(self.figurePath+"/dp2d_gg_cosmo.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
       # gs
@@ -3313,6 +3444,8 @@ class FisherLsst(object):
       ax.set_ylabel(r'$d\ln C_\ell^{gs} / d\ln \text{Param.}$')
       #
       fig.savefig(self.figurePath+"/dp2d_gs_cosmo.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
       # ss
@@ -3347,6 +3480,8 @@ class FisherLsst(object):
       ax.set_ylabel(r'$d\ln C_\ell^{ss} / d\ln \text{Param.}$')
       #
       fig.savefig(self.figurePath+"/dp2d_ss_cosmo.pdf")
+      if show:
+         plt.show()
       fig.clf()
 
 

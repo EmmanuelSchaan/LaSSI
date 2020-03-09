@@ -13,20 +13,27 @@ from fisher_lsst import *
 ##################################################################################
 # Forecast parameters
 
-nBins = 10  #5   #10
-nL = 50  # 20, 100
+# for debugging
+nBins = 3  # 10
+nL = 10  # 50, 20, 100
 fsky = 0.4
 
+## actual params
+#nBins = 10
+#nL = 50 #20, 100
+#fsky = 0.4
+
+
 # cosmological parameters to include
-massiveNu = True  #False
-wCDM = True #False
-curvature = True #False
+massiveNu = False  #True
+wCDM = False #True
+curvature = False #True
 
 # priors to include
 PlanckPrior = True
 
 # include a known magnification bias
-magBias = False
+magBias = True
 
 # forecast name
 #name = "lcdm"
@@ -38,7 +45,7 @@ magBias = False
 name = None
 
 # Parallel evaluations
-nProc = 4   # not actually used, because CLASS won't be pickled...
+nProc = 4   # not actually used
 
 ##################################################################################
 # Parameter classes
@@ -78,11 +85,15 @@ fNk = cmbLensRec.fN_k_mv
 ##################################################################################
 # Fisher calculation
 
+import fisher_lsst
+reload(fisher_lsst)
+from fisher_lsst import *
 
 fsky = 0.35 # 0.4
 
 # same tomo bins for g and s
 fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=False)
+
 
 # different tomo bins for g and s
 #fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, photoZSPar=photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=True)
@@ -95,14 +106,14 @@ fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nB
 
 
 # Show observables and uncertainties
-#fish.plotEllBins()
-#fish.plotDndz()
-fish.plotPowerSpectra()
-fish.plotUncertaintyPowerSpectra()
-fish.plotCovMat()
-fish.plotInvCovMat()
+fish.plotEllBins(show=True)
+fish.plotDndz(show=True)
+fish.plotPowerSpectra(show=True)
+fish.plotUncertaintyPowerSpectra(show=True)
+fish.plotCovMat(show=False)
+fish.plotInvCovMat(show=False)
 fish.printSnrPowerSpectra(path=fish.figurePath+"/snr.txt")
-fish.plotDerivativeDataVectorCosmo()
+fish.plotDerivativeDataVectorCosmo(show=True)
 #fish.plotSingleDerivative("gg", 0, 0)
 #fish.plotSingleDerivative("ss", 0, 15)
 #fish.plotSingleDerivative("gg", 0, 20)

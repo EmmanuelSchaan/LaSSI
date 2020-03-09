@@ -1143,7 +1143,7 @@ class WeightTracerLSSTSourcesDESCSRDV1(WeightTracer):
    as in the DESC SRD v1.
    """
    
-   def __init__(self, U, name='lsstsources', zMin=0.005, zMax=4., ngal=27.):
+   def __init__(self, U, name='lsstsources', zMin=0.005, zMax=4., ngal=27., iLim=25.3):
       self.zMin = zMin
       self.zMax = zMax
       self.aMin = 1./(1.+self.zMax)   # min bound for integral over a
@@ -1156,6 +1156,8 @@ class WeightTracerLSSTSourcesDESCSRDV1(WeightTracer):
       self.ngal_per_arcmin2 = ngal # galaxies per squared arcmin
       self.ngal = self.ngal_per_arcmin2 / (np.pi/180./60.)**2  # per steradian
       
+      # limited i-band magnitude
+      self.iLim = iLim
 
       # dn/dz, non-normalized
       self.z0 = 0.11
