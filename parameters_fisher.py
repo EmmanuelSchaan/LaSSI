@@ -434,7 +434,7 @@ class GalaxyBiasParams(Parameters):
 class CosmoParams(Parameters):
 
    def __init__(self, massiveNu=False, wCDM=False, curvature=False, PlanckPrior=False):
-      '''Step sizes inspired from Allison+15
+      '''Step sizes for derivatives inspired from Allison+15
       '''
       # indices to keep for various relevant combinations:
       self.IFull = range(10)

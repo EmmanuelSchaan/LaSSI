@@ -13,15 +13,15 @@ from fisher_lsst import *
 ##################################################################################
 # Forecast parameters
 
-# for debugging
-nBins = 3  # 10
-nL = 10  # 50, 20, 100
-fsky = 0.4
-
-## actual params
-#nBins = 10
-#nL = 50 #20, 100
+## for debugging
+#nBins = 3  # 10
+#nL = 10  # 50, 20, 100
 #fsky = 0.4
+
+# actual params
+nBins = 10
+nL = 50 #20, 100
+fsky = 0.4
 
 
 # cosmological parameters to include
@@ -106,14 +106,14 @@ fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nB
 
 
 # Show observables and uncertainties
-fish.plotEllBins(show=True)
-fish.plotDndz(show=True)
-fish.plotPowerSpectra(show=True)
-fish.plotUncertaintyPowerSpectra(show=True)
+fish.plotEllBins(show=False)
+fish.plotDndz(show=False)
+fish.plotPowerSpectra(show=False)
+fish.plotUncertaintyPowerSpectra(show=False)
 fish.plotCovMat(show=False)
 fish.plotInvCovMat(show=False)
 fish.printSnrPowerSpectra(path=fish.figurePath+"/snr.txt")
-fish.plotDerivativeDataVectorCosmo(show=True)
+fish.plotDerivativeDataVectorCosmo(show=False)
 #fish.plotSingleDerivative("gg", 0, 0)
 #fish.plotSingleDerivative("ss", 0, 15)
 #fish.plotSingleDerivative("gg", 0, 20)
