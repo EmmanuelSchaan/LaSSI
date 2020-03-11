@@ -840,6 +840,58 @@ class FisherLsst(object):
       return p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_kk_shot, p_gg_shot, p_ss_shot
 
 
+   def savePowerSpectra(self):
+      '''Saves the power spectra to files.
+      Not needed for the Fisher forecast, but can be useful.
+      '''
+      
+      # kk
+      data = np.zeros((self.nL, 1+self.nKK))
+      data[:,0] = self.L.copy()
+      data[:,1] = self.p_kk.copy()
+      np.savetxt('./output/p2d/'+self.name+'_p_kk.txt', data)
+
+      # kg
+      data = np.zeros((self.nL, 1+self.nKG))
+      data[:,0] = self.L.copy()
+      for iBin in range(self.nBins):
+         data[:, 1+iBin] = self.p_kg[iBin]
+      np.savetxt('./output/p2d/'+self.name+'_p_kg.txt', data)
+         
+      # ks
+      data = np.zeros((self.nL, 1+self.nKS))
+      data[:,0] = self.L.copy()
+      for iBin in range(self.nBins):
+         data[:, 1+iBin] = self.p_ks[iBin]
+      np.savetxt('./output/p2d/'+self.name+'_p_ks.txt', data)
+         
+      # gg
+      data = np.zeros((self.nL, 1+self.nGG))
+      data[:,0] = self.L.copy()
+      i = 0
+      for iBin in range(self.nBins):
+         for jBin in range(iBin+1, self.nBins):
+            data[:, 1+i] = self.p_gg[iBin, jBin]
+            i += 1
+      np.savetxt('./output/p2d/'+self.name+'_p_gg.txt', data)
+         
+      # gs
+      data = np.zeros((self.nL, 1+self.nGS))
+      data[:,0] = self.L.copy()
+      for iBin in range(self.nBins):
+         for jBin in range(self.nBins):
+            data[:, 1+iBin*self.nBins+jBin] = self.p_gs[iBin, jBin]
+      np.savetxt('./output/p2d/'+self.name+'_p_gs.txt', data)
+         
+      # ss
+      data = np.zeros((self.nL, 1+self.nSS))
+      data[:,0] = self.L.copy()
+      i = 0
+      for iBin in range(self.nBins):
+         for jBin in range(iBin+1, self.nBins):
+            data[:, 1+i] = self.p_ss[iBin, jBin]
+            i += 1
+      np.savetxt('./output/p2d/'+self.name+'_p_ss.txt', data)
 
 #   def generatePowerSpectra(self, u, w_k, w_g, w_s, name=None, save=True):
 #      if name is None:
@@ -2814,7 +2866,7 @@ class FisherLsst(object):
          # advance counter in data vector
          i1 += self.nBins - iBin1
       #
-      ax0.set_ylim((9.e-3, 5e-1))
+      ax0.set_ylim((1.e-5, 1e-3))
       ax0.set_xscale('log')
       ax0.set_yscale('log', nonposy='clip')
       plt.setp(ax0.get_xticklabels(), visible=False)
