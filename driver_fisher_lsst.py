@@ -94,6 +94,7 @@ fsky = 0.35 # 0.4
 # same tomo bins for g and s
 fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=False)
 
+fish.plotPowerSpectra(show=True)
 
 # different tomo bins for g and s
 #fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, photoZSPar=photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=True)
