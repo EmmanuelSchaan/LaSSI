@@ -954,10 +954,10 @@ class WeightTracer(Projection):
       '''Computes the dn/dz-weighted mean redshift.
       '''
       f = lambda z: self.dndz(z) / self.ngal * z
-      result = integrate.quad(f, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-2)[0]
+      result = integrate.quad(f, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-3)[0]
       # the normalization should be 1, but just in case:
       f = lambda z: self.dndz(z) / self.ngal
-      result /= integrate.quad(f, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-2)[0]
+      result /= integrate.quad(f, 1./self.aMax-1., 1./self.aMin-1., epsabs=0., epsrel=1.e-3)[0]
       return result
 
 

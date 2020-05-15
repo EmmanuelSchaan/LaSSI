@@ -266,7 +266,8 @@ class FisherLsst(object):
 
 
 #   def generateGSOnlyNoNullMask(self):
-#      '''Creates a mask to discard KK, KG, KS and all the spectra that would be null
+#      '''Creates a mask to discard KK, KG, KS,
+#      as well as the spectra that would be null
 #      if photo-z were perfect.
 #      I.e. discard gg crosses, and gs where z_g>z_s.
 #      '''
@@ -1976,6 +1977,16 @@ class FisherLsst(object):
                snr = np.sqrt(snr)
                f.write("   "+str(iBin1)+","+str(iBin2)+": "+str(snr)+"\n")
                i1 += 1
+
+         # gs, no null crosses
+         I = range((self.nKK+self.nKG+self.nKS+self.nGG)*self.nL, (self.nKK+self.nKG+self.nKS+self.nGG+self.nGS)*self.nL)
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask + self.noNullMask, I=I)
+         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask + self.noNullMask, I=I)
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("total gs, no null crosses: "+str(snr)+"\n\n")
+
          # gs: total
          I = range((self.nKK+self.nKG+self.nKS+self.nGG)*self.nL, (self.nKK+self.nKG+self.nKS+self.nGG+self.nGS)*self.nL)
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
@@ -1984,6 +1995,7 @@ class FisherLsst(object):
          snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("total gs: "+str(snr)+"\n\n")
+
 
          ###########################################################
          # ss
@@ -2035,14 +2047,39 @@ class FisherLsst(object):
          f.write("total ss: "+str(snr)+"\n\n")
 
          ###########################################################
-         # gg, gs, ss
+         # Combinations
 
+         # gg, gs, ss
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask + self.gsOnlyMask)
+         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask + self.gsOnlyMask)
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("Total gg, gs, ss: "+str(snr)+"\n\n")
+
+         # gg, gs, ss, no null crosses
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask + self.gsOnlyMask + self.noNullMask)
+         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask + self.gsOnlyMask + self.noNullMask)
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("Total gg, gs, ss, no null crosses: "+str(snr)+"\n\n")
+
+         # All, no null crosses
+         d = extractMaskedVec(self.dataVector, mask=self.lMaxMask + self.noNullMask)
+         cov = extractMaskedMat(self.covMat, mask=self.lMaxMask + self.noNullMask)
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
+         snr = np.sqrt(snr)
+         f.write("Total, no null crosses: "+str(snr)+"\n\n")
+
+         # All
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask)
          invCov = np.linalg.inv(cov)
          snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
-         f.write("total gg, gs, ss: "+str(snr)+"\n\n")
+         f.write("Total: "+str(snr)+"\n\n")
 
 
    

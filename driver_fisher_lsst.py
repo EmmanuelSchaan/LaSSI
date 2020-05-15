@@ -21,7 +21,7 @@ from fisher_lsst import *
 # actual params
 nBins = 10
 nL = 50 #20, 100
-fsky = 0.4
+fsky = 0.35
 
 
 # cosmological parameters to include
@@ -94,7 +94,6 @@ fsky = 0.35 # 0.4
 # same tomo bins for g and s
 fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=False)
 
-fish.plotPowerSpectra(show=True)
 
 # different tomo bins for g and s
 #fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, photoZSPar=photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=True)
@@ -238,24 +237,26 @@ else:
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull", Gphotoz='req')  # k,g,s, no null 2pt
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gsOnlyMask, name="gs", Gphotoz='req')  # g,s
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gsOnlyMask+fish.noNullMask, name="gs_nonull", Gphotoz='req')  # g,s, no null 2pt
-   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="g", Gphotoz='req')  # g
-   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="s", Gphotoz='req')  # s
+#   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="g", Gphotoz='req')  # g
+#   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="s", Gphotoz='req')  # s
    #
    # G photo-z prior: fixed with perfect prior
+#!!! problem with the line below: matrix is singular
    fish.photoZOutliersRequirements(mask=fish.lMaxMask, name="", Gphotoz='perfect')  # k,g,s
+#!!! line below: matrix is singular
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull", Gphotoz='perfect')  # k,g,s, no null 2pt
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gsOnlyMask, name="gs", Gphotoz='perfect')  # g,s
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gsOnlyMask+fish.noNullMask, name="gs_nonull", Gphotoz='perfect')  # g,s, no null 2pt
-   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="g", Gphotoz='perfect')  # g
-   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="s", Gphotoz='perfect')  # s
+#   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="g", Gphotoz='perfect')  # g
+#   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="s", Gphotoz='perfect')  # s
    #
    # G photo-z prior: fixed with no prior
    fish.photoZOutliersRequirements(mask=fish.lMaxMask, name="", Gphotoz='noprior')  # k,g,s
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull", Gphotoz='noprior')  # k,g,s, no null 2pt
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gsOnlyMask, name="gs", Gphotoz='noprior')  # g,s
    fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gsOnlyMask+fish.noNullMask, name="gs_nonull", Gphotoz='noprior')  # g,s, no null 2pt
-   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="g", Gphotoz='noprior')  # g
-   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="s", Gphotoz='noprior')  # s
+#   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="g", Gphotoz='noprior')  # g
+#   fish.photoZOutliersRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="s", Gphotoz='noprior')  # s
 
 
 

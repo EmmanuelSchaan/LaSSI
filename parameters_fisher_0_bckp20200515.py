@@ -432,10 +432,6 @@ class GalaxyBiasParams(Parameters):
 ##################################################################################
 
 class CosmoParams(Parameters):
-   '''Cosmo params:
-   - fiducial values from Planck parameters 2018, Table 2, TT+TE+TT+lowE+CMB lensing+BAO
-   - "Planck priors" from Pat MCDonald
-   '''
 
    def __init__(self, massiveNu=False, wCDM=False, curvature=False, PlanckPrior=False):
       '''Step sizes for derivatives inspired from Allison+15
@@ -452,17 +448,17 @@ class CosmoParams(Parameters):
       self.nPar = 6
       self.names = np.array(['Omega_cdm', 'Omega_b', 'A_s', 'n_s', 'h', 'tau_reio'])
       self.namesLatex = np.array([r'$\Omega^0_\text{CDM}$', r'$\Omega^0_\text{b}$', r'$A_\text{s} / A_\text{s}^\text{fid}$', r'$n_\text{s}$', r'$h_0$', r'$\tau$'])
-      self.fiducial = np.array([0.26, 0.049, 1., 0.9665, 0.6766, 0.0561])
-      self.high = np.array([0.26 + 0.0066, 0.049 + 0.0018, 1. + 1.e-10/2.105e-9, 0.9665 + 0.01, 0.6766 + 0.067, 0.0561 + 0.02])
-      self.low = np.array([0.26 - 0.0066, 0.049 - 0.0018, 1. - 1.e-10/2.105e-9, 0.9665 - 0.01, 0.6766 - 0.067, 0.0561 - 0.02])
+      self.fiducial = np.array([0.267, 0.0493, 1., 0.9624, 0.6712, 0.06])
+      self.high = np.array([0.267 + 0.0066, 0.0493 + 0.0018, 1. + 1.e-10/2.3e-9, 0.9624 + 0.01, 0.6712 + 0.067, 0.06 + 0.02])
+      self.low = np.array([0.267 - 0.0066, 0.0493 - 0.0018, 1. - 1.e-10/2.3e-9, 0.9624 - 0.01, 0.6712 - 0.067, 0.06 - 0.02])
       self.paramsClassy = {
                            # Cosmological parameters
-                           'Omega_cdm': 0.26, #0.267,
-                           'Omega_b': 0.049,  #0.0493,
-                           'A_s': 2.105e-9,  #2.3e-9,
-                           'n_s': 0.9665, #0.9624,
-                           'tau_reio': 0.0561,  #0.06,
-                           'h': 0.6766,   #0.6712,
+                           'Omega_cdm': 0.267,
+                           'Omega_b': 0.0493,
+                           'A_s': 2.3e-9,
+                           'n_s': 0.9624,
+                           'tau_reio': 0.06,
+                           'h': 0.6712,
                            # parameters
                            'reio_parametrization': 'reio_camb',
                            'output': 'mPk',#'dTk vTk lCl tCl pCl mPk',
@@ -472,12 +468,12 @@ class CosmoParams(Parameters):
                            }
       self.paramsClassyHigh = {
                            # Cosmological parameters
-                           'Omega_cdm': 0.26 + 0.0066,
-                           'Omega_b': 0.049 + 0.0018,
-                           'A_s': 2.105e-9 + 1.e-10,
-                           'n_s': 0.9665 + 0.01,
-                           'tau_reio': 0.0561 + 0.02,
-                           'h': 0.6766 + 0.067,
+                           'Omega_cdm': 0.267 + 0.0066,
+                           'Omega_b': 0.0493 + 0.0018,
+                           'A_s': 2.3e-9 + 1.e-10,
+                           'n_s': 0.9624 + 0.01,
+                           'tau_reio': 0.06 + 0.02,
+                           'h': 0.6712 + 0.067,
                            # parameters
                            'reio_parametrization': 'reio_camb',
                            'output': 'mPk',#'dTk vTk lCl tCl pCl mPk',
@@ -487,12 +483,12 @@ class CosmoParams(Parameters):
                            }
       self.paramsClassyLow = {
                            # Cosmological parameters
-                           'Omega_cdm': 0.26 - 0.0066,
-                           'Omega_b': 0.049 - 0.0018,
-                           'A_s': 2.105e-9 - 1.e-10,
-                           'n_s': 0.9665 - 0.01,
-                           'tau_reio': 0.0561 - 0.02,
-                           'h': 0.6766 - 0.067,
+                           'Omega_cdm': 0.267 - 0.0066,
+                           'Omega_b': 0.0493 - 0.0018,
+                           'A_s': 2.3e-9 - 1.e-10,
+                           'n_s': 0.9624 - 0.01,
+                           'tau_reio': 0.06 - 0.02,
+                           'h': 0.6712 - 0.067,
                            # parameters
                            'reio_parametrization': 'reio_camb',
                            'output': 'mPk',#'dTk vTk lCl tCl pCl mPk',
