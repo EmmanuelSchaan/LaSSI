@@ -139,7 +139,6 @@ class FisherLsst(object):
       #
       self.noNullMask = self.generateNoNullMask()
       self.gsOnlyMask = self.generateGSOnlyMask()
-#      self.gsOnlyNoNullMask = self.generateGSOnlyNoNullMask()
       self.gOnlyMask = self.generateGOnlyMask()
       self.sOnlyMask = self.generateSOnlyMask()
       tStop = time()
@@ -159,9 +158,7 @@ class FisherLsst(object):
 
       print "Covariance matrix",
       tStart = time()
-      self.covMat = self.generateCov(self.p_kk, self.p_kg, self.p_ks, self.p_gg, self.p_gs, self.p_ss, self.p_kk_shot, self.p_gg_shot, self.p_ss_shot)
-      self.invCov = np.linalg.inv(self.covMat)
-#      self.invCov = invertMatrixSvdTruncated(self.covMat, epsilon=1.e-8, keepLow=True)
+      self.covMat, self.invCov = self.generateCov(self.p_kk, self.p_kg, self.p_ks, self.p_gg, self.p_gs, self.p_ss, self.p_kk_shot, self.p_gg_shot, self.p_ss_shot, save=self.save)
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
       
@@ -189,6 +186,7 @@ class FisherLsst(object):
       where chi is the mean comoving distance to the bin,
       and kMax=0.3 h/Mpc,
       as in the DESC SRD 2018.
+      mask is 1 for modes to mask out, 0 otherwise.
       Should be called after the tomo bins have been generated.
       '''
       lMaxMask = np.zeros(self.nData)
@@ -264,31 +262,6 @@ class FisherLsst(object):
       gsOnlyMask[:(self.nKK+self.nKG+self.nKS)*self.nL] = 1
       return gsOnlyMask
 
-
-#   def generateGSOnlyNoNullMask(self):
-#      '''Creates a mask to discard KK, KG, KS,
-#      as well as the spectra that would be null
-#      if photo-z were perfect.
-#      I.e. discard gg crosses, and gs where z_g>z_s.
-#      '''
-#      gsOnlyNoNullMask = np.zeros(self.nData)
-#      iData = 0
-#      # kk, kg, ks
-#      gsOnlyNoNullMask[:(self.nKK+self.nKG+self.nKS)*self.nL] = 1
-#      iData += self.nKK + self.nKG + self.nKS
-#      # gg
-#      for iBin1 in range(self.nBins):
-#         for iBin2 in range(iBin1, self.nBins):
-#            if (iBin2<>iBin1):
-#               gsOnlyNoNullMask[iData*self.nL:(iData+1)*self.nL] = 1
-#            iData += 1
-#      # gs
-#      for iBin1 in range(self.nBins):
-#         for iBin2 in range(self.nBins):
-#            if (iBin2<iBin1):
-#               gsOnlyNoNullMask[iData*self.nL:(iData+1)*self.nL] = 1
-#            iData += 1
-#      return gsOnlyNoNullMask
 
 
    def generateKOnlyMask(self):
@@ -1120,346 +1093,374 @@ class FisherLsst(object):
 
    ##################################################################################
 
-   def generateCov(self, p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_kk_shot, p_gg_shot, p_ss_shot):
+   def generateCov(self, p_kk, p_kg, p_ks, p_gg, p_gs, p_ss, p_kk_shot, p_gg_shot, p_ss_shot, save=True):
       covMat = np.zeros((self.nData, self.nData))
       # below, i1 and i2 define the row and column of the nL*nL blocks for each pair of 2-point function
       # i1, i2 \in [0, n2pt]
    
-      # include the shot noises
-      p_kk += p_kk_shot
-      for iBin in range(self.nBins):
-         p_gg[iBin, iBin] += p_gg_shot[iBin, iBin]
-         p_ss[iBin, iBin] += p_ss_shot[iBin, iBin]
-      # generic Gaussian cov
-      cov = lambda Pac, Pbd, Pad, Pbc, Npairs: np.diagflat((Pac * Pbd + Pad * Pbc) / Npairs)
-      
-      # "kk-kk"
-      i1 = 0
-      i2 = 0
-      covBlock = cov(p_kk, p_kk, p_kk, p_kk, self.Nmodes)
-      covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
-      
-      # "kk-kg"
-      i1 = 0
-      i2 = self.nKK
-      # considering kg[i1]
-      for iBin1 in range(self.nBins):
-         covBlock = cov(p_kk, p_kg[iBin1], p_kg[iBin1], p_kk, self.Nmodes)
-         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
-         # move to next column
-         i2 += 1
-      
-      # "kk-ks"
-      i1 = 0
-      i2 = self.nKK + self.nKG
-      # considering ks[i1]
-      for iBin1 in range(self.nBins):
-         covBlock = cov(p_kk, p_ks[iBin1], p_ks[iBin1], p_kk, self.Nmodes)
-         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
-         # move to next column
-         i2 += 1
+      if not save:
+         path = './output/cov/'+self.name+'_cov.txt'
+         covMat = np.genfromtxt(path)
+         path = './output/cov/'+self.name+'_invcov.txt'
+         invCov = np.genfromtxt(path)
 
-      # "kk-gg"
-      i1 = 0
-      i2 = self.nKK + self.nKG + self.nKS
-      # considering gg[i1, j1]
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(iBin1, self.nBins):
-            covBlock = cov(p_kg[iBin1], p_kg[iBin2], p_kg[iBin2], p_kg[iBin1], self.Nmodes)
+      else:
+         # include the shot noises
+         p_kk += p_kk_shot
+         for iBin in range(self.nBins):
+            p_gg[iBin, iBin] += p_gg_shot[iBin, iBin]
+            p_ss[iBin, iBin] += p_ss_shot[iBin, iBin]
+         # generic Gaussian cov
+         cov = lambda Pac, Pbd, Pad, Pbc, Npairs: np.diagflat((Pac * Pbd + Pad * Pbc) / Npairs)
+         
+         # "kk-kk"
+         i1 = 0
+         i2 = 0
+         covBlock = cov(p_kk, p_kk, p_kk, p_kk, self.Nmodes)
+         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
+         
+         # "kk-kg"
+         i1 = 0
+         i2 = self.nKK
+         # considering kg[i1]
+         for iBin1 in range(self.nBins):
+            covBlock = cov(p_kk, p_kg[iBin1], p_kg[iBin1], p_kk, self.Nmodes)
             covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
             # move to next column
             i2 += 1
-
-      # "kk-gs"
-      i1 = 0
-      i2 = self.nKK + self.nKG + self.nKS + self.nGG
-      # considering gs[i1, j1]
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(self.nBins):
-            covBlock = cov(p_kg[iBin1], p_ks[iBin2], p_ks[iBin2], p_kg[iBin1], self.Nmodes)
+         
+         # "kk-ks"
+         i1 = 0
+         i2 = self.nKK + self.nKG
+         # considering ks[i1]
+         for iBin1 in range(self.nBins):
+            covBlock = cov(p_kk, p_ks[iBin1], p_ks[iBin1], p_kk, self.Nmodes)
             covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
             # move to next column
             i2 += 1
 
-      # "kk-ss"
-      i1 = 0
-      i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
-      # considering ss[i1, j1]
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(iBin1, self.nBins):
-            covBlock = cov(p_ks[iBin1], p_ks[iBin2], p_ks[iBin2], p_ks[iBin1], self.Nmodes)
-            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
-            # move to next column
-            i2 += 1
-
-      # "kg-kg"
-      i1 = self.nKK
-      # considering kg[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK
-         # considering kg[j1]
-         for jBin1 in range(self.nBins):
-            # compute only upper diagonal
-            if i2>=i1:
-               covBlock = cov(p_kk, p_gg[iBin1, jBin1], p_kg[jBin1], p_kg[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
-            # move to next column
-            i2 += 1
-         # move to next row
-         i1 += 1
-      
-      # "kg-ks"
-      i1 = self.nKK
-      # considering kg[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG
-         # considering ks[j1]
-         for jBin1 in range(self.nBins):
-            # compute only upper diagonal
-            if i2>=i1:
-               covBlock = cov(p_kk, p_gs[iBin1, jBin1], p_ks[jBin1], p_kg[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
-            # move to next column
-            i2 += 1
-         # move to next row
-         i1 += 1
-
-      # "kg-gg"
-      i1 = self.nKK
-      # considering kg[i1]
-      for iBin1 in range(self.nBins):
+         # "kk-gg"
+         i1 = 0
          i2 = self.nKK + self.nKG + self.nKS
-         # considering gg[j1, j2]
-         for jBin1 in range(self.nBins):
-            for jBin2 in range(jBin1, self.nBins):
+         # considering gg[i1, j1]
+         for iBin1 in range(self.nBins):
+            for iBin2 in range(iBin1, self.nBins):
+               covBlock = cov(p_kg[iBin1], p_kg[iBin2], p_kg[iBin2], p_kg[iBin1], self.Nmodes)
+               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
+               # move to next column
+               i2 += 1
+
+         # "kk-gs"
+         i1 = 0
+         i2 = self.nKK + self.nKG + self.nKS + self.nGG
+         # considering gs[i1, j1]
+         for iBin1 in range(self.nBins):
+            for iBin2 in range(self.nBins):
+               covBlock = cov(p_kg[iBin1], p_ks[iBin2], p_ks[iBin2], p_kg[iBin1], self.Nmodes)
+               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
+               # move to next column
+               i2 += 1
+
+         # "kk-ss"
+         i1 = 0
+         i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+         # considering ss[i1, j1]
+         for iBin1 in range(self.nBins):
+            for iBin2 in range(iBin1, self.nBins):
+               covBlock = cov(p_ks[iBin1], p_ks[iBin2], p_ks[iBin2], p_ks[iBin1], self.Nmodes)
+               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
+               # move to next column
+               i2 += 1
+
+         # "kg-kg"
+         i1 = self.nKK
+         # considering kg[i1]
+         for iBin1 in range(self.nBins):
+            i2 = self.nKK
+            # considering kg[j1]
+            for jBin1 in range(self.nBins):
                # compute only upper diagonal
                if i2>=i1:
-                  covBlock = cov(p_kg[jBin1], p_gg[iBin1, jBin2], p_kg[jBin2], p_gg[iBin1, jBin1], self.Nmodes)
+                  covBlock = cov(p_kk, p_gg[iBin1, jBin1], p_kg[jBin1], p_kg[iBin1], self.Nmodes)
                   covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
-         # move to next row
-         i1 += 1
-
-      # "kg-gs"
-      i1 = self.nKK
-      # considering kg[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.nKS + self.nGG
-         # considering gs[j1, j2]
-         for jBin1 in range(self.nBins):
-            for jBin2 in range(self.nBins):
+            # move to next row
+            i1 += 1
+         
+         # "kg-ks"
+         i1 = self.nKK
+         # considering kg[i1]
+         for iBin1 in range(self.nBins):
+            i2 = self.nKK + self.nKG
+            # considering ks[j1]
+            for jBin1 in range(self.nBins):
                # compute only upper diagonal
                if i2>=i1:
-                  covBlock = cov(p_kg[jBin1], p_gs[iBin1, jBin2], p_ks[jBin2], p_gg[iBin1, jBin1], self.Nmodes)
+                  covBlock = cov(p_kk, p_gs[iBin1, jBin1], p_ks[jBin1], p_kg[iBin1], self.Nmodes)
                   covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
-         # move to next row
-         i1 += 1
+            # move to next row
+            i1 += 1
 
-      # "kg-ss"
-      # considering kg[i1]
-      i1 = self.nKK
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
-         # considering ss[j1, j2]
-         for jBin1 in range(self.nBins):
-            for jBin2 in range(jBin1, self.nBins):
-               # compute only upper diagonal
-               if i2>=i1:
-                  covBlock = cov(p_ks[jBin1], p_gs[iBin1, jBin2], p_ks[jBin2], p_gs[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
-               # move to next column
-               i2 += 1
-         # move to next row
-         i1 += 1
-
-      # "ks-ks"
-      i1 = self.nKK + self.nKG
-      # considering ks[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG
-         # considering ks[j1]
-         for jBin1 in range(self.nBins):
-            # compute only upper diagonal
-            if i2>=i1:
-               covBlock = cov(p_kk, p_ss[iBin1, jBin1], p_ks[jBin1], p_ks[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
-            # move to next column
-            i2 += 1
-         # move to next row
-         i1 += 1
-
-      # "ks-gg"
-      i1 = self.nKK + self.nKG
-      # considering ks[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.nKS
-         # considering gg[j1, j2]
-         for jBin1 in range(self.nBins):
-            for jBin2 in range(jBin1, self.nBins):
-               # compute only upper diagonal
-               if i2>=i1:
-                  # watch the order for gs
-                  covBlock = cov(p_kg[jBin1], p_gs[jBin2, iBin1], p_kg[jBin2], p_gs[jBin1, iBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
-               # move to next column
-               i2 += 1
-         # move to next row
-         i1 += 1
-
-      # "ks-gs"
-      i1 = self.nKK + self.nKG
-      # considering ks[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.nKS + self.nGG
-         # considering gs[j1, j2]
-         for jBin1 in range(self.nBins):
-            for jBin2 in range(self.nBins):
-               # compute only upper diagonal
-               if i2>=i1:
-                  # watch the order for gs
-                  covBlock = cov(p_kg[jBin1], p_ss[iBin1, jBin2], p_ks[jBin2], p_gs[jBin1, iBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
-               # move to next column
-               i2 += 1
-         # move to next row
-         i1 += 1
-
-      # "ks-ss"
-      i1 = self.nKK + self.nKG
-      # considering ks[i1]
-      for iBin1 in range(self.nBins):
-         i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
-         # considering ss[j1, j2]
-         for jBin1 in range(self.nBins):
-            for jBin2 in range(jBin1, self.nBins):
-               # compute only upper diagonal
-               if i2>=i1:
-                  covBlock = cov(p_ks[jBin1], p_ss[iBin1, jBin2], p_ks[jBin2], p_ss[iBin1, jBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock
-               # move to next column
-               i2 += 1
-         # move to next row
-         i1 += 1
-      
-      #print "gg-gg"
-      # considering gg[i1,i2]
-      i1 = self.nKK + self.nKG + self.nKS
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(iBin1, self.nBins):
-            # considering gg[j1,j2]
+         # "kg-gg"
+         i1 = self.nKK
+         # considering kg[i1]
+         for iBin1 in range(self.nBins):
             i2 = self.nKK + self.nKG + self.nKS
+            # considering gg[j1, j2]
             for jBin1 in range(self.nBins):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = cov(p_gg[iBin1,jBin1], p_gg[iBin2,jBin2], p_gg[iBin1,jBin2], p_gg[iBin2,jBin1], self.Nmodes)
+                     covBlock = cov(p_kg[jBin1], p_gg[iBin1, jBin2], p_kg[jBin2], p_gg[iBin1, jBin1], self.Nmodes)
                      covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
             i1 += 1
 
-      #print "gg-gs"
-      # considering gg[i1,i2]
-      i1 = self.nKK + self.nKG + self.nKS
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(iBin1, self.nBins):
-            # considering gs[j1,j2]
+         # "kg-gs"
+         i1 = self.nKK
+         # considering kg[i1]
+         for iBin1 in range(self.nBins):
             i2 = self.nKK + self.nKG + self.nKS + self.nGG
+            # considering gs[j1, j2]
             for jBin1 in range(self.nBins):
                for jBin2 in range(self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = cov(p_gg[iBin1,jBin1], p_gs[iBin2,jBin2], p_gs[iBin1,jBin2], p_gg[iBin2,jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) *  covBlock
+                     covBlock = cov(p_kg[jBin1], p_gs[iBin1, jBin2], p_ks[jBin2], p_gg[iBin1, jBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
             i1 += 1
 
-      #print "gg-ss"
-      # considering gg[i1,i2]
-      i1 = self.nKK + self.nKG + self.nKS
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(iBin1, self.nBins):
-            # considering ss[j1,j2]
+         # "kg-ss"
+         # considering kg[i1]
+         i1 = self.nKK
+         for iBin1 in range(self.nBins):
             i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+            # considering ss[j1, j2]
             for jBin1 in range(self.nBins):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = cov(p_gs[iBin1,jBin1], p_gs[iBin2,jBin2], p_gs[iBin1,jBin2], p_gs[iBin2,jBin1], self.Nmodes)
+                     covBlock = cov(p_ks[jBin1], p_gs[iBin1, jBin2], p_ks[jBin2], p_gs[iBin1, jBin1], self.Nmodes)
                      covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
             i1 += 1
 
-      #print "gs-gs"
-      # considering gs[i1,i2]
-      i1 = self.nKK + self.nKG + self.nKS + self.nGG
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(self.nBins):
-            # considering gs[j1,j2]
+         # "ks-ks"
+         i1 = self.nKK + self.nKG
+         # considering ks[i1]
+         for iBin1 in range(self.nBins):
+            i2 = self.nKK + self.nKG
+            # considering ks[j1]
+            for jBin1 in range(self.nBins):
+               # compute only upper diagonal
+               if i2>=i1:
+                  covBlock = cov(p_kk, p_ss[iBin1, jBin1], p_ks[jBin1], p_ks[iBin1], self.Nmodes)
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
+               # move to next column
+               i2 += 1
+            # move to next row
+            i1 += 1
+
+         # "ks-gg"
+         i1 = self.nKK + self.nKG
+         # considering ks[i1]
+         for iBin1 in range(self.nBins):
+            i2 = self.nKK + self.nKG + self.nKS
+            # considering gg[j1, j2]
+            for jBin1 in range(self.nBins):
+               for jBin2 in range(jBin1, self.nBins):
+                  # compute only upper diagonal
+                  if i2>=i1:
+                     # watch the order for gs
+                     covBlock = cov(p_kg[jBin1], p_gs[jBin2, iBin1], p_kg[jBin2], p_gs[jBin1, iBin1], self.Nmodes)
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
+                  # move to next column
+                  i2 += 1
+            # move to next row
+            i1 += 1
+
+         # "ks-gs"
+         i1 = self.nKK + self.nKG
+         # considering ks[i1]
+         for iBin1 in range(self.nBins):
             i2 = self.nKK + self.nKG + self.nKS + self.nGG
+            # considering gs[j1, j2]
             for jBin1 in range(self.nBins):
                for jBin2 in range(self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
                      # watch the order for gs
-                     covBlock = cov(p_gg[iBin1,jBin1], p_ss[iBin2,jBin2], p_gs[iBin1,jBin2], p_gs[jBin1,iBin2], self.Nmodes)
+                     covBlock = cov(p_kg[jBin1], p_ss[iBin1, jBin2], p_ks[jBin2], p_gs[jBin1, iBin1], self.Nmodes)
                      covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
             i1 += 1
 
-      #print "gs-ss"
-      # considering gs[i1,i2]
-      i1 = self.nKK + self.nKG + self.nKS + self.nGG
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(self.nBins):
-            # considering ss[j1,j2]
+         # "ks-ss"
+         i1 = self.nKK + self.nKG
+         # considering ks[i1]
+         for iBin1 in range(self.nBins):
             i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+            # considering ss[j1, j2]
             for jBin1 in range(self.nBins):
                for jBin2 in range(jBin1, self.nBins):
                   # compute only upper diagonal
                   if i2>=i1:
-                     covBlock = cov(p_gs[iBin1,jBin1], p_ss[iBin2,jBin2], p_gs[iBin1,jBin2], p_ss[iBin2,jBin1], self.Nmodes)
+                     covBlock = cov(p_ks[jBin1], p_ss[iBin1, jBin2], p_ks[jBin2], p_ss[iBin1, jBin1], self.Nmodes)
                      covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
             i1 += 1
+         
+         #print "gg-gg"
+         # considering gg[i1,i2]
+         i1 = self.nKK + self.nKG + self.nKS
+         for iBin1 in range(self.nBins):
+            for iBin2 in range(iBin1, self.nBins):
+               # considering gg[j1,j2]
+               i2 = self.nKK + self.nKG + self.nKS
+               for jBin1 in range(self.nBins):
+                  for jBin2 in range(jBin1, self.nBins):
+                     # compute only upper diagonal
+                     if i2>=i1:
+                        covBlock = cov(p_gg[iBin1,jBin1], p_gg[iBin2,jBin2], p_gg[iBin1,jBin2], p_gg[iBin2,jBin1], self.Nmodes)
+                        covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
+                     # move to next column
+                     i2 += 1
+               # move to next row
+               i1 += 1
 
-      #print "ss-ss"
-      # considering ss[i1,i2]
-      i1 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
-      for iBin1 in range(self.nBins):
-         for iBin2 in range(iBin1, self.nBins):
-            # considering ss[j1,j2]
-            i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
-            for jBin1 in range(self.nBins):
-               for jBin2 in range(jBin1, self.nBins):
-                  # compute only upper diagonal
-                  if i2>=i1:
-                     covBlock = cov(p_ss[iBin1,jBin1], p_ss[iBin2,jBin2], p_ss[iBin1,jBin2], p_ss[iBin2,jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**4 * self.L**(2*self.alpha) * covBlock
-                  # move to next column
-                  i2 += 1
-            # move to next row
-            i1 += 1
+         #print "gg-gs"
+         # considering gg[i1,i2]
+         i1 = self.nKK + self.nKG + self.nKS
+         for iBin1 in range(self.nBins):
+            for iBin2 in range(iBin1, self.nBins):
+               # considering gs[j1,j2]
+               i2 = self.nKK + self.nKG + self.nKS + self.nGG
+               for jBin1 in range(self.nBins):
+                  for jBin2 in range(self.nBins):
+                     # compute only upper diagonal
+                     if i2>=i1:
+                        covBlock = cov(p_gg[iBin1,jBin1], p_gs[iBin2,jBin2], p_gs[iBin1,jBin2], p_gg[iBin2,jBin1], self.Nmodes)
+                        covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) *  covBlock
+                     # move to next column
+                     i2 += 1
+               # move to next row
+               i1 += 1
 
-      # fill lower diagonal by symmetry
-      # here i1 and i2 don't index the matrix blocks, but the matrix elements
-      for i1 in range(self.nData):
-         for i2 in range(i1):
-            covMat[i1, i2] = covMat[i2, i1]
+         #print "gg-ss"
+         # considering gg[i1,i2]
+         i1 = self.nKK + self.nKG + self.nKS
+         for iBin1 in range(self.nBins):
+            for iBin2 in range(iBin1, self.nBins):
+               # considering ss[j1,j2]
+               i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+               for jBin1 in range(self.nBins):
+                  for jBin2 in range(jBin1, self.nBins):
+                     # compute only upper diagonal
+                     if i2>=i1:
+                        covBlock = cov(p_gs[iBin1,jBin1], p_gs[iBin2,jBin2], p_gs[iBin1,jBin2], p_gs[iBin2,jBin1], self.Nmodes)
+                        covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
+                     # move to next column
+                     i2 += 1
+               # move to next row
+               i1 += 1
 
-      return covMat
+         #print "gs-gs"
+         # considering gs[i1,i2]
+         i1 = self.nKK + self.nKG + self.nKS + self.nGG
+         for iBin1 in range(self.nBins):
+            for iBin2 in range(self.nBins):
+               # considering gs[j1,j2]
+               i2 = self.nKK + self.nKG + self.nKS + self.nGG
+               for jBin1 in range(self.nBins):
+                  for jBin2 in range(self.nBins):
+                     # compute only upper diagonal
+                     if i2>=i1:
+                        # watch the order for gs
+                        covBlock = cov(p_gg[iBin1,jBin1], p_ss[iBin2,jBin2], p_gs[iBin1,jBin2], p_gs[jBin1,iBin2], self.Nmodes)
+                        covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
+                     # move to next column
+                     i2 += 1
+               # move to next row
+               i1 += 1
+
+         #print "gs-ss"
+         # considering gs[i1,i2]
+         i1 = self.nKK + self.nKG + self.nKS + self.nGG
+         for iBin1 in range(self.nBins):
+            for iBin2 in range(self.nBins):
+               # considering ss[j1,j2]
+               i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+               for jBin1 in range(self.nBins):
+                  for jBin2 in range(jBin1, self.nBins):
+                     # compute only upper diagonal
+                     if i2>=i1:
+                        covBlock = cov(p_gs[iBin1,jBin1], p_ss[iBin2,jBin2], p_gs[iBin1,jBin2], p_ss[iBin2,jBin1], self.Nmodes)
+                        covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock
+                     # move to next column
+                     i2 += 1
+               # move to next row
+               i1 += 1
+
+         #print "ss-ss"
+         # considering ss[i1,i2]
+         i1 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+         for iBin1 in range(self.nBins):
+            for iBin2 in range(iBin1, self.nBins):
+               # considering ss[j1,j2]
+               i2 = self.nKK + self.nKG + self.nKS + self.nGG + self.nGS
+               for jBin1 in range(self.nBins):
+                  for jBin2 in range(jBin1, self.nBins):
+                     # compute only upper diagonal
+                     if i2>=i1:
+                        covBlock = cov(p_ss[iBin1,jBin1], p_ss[iBin2,jBin2], p_ss[iBin1,jBin2], p_ss[iBin2,jBin1], self.Nmodes)
+                        covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**4 * self.L**(2*self.alpha) * covBlock
+                     # move to next column
+                     i2 += 1
+               # move to next row
+               i1 += 1
+
+         # fill lower diagonal by symmetry
+         # here i1 and i2 don't index the matrix blocks, but the matrix elements
+         for i1 in range(self.nData):
+            for i2 in range(i1):
+               covMat[i1, i2] = covMat[i2, i1]
+
+
+         # save the cov matrix
+         path = './output/cov/'+self.name+'_cov.txt'
+         print "Save cov mat to:", path
+         np.savetxt(path, covMat)
+
+         # save the inverse cov matrix
+#         invCov = invertMatrixSvdTruncated(covMat, epsilon=1.e-8, keepLow=True)
+         invCov = np.linalg.inv(covMat)
+         path = './output/cov/'+self.name+'_invcov.txt'
+         np.savetxt(path, invCov)
+
+
+      return covMat, invCov
+
+
+
+
+
+
+
+
 
 
 
@@ -2352,19 +2353,35 @@ class FisherLsst(object):
       if mask is None:
          mask=self.lMaxMask
       print "Cov matrix"
+      tStart = time()
       cov = extractMaskedMat(self.covMat, mask=mask)
-      print "inverse condition number:", 1./np.linalg.cond(cov)
-      print "number numerical precision:", np.finfo(cov.dtype).eps
-      if 1./np.linalg.cond(self.covMat) > np.finfo(cov.dtype).eps:
+      tStop = time()
+      print "extracting cov mat took", tStop-tStart, "sec"
+      tStart = time()
+      condNumber = np.linalg.cond(cov)
+      tStop = time()
+      print "computing condition number took", tStop-tStart, "sec"
+      numPrecision =  np.finfo(cov.dtype).eps
+      print "inverse condition number:", 1. / condNumber
+      print "float numerical precision:", numPrecision
+      if 1. / condNumber > numPrecision:
          print "--> OK"
       else:
          print "--> Not OK"
-      #
+
       print "Fisher matrix"
+      tStart = time()
       fisherData, fisherPosterior = self.generateFisher(mask=mask)
-      print "inverse condition number:", 1./np.linalg.cond(fisherPosterior)
-      print "number numerical precision:", np.finfo(fisherPosterior.dtype).eps
-      if 1./np.linalg.cond(fisherPosterior) > np.finfo(fisherPosterior.dtype).eps:
+      tStop = time()
+      print "generating Fisher matrix took", tStop-tStart, "sec"
+      tStart = time()
+      condNumber = np.linalg.cond(fisherPosterior)
+      tStop = time()
+      print "computing condition number took", tStop-tStart, "sec"
+      numPrecision =  np.finfo(fisherPosterior.dtype).eps
+      print "inverse condition number:", 1. / condNumber
+      print "number numerical precision:", numPrecision
+      if 1. / condNumber > numPrecision:
          print "--> OK"
       else:
          print "--> Not OK"
@@ -2521,35 +2538,6 @@ class FisherLsst(object):
          fig.clf()
       else:
          plt.show()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -3843,7 +3831,7 @@ class FisherLsst(object):
       fisherData, fisherPosterior = self.generateFisher(mask=mask)
       
       # values of photo-z priors to try
-      nPhotoz = 101
+      nPhotoz = 31
       Photoz = np.logspace(np.log10(1.e-5), np.log10(1.), nPhotoz, 10.)
       
       # Posterior uncertainties on all parameters
@@ -3867,8 +3855,12 @@ class FisherLsst(object):
       
       for iPhotoz in range(nPhotoz):
          photoz = Photoz[iPhotoz]
-         # update the photo-z priors
-         newPhotoZPar = PhotoZParams(nBins=self.nBins, dzFid=0., szFid=0.05, dzStd=photoz, szStd=photoz*1.5)
+         # update the photo-z Gaussian priors only,
+         # whether or not outliers are included
+         if self.photoZPar.outliers==0.:
+            newPhotoZPar = PhotoZParams(nBins=self.nBins, dzFid=0., szFid=0.05, dzStd=photoz, szStd=photoz*1.5)
+         else:
+            newPhotoZPar = PhotoZParams(nBins=self.nBins, dzFid=0., szFid=0.05, dzStd=photoz, szStd=photoz*1.5, outliers=0.1, outliersStd=0.05)
          # update the full parameter object
          newPar = self.cosmoPar.copy()
          newPar.addParams(self.galaxyBiasPar)
@@ -3887,7 +3879,7 @@ class FisherLsst(object):
          I = self.cosmoPar.IFull + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_full_photozprior_"+floatExpForm(photoz)+"_"+name+".txt")
+            par.printParams(path=self.figurePath+"/posterior_full_gphotozprior_"+floatExpForm(photoz)+"_"+name+".txt")
          # cosmology
          parCosmoFull = par.extractParams(range(len(self.cosmoPar.IFull)), marg=True)
          sCosmoFull[:, iPhotoz] = parCosmoFull.paramUncertainties(marg=True)
@@ -3900,7 +3892,7 @@ class FisherLsst(object):
          I = self.cosmoPar.ILCDMMnu + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_ldcmmnu_photozprior_"+floatExpForm(photoz)+"_"+name+".txt")
+            par.printParams(path=self.figurePath+"/posterior_ldcmmnu_gphotozprior_"+floatExpForm(photoz)+"_"+name+".txt")
          # cosmology
          parCosmoLCDMMnu = par.extractParams(range(len(self.cosmoPar.ILCDMMnu)), marg=True)
          sCosmoLCDMMnu[:, iPhotoz] = parCosmoLCDMMnu.paramUncertainties(marg=True)
@@ -3913,7 +3905,7 @@ class FisherLsst(object):
          I = self.cosmoPar.ILCDMMnuW0Wa + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_lcdmmnuw0wa_photozprior_"+floatExpForm(photoz)+"_"+name+".txt")
+            par.printParams(path=self.figurePath+"/posterior_lcdmmnuw0wa_gphotozprior_"+floatExpForm(photoz)+"_"+name+".txt")
          # cosmology
          parCosmoLCDMMnuW0Wa = par.extractParams(range(len(self.cosmoPar.ILCDMMnuW0Wa)), marg=True)
          sCosmoLCDMMnuW0Wa[:, iPhotoz] = parCosmoLCDMMnuW0Wa.paramUncertainties(marg=True)
@@ -3926,7 +3918,7 @@ class FisherLsst(object):
          I = self.cosmoPar.ILCDMMnuCurv + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_lcdmmnucurv_photozprior_"+floatExpForm(photoz)+"_"+name+".txt")
+            par.printParams(path=self.figurePath+"/posterior_lcdmmnucurv_gphotozprior_"+floatExpForm(photoz)+"_"+name+".txt")
          # cosmology
          parCosmoLCDMMnuCurv = par.extractParams(range(len(self.cosmoPar.ILCDMMnuCurv)), marg=True)
          sCosmoLCDMMnuCurv[:, iPhotoz] = parCosmoLCDMMnuCurv.paramUncertainties(marg=True)
@@ -3939,7 +3931,7 @@ class FisherLsst(object):
          I = self.cosmoPar.ILCDMW0Wa + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_lcdmw0wa_photozprior_"+floatExpForm(photoz)+"_"+name+".txt")
+            par.printParams(path=self.figurePath+"/posterior_lcdmw0wa_gphotozprior_"+floatExpForm(photoz)+"_"+name+".txt")
          # cosmology
          parCosmoLCDMW0Wa = par.extractParams(range(len(self.cosmoPar.ILCDMW0Wa)), marg=True)
          sCosmoLCDMW0Wa[:, iPhotoz] = parCosmoLCDMW0Wa.paramUncertainties(marg=True)
@@ -3952,7 +3944,7 @@ class FisherLsst(object):
          I = self.cosmoPar.ILCDMW0WaCurv + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
          if iPhotoz==0 or iPhotoz==nPhotoz-1:
-            par.printParams(path=self.figurePath+"/posterior_lcdmw0wacurv_photozprior_"+floatExpForm(photoz)+"_"+name+".txt")
+            par.printParams(path=self.figurePath+"/posterior_lcdmw0wacurv_gphotozprior_"+floatExpForm(photoz)+"_"+name+".txt")
          # cosmology
          parCosmoLCDMW0WaCurv = par.extractParams(range(len(self.cosmoPar.ILCDMW0WaCurv)), marg=True)
          sCosmoLCDMW0WaCurv[:, iPhotoz] = parCosmoLCDMW0WaCurv.paramUncertainties(marg=True)
@@ -3981,21 +3973,21 @@ class FisherLsst(object):
          ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect photo-z}$')
          ax.set_xlabel(r'Photo-z prior')
          #
-         fig.savefig(self.figurePath+path)
+         fig.savefig(self.figurePath+path, bbox_inches='tight')
          fig.clf()
 
       # Full: LCDM + Mnu + curv + w0,wa
-      plotDegradation(sCosmoFull, parCosmoFull, "/photozreq_cosmo_deg_full_"+name+".pdf")
+      plotDegradation(sCosmoFull, parCosmoFull, "/gphotozreq_cosmo_deg_full_"+name+".pdf")
       # LCDM + Mnu
-      plotDegradation(sCosmoLCDMMnu, parCosmoLCDMMnu, "/photozreq_cosmo_deg_lcdmmnu_"+name+".pdf")
+      plotDegradation(sCosmoLCDMMnu, parCosmoLCDMMnu, "/gphotozreq_cosmo_deg_lcdmmnu_"+name+".pdf")
       # LCDM + Mnu + w0,wa
-      plotDegradation(sCosmoLCDMMnuW0Wa, parCosmoLCDMMnuW0Wa, "/photozreq_cosmo_deg_lcdmmnuw0wa_"+name+".pdf")
+      plotDegradation(sCosmoLCDMMnuW0Wa, parCosmoLCDMMnuW0Wa, "/gphotozreq_cosmo_deg_lcdmmnuw0wa_"+name+".pdf")
       # LCDM + Mnu + curv
-      plotDegradation(sCosmoLCDMMnuCurv, parCosmoLCDMMnuCurv, "/photozreq_cosmo_deg_lcdmmnucurv_"+name+".pdf")
+      plotDegradation(sCosmoLCDMMnuCurv, parCosmoLCDMMnuCurv, "/gphotozreq_cosmo_deg_lcdmmnucurv_"+name+".pdf")
       # LCDM + w0,wa
-      plotDegradation(sCosmoLCDMW0Wa, parCosmoLCDMW0Wa, "/photozreq_cosmo_deg_lcdmw0wa_"+name+".pdf")
+      plotDegradation(sCosmoLCDMW0Wa, parCosmoLCDMW0Wa, "/gphotozreq_cosmo_deg_lcdmw0wa_"+name+".pdf")
       # LCDM + w0,wa + curvature
-      plotDegradation(sCosmoLCDMW0WaCurv, parCosmoLCDMW0WaCurv, "/photozreq_cosmo_deg_lcdmw0wacurv_"+name+".pdf")
+      plotDegradation(sCosmoLCDMW0WaCurv, parCosmoLCDMW0WaCurv, "/gphotozreq_cosmo_deg_lcdmw0wacurv_"+name+".pdf")
 
 
       ##################################################################################
@@ -4003,7 +3995,7 @@ class FisherLsst(object):
 
       def relatError(sigma, par):
          """Computes relative uncertainty, except if the fiducial parameter is zero.
-         In that case, return 1/absolute_uncertainty.
+         In that case, return absolute_uncertainty.
          """
          result = np.zeros_like(sigma)
          for iPar in range(par.nPar):
@@ -4033,21 +4025,21 @@ class FisherLsst(object):
          ax.set_ylabel(r'$\sigma_\text{Param} / \text{Param}$')
          ax.set_xlabel(r'Photo-z prior')
          #
-         fig.savefig(self.figurePath+path)
+         fig.savefig(self.figurePath+path, bbox_inches='tight')
          fig.clf()
       
       # Full: LCDM + Mnu + curv + w0,wa
-      plotDegradation(sCosmoFull, parCosmoFull, "/photozreq_cosmo_deg_full_"+name+".pdf")
+      plotRelative(sCosmoFull, parCosmoFull, "/gphotozreq_cosmo_rel_full_"+name+".pdf")
       # LCDM + Mnu
-      plotDegradation(sCosmoLCDMMnu, parCosmoLCDMMnu, "/photozreq_cosmo_deg_lcdmmnu_"+name+".pdf")
+      plotRelative(sCosmoLCDMMnu, parCosmoLCDMMnu, "/gphotozreq_cosmo_rel_lcdmmnu_"+name+".pdf")
       # LCDM + Mnu + w0,wa
-      plotDegradation(sCosmoLCDMMnuW0Wa, parCosmoLCDMMnuW0Wa, "/photozreq_cosmo_deg_lcdmmnuw0wa_"+name+".pdf")
+      plotRelative(sCosmoLCDMMnuW0Wa, parCosmoLCDMMnuW0Wa, "/gphotozreq_cosmo_rel_lcdmmnuw0wa_"+name+".pdf")
       # LCDM + Mnu + curv
-      plotDegradation(sCosmoLCDMMnuCurv, parCosmoLCDMMnuCurv, "/photozreq_cosmo_deg_lcdmmnucurv_"+name+".pdf")
+      plotRelative(sCosmoLCDMMnuCurv, parCosmoLCDMMnuCurv, "/gphotozreq_cosmo_rel_lcdmmnucurv_"+name+".pdf")
       # LCDM + w0,wa
-      plotDegradation(sCosmoLCDMW0Wa, parCosmoLCDMW0Wa, "/photozreq_cosmo_deg_lcdmw0wa_"+name+".pdf")
+      plotRelative(sCosmoLCDMW0Wa, parCosmoLCDMW0Wa, "/gphotozreq_cosmo_rel_lcdmw0wa_"+name+".pdf")
       # LCDM + w0,wa + curvature
-      plotDegradation(sCosmoLCDMW0WaCurv, parCosmoLCDMW0WaCurv, "/photozreq_cosmo_deg_lcdmw0wacurv_"+name+".pdf")
+      plotRelative(sCosmoLCDMW0WaCurv, parCosmoLCDMW0WaCurv, "/gphotozreq_cosmo_rel_lcdmw0wacurv_"+name+".pdf")
 
 
       ##################################################################################
@@ -4068,7 +4060,7 @@ class FisherLsst(object):
       ax.set_ylabel(r'$\sigma_\text{Param}^\text{Full} / \sigma_\text{Param}^\text{no curv.}$')
       ax.set_xlabel(r'Photo-z prior')
       #
-      fig.savefig(self.figurePath+"/photozreq_cosmo_full_over_lcdmmnuw0wa_"+name+".pdf")
+      fig.savefig(self.figurePath+"/gphotozreq_cosmo_full_over_lcdmmnuw0wa_"+name+".pdf", bbox_inches='tight')
       fig.clf()
 
       
@@ -4112,57 +4104,21 @@ class FisherLsst(object):
          ax.set_ylabel(r'$\sigma_\text{Param}$')
          ax.set_xlabel(r'Photo-z prior')
          #
-         fig.savefig(self.figurePath+path)
+         fig.savefig(self.figurePath+path, bbox_inches='tight')
          fig.clf()
 
       # Full: LCDM + Mnu + curv + w0,wa
-      plotPhotoZPosterior(sPhotozFull, parPhotozFull, "/photozreq_photoz_full_"+name+".pdf")
+      plotPhotoZPosterior(sPhotozFull, parPhotozFull, "/gphotozreq_photoz_full_"+name+".pdf")
       # LCDM + Mnu
-      plotPhotoZPosterior(sPhotozLCDMMnu, parPhotozLCDMMnu, "/photozreq_photoz_lcdmmnu_"+name+".pdf")
+      plotPhotoZPosterior(sPhotozLCDMMnu, parPhotozLCDMMnu, "/gphotozreq_photoz_lcdmmnu_"+name+".pdf")
       # LCDM + Mnu + w0,wa
-      plotPhotoZPosterior(sPhotozLCDMMnuW0Wa, parPhotozLCDMMnuW0Wa, "/photozreq_photoz_lcdmmnuw0wa_"+name+".pdf")
+      plotPhotoZPosterior(sPhotozLCDMMnuW0Wa, parPhotozLCDMMnuW0Wa, "/gphotozreq_photoz_lcdmmnuw0wa_"+name+".pdf")
       # LCDM + Mnu + curv
-      plotPhotoZPosterior(sPhotozLCDMMnuCurv, parPhotozLCDMMnuCurv, "/photozreq_photoz_lcdmmnucurv_"+name+".pdf")
+      plotPhotoZPosterior(sPhotozLCDMMnuCurv, parPhotozLCDMMnuCurv, "/gphotozreq_photoz_lcdmmnucurv_"+name+".pdf")
       # LCDM + w0,wa
-      plotPhotoZPosterior(sPhotozLCDMW0Wa, parPhotozLCDMW0Wa, "/photozreq_photoz_lcdmw0wa_"+name+".pdf")
+      plotPhotoZPosterior(sPhotozLCDMW0Wa, parPhotozLCDMW0Wa, "/gphotozreq_photoz_lcdmw0wa_"+name+".pdf")
       # LCDM + w0,wa + curvature
-      plotPhotoZPosterior(sPhotozLCDMW0WaCurv, parPhotozLCDMW0WaCurv, "/photozreq_photoz_lcdmw0wacurv_"+name+".pdf")
-
-
-#      # photo-z parameters
-#      fig=plt.figure(10)
-#      ax=fig.add_subplot(111)
-#      #
-#      # fiducial prior
-#      ax.axvline(0.002, color='gray')
-#      #
-#      # photo-z shifts
-#      IPar = self.cosmoPar.nPar+self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar
-#      IPar += np.arange(self.nBins)
-#      # add legend entry
-#      color = 'r'
-#      ax.plot([], [], color=color, label=r'$\delta z$')
-#      for iPar in IPar:
-#         color = 'r'
-#         ax.plot(Photoz, sigmasFull[iPar, :], color=color)#, label=self.fullPar.namesLatex[iPar])
-#      #
-#      # photo-z scatter
-#      IPar = self.cosmoPar.nPar+self.galaxyBiasPar.nPar+self.shearMultBiasPar.nPar + self.nBins
-#      IPar += np.arange(self.nBins)
-#      # add legend entry
-#      color = 'b'
-#      ax.plot([], [], color=color, label=r'$\sigma_z / (1+z)$')
-#      for iPar in IPar:
-#         color = 'b'
-#         ax.plot(Photoz, sigmasFull[iPar, :], color=color)#, label=self.fullPar.namesLatex[iPar])
-#      #
-#      ax.set_xscale('log', nonposx='clip')
-#      ax.set_yscale('log', nonposy='clip')
-#      ax.legend(loc=2)
-#      ax.set_ylabel(r'$\sigma_\text{Param}$')
-#      ax.set_xlabel(r'Photo-z prior')
-#      #
-#      fig.savefig(self.figurePath+"/photozreq_photoz_full.pdf")
+      plotPhotoZPosterior(sPhotozLCDMW0WaCurv, parPhotozLCDMW0WaCurv, "/gphotozreq_photoz_lcdmw0wacurv_"+name+".pdf")
 
 
    ##################################################################################
@@ -4189,7 +4145,7 @@ class FisherLsst(object):
       fisherData, fisherPosterior = self.generateFisher(mask=mask)
       
       # values of photo-z priors to try
-      nPhotoz = 101
+      nPhotoz = 31
       Photoz = np.logspace(np.log10(1.e-5), np.log10(1.), nPhotoz, 10.)
       
       # Posterior uncertainties on all parameters
@@ -4248,7 +4204,8 @@ class FisherLsst(object):
          I = self.cosmoPar.IFull + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
          # for the best/worse photo-z prior, save the forecast to file
-         if iPhotoz==0 or iPhotoz==nPhotoz-1:            par.printParams(path=self.figurePath+"/posterior_full_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:            
+            par.printParams(path=self.figurePath+"/posterior_full_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
          # cosmology
          parCosmoFull = par.extractParams(range(len(self.cosmoPar.IFull)), marg=True)
          sCosmoFull[:, iPhotoz] = parCosmoFull.paramUncertainties(marg=True)
@@ -4260,7 +4217,8 @@ class FisherLsst(object):
          # reject unwanted cosmo params
          I = self.cosmoPar.ILCDMMnu + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
-         if iPhotoz==0 or iPhotoz==nPhotoz-1:            par.printParams(path=self.figurePath+"/posterior_ldcmmnu_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:            
+            par.printParams(path=self.figurePath+"/posterior_ldcmmnu_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
          # cosmology
          parCosmoLCDMMnu = par.extractParams(range(len(self.cosmoPar.ILCDMMnu)), marg=True)
          sCosmoLCDMMnu[:, iPhotoz] = parCosmoLCDMMnu.paramUncertainties(marg=True)
@@ -4272,7 +4230,8 @@ class FisherLsst(object):
          # reject unwanted cosmo params
          I = self.cosmoPar.ILCDMMnuW0Wa + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
-         if iPhotoz==0 or iPhotoz==nPhotoz-1:            par.printParams(path=self.figurePath+"/posterior_lcdmmnuw0wa_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:            
+            par.printParams(path=self.figurePath+"/posterior_lcdmmnuw0wa_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
          # cosmology
          parCosmoLCDMMnuW0Wa = par.extractParams(range(len(self.cosmoPar.ILCDMMnuW0Wa)), marg=True)
          sCosmoLCDMMnuW0Wa[:, iPhotoz] = parCosmoLCDMMnuW0Wa.paramUncertainties(marg=True)
@@ -4284,7 +4243,8 @@ class FisherLsst(object):
          # reject unwanted cosmo params
          I = self.cosmoPar.ILCDMMnuCurv + range(self.cosmoPar.nPar, self.fullPar.nPar)
          par = newPar.extractParams(I, marg=False)
-         if iPhotoz==0 or iPhotoz==nPhotoz-1:            par.printParams(path=self.figurePath+"/posterior_lcdmmnucurv_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
+         if iPhotoz==0 or iPhotoz==nPhotoz-1:            
+            par.printParams(path=self.figurePath+"/posterior_lcdmmnucurv_outlierprior_"+floatExpForm(photoz)+strGphotoz+"_"+name+".txt")
          # cosmology
          parCosmoLCDMMnuCurv = par.extractParams(range(len(self.cosmoPar.ILCDMMnuCurv)), marg=True)
          sCosmoLCDMMnuCurv[:, iPhotoz] = parCosmoLCDMMnuCurv.paramUncertainties(marg=True)
@@ -4336,7 +4296,7 @@ class FisherLsst(object):
          ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect photo-z}$')
          ax.set_xlabel(r'Photo-z prior')
          #
-         fig.savefig(self.figurePath+path)
+         fig.savefig(self.figurePath+path, bbox_inches='tight')
          fig.clf()
 
       # Full: LCDM + Mnu + curv + w0,wa
@@ -4389,17 +4349,17 @@ class FisherLsst(object):
          fig.clf()
       
       # Full: LCDM + Mnu + curv + w0,wa
-      plotDegradation(sCosmoFull, parCosmoFull, "/outlierreq_cosmo_deg_full"+strGphotoz+"_"+name+".pdf")
+      plotRelative(sCosmoFull, parCosmoFull, "/outlierreq_cosmo_rel_full"+strGphotoz+"_"+name+".pdf")
       # LCDM + Mnu
-      plotDegradation(sCosmoLCDMMnu, parCosmoLCDMMnu, "/outlierreq_cosmo_deg_lcdmmnu"+strGphotoz+"_"+name+".pdf")
+      plotRelative(sCosmoLCDMMnu, parCosmoLCDMMnu, "/outlierreq_cosmo_rel_lcdmmnu"+strGphotoz+"_"+name+".pdf")
       # LCDM + Mnu + w0,wa
-      plotDegradation(sCosmoLCDMMnuW0Wa, parCosmoLCDMMnuW0Wa, "/outlierreq_cosmo_deg_lcdmmnuw0wa"+strGphotoz+"_"+name+".pdf")
+      plotRelative(sCosmoLCDMMnuW0Wa, parCosmoLCDMMnuW0Wa, "/outlierreq_cosmo_rel_lcdmmnuw0wa"+strGphotoz+"_"+name+".pdf")
       # LCDM + Mnu + curv
-      plotDegradation(sCosmoLCDMMnuCurv, parCosmoLCDMMnuCurv, "/outlierreq_cosmo_deg_lcdmmnucurv"+strGphotoz+"_"+name+".pdf")
+      plotRelative(sCosmoLCDMMnuCurv, parCosmoLCDMMnuCurv, "/outlierreq_cosmo_rel_lcdmmnucurv"+strGphotoz+"_"+name+".pdf")
       # LCDM + w0,wa
-      plotDegradation(sCosmoLCDMW0Wa, parCosmoLCDMW0Wa, "/outlierreq_cosmo_deg_lcdmw0wa"+strGphotoz+"_"+name+".pdf")
+      plotRelative(sCosmoLCDMW0Wa, parCosmoLCDMW0Wa, "/outlierreq_cosmo_rel_lcdmw0wa"+strGphotoz+"_"+name+".pdf")
       # LCDM + w0,wa + curvature
-      plotDegradation(sCosmoLCDMW0WaCurv, parCosmoLCDMW0WaCurv, "/outlierreq_cosmo_deg_lcdmw0wacurv"+strGphotoz+"_"+name+".pdf")
+      plotRelative(sCosmoLCDMW0WaCurv, parCosmoLCDMW0WaCurv, "/outlierreq_cosmo_rel_lcdmw0wacurv"+strGphotoz+"_"+name+".pdf")
 
 
       ##################################################################################
