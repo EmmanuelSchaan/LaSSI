@@ -189,43 +189,83 @@ class FisherLsst(object):
       mask is 1 for modes to mask out, 0 otherwise.
       Should be called after the tomo bins have been generated.
       '''
+      #tStart = time()
       lMaxMask = np.zeros(self.nData)
       iData = 0
-      
-      # kk
-      iData += self.nKK # ie +=1
-      
+
+      # compute correspponding lMax in each tomo bin
+      Z = np.array([self.w_g[iBin].zMean() for iBin in range(self.nBins)])
+      Chi = self.u.bg.comoving_distance(Z)
+      LMaxBins = (kMaxG * Chi - 0.5)
+
+      # check for kg
+      LMaxCheckKG = np.array([self.L > LMaxBins[iBin] for iBin in range(self.nBins)]).flatten()
+      # check for gg
+      LMaxCheckGG = np.array([self.L > min(LMaxBins[iBin1], LMaxBins[iBin2]) for iBin1 in range(self.nBins) for iBin2 in range(iBin1, self.nBins)]).flatten()
+      # check for gs
+      LMaxCheckGS = np.array([self.L > LMaxBins[iBin1] for iBin1 in range(self.nBins) for iBin2 in range(self.nBins)]).flatten()
+
+      # kk: no masking needed
       # kg
-      for iBin1 in range(self.nBins):
-         z1 = self.w_g[iBin1].zMean()
-         chi1 = self.u.bg.comoving_distance(z1)
-         lMax = kMaxG * chi1 - 0.5
-         lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
-         iData += 1
-         
-      # ks
-      iData += self.nKS
-      
-      # gg
-      for iBin1 in range(self.nBins):
-         z1 = self.w_g[iBin1].zMean()
-         chi1 = self.u.bg.comoving_distance(z1)
-         for iBin2 in range(iBin1, self.nBins):
-            z2 = self.w_g[iBin2].zMean()
-            chi2 = self.u.bg.comoving_distance(z2)
-            chi = min(chi1, chi2)
-            lMax = kMaxG * chi - 0.5
-            lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
-            iData += 1
-      # gs
-      for iBin1 in range(self.nBins):
-         z1 = self.w_g[iBin1].zMean()
-         chi1 = self.u.bg.comoving_distance(z1)
-         for iBin2 in range(self.nBins):
-            lMax = kMaxG * chi1 - 0.5
-            lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
-            iData += 1
+      lMaxMask[self.nKK*self.nL:(self.nKK+self.nKG)*self.nL] = LMaxCheckKG
+      # ks: no masking needed
+      # gg:
+      lMaxMask[(self.nKK+self.nKG+self.nKS)*self.nL:(self.nKK+self.nKG+self.nKS+self.nGG)*self.nL] = LMaxCheckGG
+      # gs:
+      lMaxMask[(self.nKK+self.nKG+self.nKS+self.nGG)*self.nL:(self.nKK+self.nKG+self.nKS+self.nGG+self.nGS)*self.nL] = LMaxCheckGS
+      # ss: no masking needed
+
+      #tStop = time()
+      #print "took", tStop-tStart, "sec"
       return lMaxMask
+
+
+#   def generatelMaxMask(self, kMaxG=0.3):
+#      '''Creates a mask to discard the clustering modes
+#      with ell >= kMax * chi - 0.5,
+#      where chi is the mean comoving distance to the bin,
+#      and kMax=0.3 h/Mpc,
+#      as in the DESC SRD 2018.
+#      mask is 1 for modes to mask out, 0 otherwise.
+#      Should be called after the tomo bins have been generated.
+#      '''
+#      lMaxMask = np.zeros(self.nData)
+#      iData = 0
+#      
+#      # kk
+#      iData += self.nKK # ie +=1
+#      
+#      # kg
+#      for iBin1 in range(self.nBins):
+#         z1 = self.w_g[iBin1].zMean()
+#         chi1 = self.u.bg.comoving_distance(z1)
+#         lMax = kMaxG * chi1 - 0.5
+#         lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
+#         iData += 1
+#         
+#      # ks
+#      iData += self.nKS
+#      
+#      # gg
+#      for iBin1 in range(self.nBins):
+#         z1 = self.w_g[iBin1].zMean()
+#         chi1 = self.u.bg.comoving_distance(z1)
+#         for iBin2 in range(iBin1, self.nBins):
+#            z2 = self.w_g[iBin2].zMean()
+#            chi2 = self.u.bg.comoving_distance(z2)
+#            chi = min(chi1, chi2)
+#            lMax = kMaxG * chi - 0.5
+#            lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
+#            iData += 1
+#      # gs
+#      for iBin1 in range(self.nBins):
+#         z1 = self.w_g[iBin1].zMean()
+#         chi1 = self.u.bg.comoving_distance(z1)
+#         for iBin2 in range(self.nBins):
+#            lMax = kMaxG * chi1 - 0.5
+#            lMaxMask[iData*self.nL:(iData+1)*self.nL] = self.L > lMax
+#            iData += 1
+#      return lMaxMask
 
 
 
@@ -1099,10 +1139,12 @@ class FisherLsst(object):
       # i1, i2 \in [0, n2pt]
    
       if not save:
-         path = './output/cov/'+self.name+'_cov.txt'
-         covMat = np.genfromtxt(path)
-         path = './output/cov/'+self.name+'_invcov.txt'
-         invCov = np.genfromtxt(path)
+         print "read cov"
+         path = './output/cov/'+self.name+'_cov.npy'
+         covMat = np.load(path)
+         print "read inv cov"
+         path = './output/cov/'+self.name+'_invcov.npy'
+         invCov = np.load(path)
 
       else:
          # include the shot noises
@@ -1441,15 +1483,15 @@ class FisherLsst(object):
 
 
          # save the cov matrix
-         path = './output/cov/'+self.name+'_cov.txt'
+         path = './output/cov/'+self.name+'_cov.npy'
          print "Save cov mat to:", path
-         np.savetxt(path, covMat)
+         np.save(path, covMat)
 
          # save the inverse cov matrix
 #         invCov = invertMatrixSvdTruncated(covMat, epsilon=1.e-8, keepLow=True)
          invCov = np.linalg.inv(covMat)
-         path = './output/cov/'+self.name+'_invcov.txt'
-         np.savetxt(path, invCov)
+         path = './output/cov/'+self.name+'_invcov.npy'
+         np.save(path, invCov)
 
 
       return covMat, invCov
