@@ -51,13 +51,6 @@ class Parameters(object):
       # increase the number of parameters
       self.nPar += newParams.nPar
 
-
-
-
-
-
-
-
 #!!! weird useless pos argument, makes things break in some cases, somehow
 #   def addParams(self, newParams, pos=None):
 #      '''Adds new parameters to the parameter set.
@@ -311,7 +304,7 @@ class Parameters(object):
       if path is None:
          plt.show()
       else:
-         fig.savefig(path)
+         fig.savefig(path, bbox_inches='tight')
          fig.clf()
 
 

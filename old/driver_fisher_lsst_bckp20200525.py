@@ -217,18 +217,15 @@ par.printParams(path=fish.figurePath+"/posterior_uncertainties_s.txt")
 '''
 
 ##################################################################################
-##################################################################################
 # Dependence on photo-z priors
-# old version, to be removed
 
-'''
 # Gaussian Photo-z requirements
 fish.photoZRequirements(mask=fish.lMaxMask, name="")  # k,g,s
 fish.photoZRequirements(mask=fish.lMaxMask+fish.noNullMask, name="nonull")  # k,g,s, no null 2pt
 fish.photoZRequirements(mask=fish.lMaxMask+fish.gsOnlyMask, name="gs")  # g,s
 fish.photoZRequirements(mask=fish.lMaxMask+fish.gsOnlyMask+fish.noNullMask, name="gs_nonull")  # g,s, no null 2pt
-#fish.photoZRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="g")  # g
-#fish.photoZRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="s")  # s
+fish.photoZRequirements(mask=fish.lMaxMask+fish.gOnlyMask, name="g")  # g
+fish.photoZRequirements(mask=fish.lMaxMask+fish.sOnlyMask, name="s")  # s
 
 # Outlier requirements
 if fish.photoZPar.outliers==0.1:
@@ -262,44 +259,211 @@ if fish.photoZPar.outliers==0.1:
 
 
 #fish.shearBiasRequirements()
+
+
+
+
+##################################################################################
+# Debug: show data vector and uncertainties
+
+'''
+fig=plt.figure(0)
+ax=fig.add_subplot(111)
+#
+# data vector
+ax.semilogy(fish.dataVector, 'b', label=r'data')
+ax.semilogy(-fish.dataVector, 'b--')
+#
+# cov matrix
+ax.semilogy(np.sqrt(np.diag(fish.covMat)), 'r', label=r'uncertainty')
+#
+# relative uncertainty
+ax.semilogy(np.sqrt(np.diag(fish.covMat)) / fish.dataVector, 'g', label=r'relat. uncertainty')
+#
+# observables
+ax.axvline(fish.nL*fish.nGG, c='k', lw=1.5)
+ax.axvline(fish.nL*(fish.nGG+fish.nGS), c='k', lw=1.5)
+#
+ax.legend()
+
+plt.show()
+
+'''
+
+
+
+
+
+import scipy
+from scipy.sparse import csc_matrix
+
+
+
+'''
+##################################################################################
+# Test inversions of cov and Fisher matrices
+
+
+# Check eigenvalues of cov matrix
+#
+eigenValPar, eigenVecPar = np.linalg.eigh(fish.covMat)
+plt.semilogy(eigenValPar, 'b')
+#
+## relative cov matrix
+#invDataVector = 1./fish.dataVector
+#invDataVector[np.where(np.isfinite(invDataVector)==False)] = 0.
+##
+#matInvDataVector = np.diag(invDataVector)
+##
+#relatCovMat = np.dot(matInvDataVector, np.dot(fish.covMat, matInvDataVector))
+#invRelatCovMat = np.linalg.inv(relatCovMat)
+##
+#eigenValPar, eigenVecPar = np.linalg.eigh(relatCovMat)
+#plt.semilogy(eigenValPar, 'g')
+
+
+#
+# Try with SVD
+U, s, Vh = scipy.linalg.svd(fish.covMat)
+plt.semilogy(s[::-1], 'r.')
+V = np.conj(Vh.transpose())
+Uh = np.conj(U.transpose())
+#sInv = np.linalg.inv(np.diag(s))
+
+
+
+plt.show()
+
+
+
+
+# try with numpy inversion
+inv1 = np.linalg.inv(fish.covMat)
+eigenValPar, eigenVecPar = np.linalg.eigh(inv1)
+plt.semilogy(eigenValPar, 'b')
+#
+# try with the SVD, truncated
+sInv = 1./s
+sInvMax = np.max(sInv)
+# remove the super poorly constrained modes, that lead to numerical instabilities
+sInv[sInv<=sInvMax*1.e-5] = 0.
+sInv = np.diag(sInv)
+
+inv3 = np.dot(V, np.dot(sInv, Uh))
+eigenValPar3, eigenVecPar3 = np.linalg.eigh(inv3)
+plt.semilogy(eigenValPar3, 'm.')
+
+
+plt.show()
+
+
+
+# matrix condition number
+print "cov matrix"
+print "inverse condition number:", 1./np.linalg.cond(fish.covMat)
+print "number numerical precision:", np.finfo(fish.covMat.dtype).eps
+
+#
+#print "relative cov matrix"
+#print "inverse condition number:", 1./np.linalg.cond(relatCovMat)
+#print "number numerical precision:", np.finfo(relatCovMat.dtype).eps
+
+
+
+
+
+
+
+
+
+# Check eigenvalues of inverse cov matrix
+#
+# try with numpy inversion
+inv1 = np.linalg.inv(fish.covMat)
+eigenValPar, eigenVecPar = np.linalg.eigh(inv1)
+plt.semilogy(eigenValPar, 'b')
+#
+# Try with scipy's sparse class
+sa = csc_matrix(fish.covMat)
+inv2 = scipy.sparse.linalg.inv(sa).todense()
+eigenValPar2, eigenVecPar2 = np.linalg.eigh(inv2)
+plt.semilogy(eigenValPar2, 'r.')
+#
+# Try with SVD
+U, s, Vh = scipy.linalg.svd(fish.covMat)
+V = np.conj(Vh.transpose())
+Uh = np.conj(U.transpose())
+sInv = np.linalg.inv(np.diag(s))
+inv3 = np.dot(V, np.dot(sInv, Uh))
+eigenValPar3, eigenVecPar3 = np.linalg.eigh(inv3)
+plt.semilogy(eigenValPar3, 'm.')
+#
+# show the absolute difference, to compare
+plt.semilogy(np.abs(eigenValPar2 - eigenValPar), 'g')
+
+plt.show()
+
+
+#print np.std(fish.covMat), np.max(fish.covMat)
+#print np.std(inv1), np.max(inv1)
+#
+#inv4 = np.linalg.inv(fish.covMat + 1.e-27*np.diag(np.ones(fish.nData)))
+#print np.std(inv4-inv1)/np.std(inv1), np.std(inv4-inv1)/np.std(inv4)
+
+'''
+
+
+
+##################################################################################
+
+'''
+# Check eigenvalues of Fisher matrix
+#
+# try with numpy inversion
+eigenValPar, eigenVecPar = np.linalg.eigh(np.linalg.inv(fish.fisherPosterior))
+plt.semilogy(eigenValPar, 'b')
+#
+# Try with scipy's sparse class
+sa = csc_matrix(fish.fisherPosterior)
+eigenValPar2, eigenVecPar2 = np.linalg.eigh(scipy.sparse.linalg.inv(sa).todense())
+plt.semilogy(eigenValPar2, 'r.')
+#
+# show the absolute difference, to compare
+plt.semilogy(np.abs(eigenValPar2 - eigenValPar), 'g')
+
+plt.show()
+
+
+# matrix condition number
+print "Fisher matrix"
+print "inverse condition number:", 1./np.linalg.cond(fish.fisherPosterior)
+print "number numerical precision:", np.finfo(fish.fisherPosterior.dtype).eps
+
+
+
+
+# look at specific eigenvectors
+
+fig=plt.figure(0)
+ax=fig.add_subplot(111)
+#
+
+#ax.plot(eigenVecPar[:,-1], 'b.')  # best constrained mode
+
+ax.plot(eigenVecPar[:,0], 'r.')  # worst constrained mode
+
+#
+ax.set_xticks(range(fish.fullPar.nPar))
+ax.set_xticklabels(fish.fullPar.namesLatex, fontsize=24)
+[l.set_rotation(45) for l in ax.get_xticklabels()]
+
+
+plt.show()
+
 '''
 
 
 ##################################################################################
-##################################################################################
-# Dependence on photo-z priors
-# new version
 
-#fish.plotGPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
-#fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
-
-
-
-##################################################################################
-##################################################################################
-# Contour plots
-
-
-# LCDMW0Wa
-# GS
-par, _ = fish.computePosterior(fish.lMaxMask+fish.gsOnlyMask, cosmoPar.ILCDMW0Wa)
-par.plotContours(IPar=cosmoPar.ILCDMW0Wa, marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gs_lcdmw0wa.pdf")
-# GS no null
-par, _ = fish.computePosterior(fish.lMaxMask+fish.gsOnlyMask+fish.noNullMask, cosmoPar.ILCDMW0Wa)
-par.plotContours(IPar=cosmoPar.ILCDMW0Wa, marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gsnonull_lcdmw0wa.pdf")
-# GKS
-par, _ = fish.computePosterior(fish.lMaxMask, cosmoPar.ILCDMW0Wa)
-par.plotContours(IPar=cosmoPar.ILCDMW0Wa, marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gks_lcdmw0wa.pdf")
-
-# LCDMMnu
-# GS
-par, _ = fish.computePosterior(fish.lMaxMask+fish.gsOnlyMask, cosmoPar.ILCDMMnu)
-par.plotContours(IPar=cosmoPar.ILCDMMnu, marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gs_lcdmmnu.pdf")
-# GS no null
-par, _ = fish.computePosterior(fish.lMaxMask+fish.gsOnlyMask+fish.noNullMask, cosmoPar.ILCDMMnu)
-par.plotContours(IPar=cosmoPar.ILCDMMnu, marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gsnonull_lcdmmnu.pdf")
-# GKS
-par, _ = fish.computePosterior(fish.lMaxMask, cosmoPar.ILCDMMnu)
-par.plotContours(IPar=cosmoPar.ILCDMMnu, marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gks_lcdmmnu.pdf")
 
 
