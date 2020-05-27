@@ -64,9 +64,7 @@ class FisherLsst(object):
 
       # Improving the conditioning of the cov matrix
       # Relative unit for shear
-      self.sUnit = 10.#20.
-      # Relative unit
-      self.kUnit = 3.
+      self.sUnit = 20.
       # ell scaling so that ell^alpha * C_ell is relatively independent of ell
       self.alpha = 1.
 
@@ -170,11 +168,11 @@ class FisherLsst(object):
          self.saveDerivativeDataVector()
       self.loadDerivativeDataVector()
       
-      print "Fisher matrices",
-      tStart = time()
-      self.generateAllFisher(save=self.save)
-      tStop = time()
-      print "("+str(np.round(tStop-tStart,1))+" sec)"
+#      print "Fisher matrix"
+#      tStart = time()
+#      self.generateFisher()
+#      tStop = time()
+#      print "("+str(np.round(tStop-tStart,1))+" sec)"
 
       tStopFisher = time()
       print "Full calculation took "+str(np.round((tStopFisher-tStartFisher)/60.,1))+" min"
@@ -1030,16 +1028,16 @@ class FisherLsst(object):
       shotNoiseVector = np.zeros(self.nData)
       iData = 0
       # kk
-      dataVector[iData*self.nL:(iData+1)*self.nL] = p_kk * self.kUnit**2 * self.L**self.alpha
-      shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = p_kk_shot * self.kUnit**2 * self.L**self.alpha
+      dataVector[iData*self.nL:(iData+1)*self.nL] = p_kk * self.L**self.alpha
+      shotNoiseVector[iData*self.nL:(iData+1)*self.nL] = p_kk_shot * self.L**self.alpha
       iData += 1
       # kg
       for iBin1 in range(self.nBins):
-         dataVector[iData*self.nL:(iData+1)*self.nL] = p_kg[iBin1] * self.kUnit * self.L**self.alpha
+         dataVector[iData*self.nL:(iData+1)*self.nL] = p_kg[iBin1] * self.L**self.alpha
          iData += 1
       # ks
       for iBin1 in range(self.nBins):
-         dataVector[iData*self.nL:(iData+1)*self.nL] = p_ks[iBin1] * self.kUnit * self.sUnit * self.L**self.alpha
+         dataVector[iData*self.nL:(iData+1)*self.nL] = p_ks[iBin1] * self.sUnit * self.L**self.alpha
          iData += 1
       # gg
       for iBin1 in range(self.nBins):
@@ -1162,7 +1160,7 @@ class FisherLsst(object):
          i1 = 0
          i2 = 0
          covBlock = cov(p_kk, p_kk, p_kk, p_kk, self.Nmodes)
-         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit**4 * self.L**(2*self.alpha) * covBlock
+         covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
          
          # "kk-kg"
          i1 = 0
@@ -1170,7 +1168,7 @@ class FisherLsst(object):
          # considering kg[i1]
          for iBin1 in range(self.nBins):
             covBlock = cov(p_kk, p_kg[iBin1], p_kg[iBin1], p_kk, self.Nmodes)
-            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit**3 * self.L**(2*self.alpha) * covBlock
+            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
             # move to next column
             i2 += 1
          
@@ -1180,7 +1178,7 @@ class FisherLsst(object):
          # considering ks[i1]
          for iBin1 in range(self.nBins):
             covBlock = cov(p_kk, p_ks[iBin1], p_ks[iBin1], p_kk, self.Nmodes)
-            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit**3 * self.sUnit * self.L**(2*self.alpha) * covBlock
+            covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
             # move to next column
             i2 += 1
 
@@ -1191,7 +1189,7 @@ class FisherLsst(object):
          for iBin1 in range(self.nBins):
             for iBin2 in range(iBin1, self.nBins):
                covBlock = cov(p_kg[iBin1], p_kg[iBin2], p_kg[iBin2], p_kg[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit**2 * self.L**(2*self.alpha) * covBlock
+               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
 
@@ -1202,7 +1200,7 @@ class FisherLsst(object):
          for iBin1 in range(self.nBins):
             for iBin2 in range(self.nBins):
                covBlock = cov(p_kg[iBin1], p_ks[iBin2], p_ks[iBin2], p_kg[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit**2 * self.sUnit * self.L**(2*self.alpha) * covBlock
+               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
 
@@ -1213,7 +1211,7 @@ class FisherLsst(object):
          for iBin1 in range(self.nBins):
             for iBin2 in range(iBin1, self.nBins):
                covBlock = cov(p_ks[iBin1], p_ks[iBin2], p_ks[iBin2], p_ks[iBin1], self.Nmodes)
-               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit**2 * self.sUnit**2 * self.L**(2*self.alpha) * covBlock
+               covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
 
@@ -1227,7 +1225,7 @@ class FisherLsst(object):
                # compute only upper diagonal
                if i2>=i1:
                   covBlock = cov(p_kk, p_gg[iBin1, jBin1], p_kg[jBin1], p_kg[iBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit**2 * self.L**(2*self.alpha) * covBlock
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
             # move to next row
@@ -1243,7 +1241,7 @@ class FisherLsst(object):
                # compute only upper diagonal
                if i2>=i1:
                   covBlock = cov(p_kk, p_gs[iBin1, jBin1], p_ks[jBin1], p_kg[iBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit**2 * self.sUnit * self.L**(2*self.alpha) * covBlock
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
             # move to next row
@@ -1260,7 +1258,7 @@ class FisherLsst(object):
                   # compute only upper diagonal
                   if i2>=i1:
                      covBlock = cov(p_kg[jBin1], p_gg[iBin1, jBin2], p_kg[jBin2], p_gg[iBin1, jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit * self.L**(2*self.alpha) * covBlock
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
@@ -1277,7 +1275,7 @@ class FisherLsst(object):
                   # compute only upper diagonal
                   if i2>=i1:
                      covBlock = cov(p_kg[jBin1], p_gs[iBin1, jBin2], p_ks[jBin2], p_gg[iBin1, jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit * self.sUnit * self.L**(2*self.alpha) * covBlock
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
@@ -1294,7 +1292,7 @@ class FisherLsst(object):
                   # compute only upper diagonal
                   if i2>=i1:
                      covBlock = cov(p_ks[jBin1], p_gs[iBin1, jBin2], p_ks[jBin2], p_gs[iBin1, jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit * self.sUnit**2 * self.L**(2*self.alpha) * covBlock
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
@@ -1310,7 +1308,7 @@ class FisherLsst(object):
                # compute only upper diagonal
                if i2>=i1:
                   covBlock = cov(p_kk, p_ss[iBin1, jBin1], p_ks[jBin1], p_ks[iBin1], self.Nmodes)
-                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit**2 * self.sUnit**2 * self.L**(2*self.alpha) * covBlock
+                  covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
                # move to next column
                i2 += 1
             # move to next row
@@ -1328,7 +1326,7 @@ class FisherLsst(object):
                   if i2>=i1:
                      # watch the order for gs
                      covBlock = cov(p_kg[jBin1], p_gs[jBin2, iBin1], p_kg[jBin2], p_gs[jBin1, iBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit * self.sUnit * self.L**(2*self.alpha) * covBlock
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit * self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
@@ -1346,7 +1344,7 @@ class FisherLsst(object):
                   if i2>=i1:
                      # watch the order for gs
                      covBlock = cov(p_kg[jBin1], p_ss[iBin1, jBin2], p_ks[jBin2], p_gs[jBin1, iBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit * self.sUnit**2 * self.L**(2*self.alpha) * covBlock
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**2 * self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
@@ -1363,7 +1361,7 @@ class FisherLsst(object):
                   # compute only upper diagonal
                   if i2>=i1:
                      covBlock = cov(p_ks[jBin1], p_ss[iBin1, jBin2], p_ks[jBin2], p_ss[iBin1, jBin1], self.Nmodes)
-                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.kUnit * self.sUnit**3 * self.L**(2*self.alpha) * covBlock
+                     covMat[i1*self.nL:(i1+1)*self.nL, i2*self.nL:(i2+1)*self.nL] = self.sUnit**3 * self.L**(2*self.alpha) * covBlock
                   # move to next column
                   i2 += 1
             # move to next row
@@ -2352,90 +2350,29 @@ class FisherLsst(object):
 
    ##################################################################################
    
-
-#   def generateFisherSparse(self, mask=None):
-#      if mask is None:
-#         mask=self.lMaxMask
-#      fisherData = np.zeros((self.fullPar.nPar, self.fullPar.nPar))
-#      # extract unmasked cov elements, and invert
-#      cov = extractMaskedMat(self.covMat, mask=mask)
-#      # invert the matrix once
-#      invCov = scipy.sparse.linalg.inv(cov)
-#      # Fisher from the data
-#      for i in range(self.fullPar.nPar):
-#         for j in range(self.fullPar.nPar):
-#            di = extractMaskedVec(self.derivativeDataVector[i,:], mask=mask)
-#            dj = extractMaskedVec(self.derivativeDataVector[j,:], mask=mask)
-#            fisherData[i,j] = np.dot(di.transpose(), np.dot(invCov, dj))
-#      return fisherData
-
-
-
    def generateFisher(self, mask=None):
       if mask is None:
          mask=self.lMaxMask
       fisherData = np.zeros((self.fullPar.nPar, self.fullPar.nPar))
       # extract unmasked cov elements, and invert
       cov = extractMaskedMat(self.covMat, mask=mask)
-      # invert the matrix once
-      invCov = np.linalg.inv(cov)
+#      invCov = np.linalg.inv(cov)
       # Fisher from the data
       for i in range(self.fullPar.nPar):
          for j in range(self.fullPar.nPar):
             di = extractMaskedVec(self.derivativeDataVector[i,:], mask=mask)
             dj = extractMaskedVec(self.derivativeDataVector[j,:], mask=mask)
-            fisherData[i,j] = np.dot(di.transpose(), np.dot(invCov, dj))
-      return fisherData
-
-
-#   def generateFisherLUOnce(self, mask=None):
-#      if mask is None:
-#         mask=self.lMaxMask
-#      fisherData = np.zeros((self.fullPar.nPar, self.fullPar.nPar))
-#      # extract unmasked cov elements, and invert
-#      cov = extractMaskedMat(self.covMat, mask=mask)
-#      # solve the LU factorization, to "invert" many times fast
-#      # without ever computing the inverse
-#      lu, piv = scipy.linalg.lu_factor(cov)
-#      # Fisher from the data
-#      for i in range(self.fullPar.nPar):
-#         for j in range(self.fullPar.nPar):
-#            di = extractMaskedVec(self.derivativeDataVector[i,:], mask=mask)
-#            dj = extractMaskedVec(self.derivativeDataVector[j,:], mask=mask)
-#            fisherData[i,j] = np.dot(di.transpose(), scipy.linalg.lu_solve((lu,piv), dj))
-#      return fisherData
-
-
-
-
-
-   def generateAllFisher(self, save=False):
-      if save:
-         print("Generating all Fisher matrices")
-      
-         tStart = time()
-         fisher = self.generateFisher(mask=self.lMaxMask)
-         np.savetxt("./output/fisher/"+self.name+"_fisherdata_gks.txt", fisher)
-         tStop = time()
-         print("- GKS took "+str((tStop-tStart)/60.)+" min")
-
-         tStart = time()
-         fisher = self.generateFisher(mask=self.lMaxMask+self.gsOnlyMask)
-         np.savetxt("./output/fisher/"+self.name+"_fisherdata_gs.txt", fisher)
-         tStop = time()
-         print("- GS took "+str((tStop-tStart)/60.)+" min")
-
-         tStart = time()
-         fisher = self.generateFisher(mask=self.lMaxMask+self.gsOnlyMask+self.noNullMask)
-         np.savetxt("./output/fisher/"+self.name+"_fisherdata_gsnonull.txt", fisher)
-         tStop = time()
-         print("- GS no null took "+str((tStop-tStart)/60.)+" min")
-
-      print("Reading all Fisher matrices")
-      self.fisherDataGks = np.genfromtxt("./output/fisher/"+self.name+"_fisherdata_gks.txt")
-      self.fisherDataGs = np.genfromtxt("./output/fisher/"+self.name+"_fisherdata_gs.txt")
-      self.fisherDataGsnonull = np.genfromtxt("./output/fisher/"+self.name+"_fisherdata_gsnonull.txt")
-
+            fisherData[i,j] = np.dot(di.transpose(), np.linalg.solve(cov, dj))
+#            fisherData[i,j] = np.dot(di.transpose(), np.dot(invCov, dj))
+      # Fisher from the prior
+      fisherPrior = self.fullPar.fisher.copy()
+      # Fisher from data and prior
+      fisherPosterior = fisherData + fisherPrior
+#      # create posterior parameter object
+#      posteriorPar = self.fullPar.copy()
+#      posteriorPar.fisher = fisherPosterior.copy()
+#      return posteriorPar
+      return fisherData, fisherPosterior
 
 
    ##################################################################################
@@ -2675,31 +2612,6 @@ class FisherLsst(object):
 
 
    ##################################################################################
-
-
-
-   def plotDiagCov(self, mask=None, show=False):
-      '''Useful to see how to improve the condition number
-      of the cov mat.
-      '''
-      if mask is None:
-         mask=self.lMaxMask
-      # set to zero the masked data elements
-      maskMat = np.outer(1-mask,1-mask)
-      cov = self.covMat * maskMat
-
-      fig=plt.figure(0)
-      ax=fig.add_subplot(111)
-      #
-      ax.axvline((self.nKK)*self.nL, c='gray')
-      ax.axvline((self.nKK+self.nKG)*self.nL, c='gray')
-      ax.axvline((self.nKK+self.nKG+self.nKS)*self.nL, c='gray')
-      ax.axvline((self.nKK+self.nKG+self.nKS+self.nGG)*self.nL, c='gray')
-      ax.axvline((self.nKK+self.nKG+self.nKS+self.nGG+self.nGS)*self.nL, c='gray')
-      # 
-      ax.semilogy(np.sqrt(1./np.diag(cov)))
-      plt.show()
-
 
 
 
