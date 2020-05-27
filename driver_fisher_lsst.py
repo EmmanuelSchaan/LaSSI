@@ -92,7 +92,7 @@ from fisher_lsst import *
 fsky = 0.35 # 0.4
 
 # same tomo bins for g and s
-fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=False)
+fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=True)
 
 
 # different tomo bins for g and s
@@ -269,19 +269,19 @@ if fish.photoZPar.outliers==0.1:
 ##################################################################################
 # Dependence on photo-z priors
 # new version
-
+'''
 fish.plotGPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
 fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
 
 fish.plotGPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmmnu")
 fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmmnu")
-
+'''
 
 ##################################################################################
 ##################################################################################
 # Contour plots
 
-
+'''
 # LCDMW0Wa
 # GS
 par, _ = fish.computePosterior(fish.lMaxMask+fish.gsOnlyMask, cosmoPar.ILCDMW0Wa)
@@ -303,5 +303,5 @@ par.plotContours(IPar=cosmoPar.ILCDMMnu, marg=True, lim=4., color='#E10014', pat
 # GKS
 par, _ = fish.computePosterior(fish.lMaxMask, cosmoPar.ILCDMMnu)
 par.plotContours(IPar=cosmoPar.ILCDMMnu, marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gks_lcdmmnu.pdf")
-
+'''
 

@@ -4711,8 +4711,14 @@ class FisherLsst(object):
    ###############################################################
    ###############################################################
 
-   def computePosterior(self, fisherData, ICosmoPar, dzStd=0.002, szStd=0.003, outliersStd=0.05):
+   def computePosterior(self, mask, ICosmoPar, dzStd=0.002, szStd=0.003, outliersStd=0.05):
       print("Compute posterior uncertainties")
+
+      # get the Fisher matrix from the data
+      tStart = time()
+      fisherData, fisherPosterior = self.generateFisher(mask=mask)
+      tStop = time()
+      print("Fisher matrix from data took "+str(tStop-tStart)+" sec")
 
       # update the photo-z priors
       newPhotoZPar = PhotoZParams(nBins=self.nBins, dzFid=0., szFid=0.05, dzStd=dzStd, szStd=szStd, outliers=0.1, outliersStd=outliersStd)
@@ -4741,11 +4747,25 @@ class FisherLsst(object):
       tStop = time()
       print("Marginalizing unwanted parameters took "+str(tStop-tStart)+" sec")
 
+#      # marginalized errors on cosmology
+#      parCosmo = parFull.extractParams(range(len(ICosmoPar)), marg=True)
+#      sCosmo = parCosmo.paramUncertainties(marg=True)
+#
+#      # marginalized errors on Gaussian photo-z
+#      nGPhotoz = 2 * self.nBins
+#      nCij = self.photoZPar.nPar - 2*self.nBins
+#      parGPhotoz = parFull.extractParams(range(-nGPhotoz-nCij, -nCij), marg=True)
+#      sGPhotoz = parGPhotoz.paramUncertainties(marg=True)
+#
+#      # marginalized errors on photo-z outliers
+#      parOutlierPhotoz = parFull.extractParams(range(-nCij, 0), marg=True)
+#      sOutlierPhotoz = parOutlierPhotoz.paramUncertainties(marg=True)
+
       return parFull, sFull
 
 
 
-   def varyGPhotozPrior(self, fisherData, ICosmoPar, outliersStd=0.05):
+   def varyGPhotozPrior(self, mask, ICosmoPar, outliersStd=0.05):
       print("Starting sequence: varying Gaussian photo-z prior")
       # values of photo-z priors to try
       nPhotoz = 21
@@ -4764,7 +4784,7 @@ class FisherLsst(object):
          photoz = Photoz[iPhotoz]
 
          # compute the forecast with this prior
-         parFull, sFull = self.computePosterior(fisherData, ICosmoPar, dzStd=photoz, szStd=1.5*photoz, outliersStd=0.05)
+         parFull, sFull = self.computePosterior(mask, ICosmoPar, dzStd=photoz, szStd=1.5*photoz, outliersStd=0.05)
          # extract cosmology
          sCosmo[:,iPhotoz] = sFull[:len(ICosmoPar)]
          # extract Gaussian photoz
@@ -4779,7 +4799,7 @@ class FisherLsst(object):
 
 
 
-   def varyOutlierPhotozPrior(self, fisherData, ICosmoPar, dzStd=0.002, szStd=0.003):
+   def varyOutlierPhotozPrior(self, mask, ICosmoPar, dzStd=0.002, szStd=0.003):
       print("Starting sequence: varying outlier photo-z prior")
       # values of photo-z priors to try
       nPhotoz = 21
@@ -4798,7 +4818,7 @@ class FisherLsst(object):
          photoz = Photoz[iPhotoz]
 
          # compute the forecast with this prior
-         parFull, sFull = self.computePosterior(fisherData, ICosmoPar, dzStd=0.002, szStd=0.003, outliersStd=photoz)
+         parFull, sFull = self.computePosterior(mask, ICosmoPar, dzStd=0.002, szStd=0.003, outliersStd=photoz)
          # extract cosmology
          sCosmo[:,iPhotoz] = sFull[:len(ICosmoPar)]
          # extract Gaussian photoz
@@ -4816,9 +4836,9 @@ class FisherLsst(object):
 
    def plotGPhotozRequirements(self, ICosmoPar, name):
       # Self-calibration of Gaussian photo-z: compare data sets
-      Photoz, sCosmoGks, sGPhotozGks, sOutlierPhotozGks = self.varyGPhotozPrior(self.fisherDataGks, ICosmoPar, outliersStd=0.05)
-      Photoz, sCosmoGs, sGPhotozGs, sOutlierPhotozGs = self.varyGPhotozPrior(self.fisherDataGs, ICosmoPar, outliersStd=0.05)
-      Photoz, sCosmoGsnonull, sGPhotozGsnonull, sOutlierPhotozGsnonull = self.varyGPhotozPrior(self.fisherDataGsnonull, ICosmoPar, outliersStd=0.05)
+      Photoz, sCosmoGks, sGPhotozGks, sOutlierPhotozGks = self.varyGPhotozPrior(self.lMaxMask, ICosmoPar, outliersStd=0.05)
+      Photoz, sCosmoGs, sGPhotozGs, sOutlierPhotozGs = self.varyGPhotozPrior(self.lMaxMask+self.gsOnlyMask, ICosmoPar, outliersStd=0.05)
+      Photoz, sCosmoGsnonull, sGPhotozGsnonull, sOutlierPhotozGsnonull = self.varyGPhotozPrior(self.lMaxMask+self.gsOnlyMask+self.noNullMask, ICosmoPar, outliersStd=0.05)
 
 
       ###############################################################

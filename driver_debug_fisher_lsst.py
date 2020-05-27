@@ -94,9 +94,9 @@ fsky = 0.35 # 0.4
 # same tomo bins for g and s
 fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=False)
 
-fish.plotDiagCov()
+#fish.plotDiagCov()
 
-#fish.plotGPhotozRequirements(cosmoPar.ILCDM, name="lcdm")
+fish.plotGPhotozRequirements(cosmoPar.ILCDM, name="lcdm")
 #fish.plotOutlierPhotozRequirements(cosmoPar.ILCDM, name="lcdm")
 #
 #
