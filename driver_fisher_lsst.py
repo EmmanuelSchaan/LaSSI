@@ -270,9 +270,11 @@ if fish.photoZPar.outliers==0.1:
 # Dependence on photo-z priors
 # new version
 
-#fish.plotGPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
-#fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
+fish.plotGPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
+fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
 
+fish.plotGPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmmnu")
+fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmmnu")
 
 
 ##################################################################################

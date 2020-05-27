@@ -158,8 +158,7 @@ class FisherLsst(object):
 
       print "Covariance matrix",
       tStart = time()
-#      self.covMat, self.invCov = self.generateCov(self.p_kk, self.p_kg, self.p_ks, self.p_gg, self.p_gs, self.p_ss, self.p_kk_shot, self.p_gg_shot, self.p_ss_shot, save=self.save)
-      self.covMat = self.generateCov(self.p_kk, self.p_kg, self.p_ks, self.p_gg, self.p_gs, self.p_ss, self.p_kk_shot, self.p_gg_shot, self.p_ss_shot, save=self.save)
+      self.covMat, self.invCov = self.generateCov(self.p_kk, self.p_kg, self.p_ks, self.p_gg, self.p_gs, self.p_ss, self.p_kk_shot, self.p_gg_shot, self.p_ss_shot, save=self.save)
       tStop = time()
       print "("+str(np.round(tStop-tStart,1))+" sec)"
       
@@ -1143,9 +1142,9 @@ class FisherLsst(object):
          print "read cov"
          path = './output/cov/'+self.name+'_cov.npy'
          covMat = np.load(path)
-#         print "read inv cov"
-#         path = './output/cov/'+self.name+'_invcov.npy'
-#         invCov = np.load(path)
+         print "read inv cov"
+         path = './output/cov/'+self.name+'_invcov.npy'
+         invCov = np.load(path)
 
       else:
          # include the shot noises
@@ -1490,12 +1489,12 @@ class FisherLsst(object):
 
          # save the inverse cov matrix
 #         invCov = invertMatrixSvdTruncated(covMat, epsilon=1.e-8, keepLow=True)
-#         invCov = np.linalg.inv(covMat)
-#         path = './output/cov/'+self.name+'_invcov.npy'
-#         np.save(path, invCov)
+         invCov = np.linalg.inv(covMat)
+         path = './output/cov/'+self.name+'_invcov.npy'
+         np.save(path, invCov)
 
 
-      return covMat#, invCov
+      return covMat, invCov
 
 
 
@@ -1854,9 +1853,8 @@ class FisherLsst(object):
          I = range(0*self.nL, self.nKK*self.nL)
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("total kk: "+str(snr)+"\n\n")
  
@@ -1871,9 +1869,8 @@ class FisherLsst(object):
             I = range(i1*self.nL, (i1+1)*self.nL)
             d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
             cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-   #         invCov = np.linalg.inv(cov)
-   #         snr = np.dot(d.transpose(), np.dot(invCov, d))
-            snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+            invCov = np.linalg.inv(cov)
+            snr = np.dot(d.transpose(), np.dot(invCov, d))
             snr = np.sqrt(snr)
             f.write("   "+str(iBin1)+": "+str(snr)+"\n")
             i1 += 1
@@ -1881,9 +1878,8 @@ class FisherLsst(object):
          I = range(self.nKK*self.nL, (self.nKK+self.nKG)*self.nL)
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("total kg: "+str(snr)+"\n\n")
 
@@ -1898,9 +1894,8 @@ class FisherLsst(object):
             I = range(i1*self.nL, (i1+1)*self.nL)
             d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
             cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-   #         invCov = np.linalg.inv(cov)
-   #         snr = np.dot(d.transpose(), np.dot(invCov, d))
-            snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+            invCov = np.linalg.inv(cov)
+            snr = np.dot(d.transpose(), np.dot(invCov, d))
             snr = np.sqrt(snr)
             f.write("   "+str(iBin1)+": "+str(snr)+"\n")
             i1 += 1
@@ -1908,9 +1903,8 @@ class FisherLsst(object):
          I = range((self.nKK+self.nKG)*self.nL, (self.nKK+self.nKG+self.nKS)*self.nL)
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("total ks: "+str(snr)+"\n\n")
 
@@ -1927,9 +1921,8 @@ class FisherLsst(object):
             I = range(i1*self.nL, (i1+1)*self.nL)
             d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
             cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-   #         invCov = np.linalg.inv(cov)
-   #         snr = np.dot(d.transpose(), np.dot(invCov, d))
-            snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+            invCov = np.linalg.inv(cov)
+            snr = np.dot(d.transpose(), np.dot(invCov, d))
             snr = np.sqrt(snr)
             f.write("   "+str(iBin1)+","+str(iBin1)+": "+str(snr)+"\n")
             i1 += self.nBins - iBin1
@@ -1937,9 +1930,8 @@ class FisherLsst(object):
          # gg: total auto
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=Itotal)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=Itotal)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("total auto: "+str(snr)+"\n")
          
@@ -1952,9 +1944,8 @@ class FisherLsst(object):
             I = range(i1*self.nL, (i1+1)*self.nL)
             d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
             cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-   #         invCov = np.linalg.inv(cov)
-   #         snr = np.dot(d.transpose(), np.dot(invCov, d))
-            snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+            invCov = np.linalg.inv(cov)
+            snr = np.dot(d.transpose(), np.dot(invCov, d))
             snr = np.sqrt(snr)
             f.write("   "+str(iBin1)+","+str(iBin1+1)+": "+str(snr)+"\n")
             i1 += self.nBins - iBin1
@@ -1962,9 +1953,8 @@ class FisherLsst(object):
          # gg: total i,i+1
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=Itotal)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=Itotal)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("total i,i+1: "+str(snr)+"\n")
 
@@ -1977,9 +1967,8 @@ class FisherLsst(object):
             I = range(i1*self.nL, (i1+1)*self.nL)
             d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
             cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-   #         invCov = np.linalg.inv(cov)
-   #         snr = np.dot(d.transpose(), np.dot(invCov, d))
-            snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+            invCov = np.linalg.inv(cov)
+            snr = np.dot(d.transpose(), np.dot(invCov, d))
             snr = np.sqrt(snr)
             f.write("   "+str(iBin1)+","+str(iBin1+2)+": "+str(snr)+"\n")
             i1 += self.nBins - iBin1
@@ -1987,9 +1976,8 @@ class FisherLsst(object):
          # gg: total i,i+2
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=Itotal)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=Itotal)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("total i,i+2: "+str(snr)+"\n")
          
@@ -2001,9 +1989,8 @@ class FisherLsst(object):
                I = range(i1*self.nL, (i1+1)*self.nL)
                d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
                cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-      #         invCov = np.linalg.inv(cov)
-      #         snr = np.dot(d.transpose(), np.dot(invCov, d))
-               snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+               invCov = np.linalg.inv(cov)
+               snr = np.dot(d.transpose(), np.dot(invCov, d))
                snr = np.sqrt(snr)
                f.write("   "+str(iBin1)+","+str(iBin2)+": "+str(snr)+"\n")
                i1 += 1
@@ -2011,9 +1998,8 @@ class FisherLsst(object):
          I = range((self.nKK+self.nKG+self.nKS)*self.nL, (self.nKK+self.nKG+self.nKS+self.nGG)*self.nL)
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("total gg: "+str(snr)+"\n\n")
 
@@ -2029,9 +2015,8 @@ class FisherLsst(object):
                I = range(i1*self.nL, (i1+1)*self.nL)
                d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
                cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-      #         invCov = np.linalg.inv(cov)
-      #         snr = np.dot(d.transpose(), np.dot(invCov, d))
-               snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+               invCov = np.linalg.inv(cov)
+               snr = np.dot(d.transpose(), np.dot(invCov, d))
                snr = np.sqrt(snr)
                f.write("   "+str(iBin1)+","+str(iBin2)+": "+str(snr)+"\n")
                i1 += 1
@@ -2040,9 +2025,8 @@ class FisherLsst(object):
          I = range((self.nKK+self.nKG+self.nKS+self.nGG)*self.nL, (self.nKK+self.nKG+self.nKS+self.nGG+self.nGS)*self.nL)
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask + self.noNullMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask + self.noNullMask, I=I)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("total gs, no null crosses: "+str(snr)+"\n\n")
 
@@ -2050,9 +2034,8 @@ class FisherLsst(object):
          I = range((self.nKK+self.nKG+self.nKS+self.nGG)*self.nL, (self.nKK+self.nKG+self.nKS+self.nGG+self.nGS)*self.nL)
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("total gs: "+str(snr)+"\n\n")
 
@@ -2070,9 +2053,8 @@ class FisherLsst(object):
             I = range(i1*self.nL, (i1+1)*self.nL)
             d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
             cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-   #         invCov = np.linalg.inv(cov)
-   #         snr = np.dot(d.transpose(), np.dot(invCov, d))
-            snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+            invCov = np.linalg.inv(cov)
+            snr = np.dot(d.transpose(), np.dot(invCov, d))
             snr = np.sqrt(snr)
             f.write("   "+str(iBin1)+","+str(iBin1)+": "+str(snr)+"\n")
             i1 += self.nBins - iBin1
@@ -2080,9 +2062,8 @@ class FisherLsst(object):
          # ss: total auto
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=Itotal)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=Itotal)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("total auto: "+str(snr)+"\n")
 
@@ -2094,9 +2075,8 @@ class FisherLsst(object):
                I = range(i1*self.nL, (i1+1)*self.nL)
                d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
                cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-      #         invCov = np.linalg.inv(cov)
-      #         snr = np.dot(d.transpose(), np.dot(invCov, d))
-               snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+               invCov = np.linalg.inv(cov)
+               snr = np.dot(d.transpose(), np.dot(invCov, d))
                snr = np.sqrt(snr)
                f.write("   "+str(iBin1)+","+str(iBin2)+": "+str(snr)+"\n")
                i1 += 1
@@ -2104,9 +2084,8 @@ class FisherLsst(object):
          I = range((self.nKK+self.nKG+self.nKS+self.nGG+self.nGS)*self.nL, (self.nKK+self.nKG+self.nKS+self.nGG+self.nGS+self.nSS)*self.nL)
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask, I=I)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask, I=I)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("total ss: "+str(snr)+"\n\n")
 
@@ -2116,36 +2095,32 @@ class FisherLsst(object):
          # gg, gs, ss
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask + self.gsOnlyMask)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask + self.gsOnlyMask)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("Total gg, gs, ss: "+str(snr)+"\n\n")
 
          # gg, gs, ss, no null crosses
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask + self.gsOnlyMask + self.noNullMask)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask + self.gsOnlyMask + self.noNullMask)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("Total gg, gs, ss, no null crosses: "+str(snr)+"\n\n")
 
          # All, no null crosses
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask + self.noNullMask)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask + self.noNullMask)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("Total, no null crosses: "+str(snr)+"\n\n")
 
          # All
          d = extractMaskedVec(self.dataVector, mask=self.lMaxMask)
          cov = extractMaskedMat(self.covMat, mask=self.lMaxMask)
-#         invCov = np.linalg.inv(cov)
-#         snr = np.dot(d.transpose(), np.dot(invCov, d))
-         snr = np.dot(d.transpose(), np.linalg.solve(cov, d))
+         invCov = np.linalg.inv(cov)
+         snr = np.dot(d.transpose(), np.dot(invCov, d))
          snr = np.sqrt(snr)
          f.write("Total: "+str(snr)+"\n\n")
 
@@ -2356,14 +2331,13 @@ class FisherLsst(object):
       fisherData = np.zeros((self.fullPar.nPar, self.fullPar.nPar))
       # extract unmasked cov elements, and invert
       cov = extractMaskedMat(self.covMat, mask=mask)
-#      invCov = np.linalg.inv(cov)
+      invCov = np.linalg.inv(cov)
       # Fisher from the data
       for i in range(self.fullPar.nPar):
          for j in range(self.fullPar.nPar):
             di = extractMaskedVec(self.derivativeDataVector[i,:], mask=mask)
             dj = extractMaskedVec(self.derivativeDataVector[j,:], mask=mask)
-            fisherData[i,j] = np.dot(di.transpose(), np.linalg.solve(cov, dj))
-#            fisherData[i,j] = np.dot(di.transpose(), np.dot(invCov, dj))
+            fisherData[i,j] = np.dot(di.transpose(), np.dot(invCov, dj))
       # Fisher from the prior
       fisherPrior = self.fullPar.fisher.copy()
       # Fisher from data and prior
@@ -4618,13 +4592,9 @@ class FisherLsst(object):
    ###############################################################
 
    def computePosterior(self, mask, ICosmoPar, dzStd=0.002, szStd=0.003, outliersStd=0.05):
-      print("Compute posterior uncertainties")
-
+      
       # get the Fisher matrix from the data
-      tStart = time()
       fisherData, fisherPosterior = self.generateFisher(mask=mask)
-      tStop = time()
-      print("Fisher matrix from data took "+str(tStop-tStart)+" sec")
 
       # update the photo-z priors
       newPhotoZPar = PhotoZParams(nBins=self.nBins, dzFid=0., szFid=0.05, dzStd=dzStd, szStd=szStd, outliers=0.1, outliersStd=outliersStd)
@@ -4648,10 +4618,7 @@ class FisherLsst(object):
       I = ICosmoPar + range(self.cosmoPar.nPar, self.fullPar.nPar)
       parFull = newPar.extractParams(I, marg=False)
       # get the marginalized uncertainties
-      tStart = time()
       sFull = parFull.paramUncertainties(marg=True)
-      tStop = time()
-      print("Marginalizing unwanted parameters took "+str(tStop-tStart)+" sec")
 
 #      # marginalized errors on cosmology
 #      parCosmo = parFull.extractParams(range(len(ICosmoPar)), marg=True)
@@ -4672,7 +4639,6 @@ class FisherLsst(object):
 
 
    def varyGPhotozPrior(self, mask, ICosmoPar, outliersStd=0.05):
-      print("Starting sequence: varying Gaussian photo-z prior")
       # values of photo-z priors to try
       nPhotoz = 21
       Photoz = np.logspace(np.log10(1.e-5), np.log10(0.2), nPhotoz, 10.)
@@ -4685,8 +4651,6 @@ class FisherLsst(object):
       sOutlierPhotoz = np.zeros((nCij, nPhotoz))
 
       for iPhotoz in range(nPhotoz):
-         print(str(iPhotoz))
-         tStart = time()
          photoz = Photoz[iPhotoz]
 
          # compute the forecast with this prior
@@ -4698,15 +4662,11 @@ class FisherLsst(object):
          # extract outlier photoz
          sOutlierPhotoz[:,iPhotoz] = sFull[-nCij:]
 
-         tStop = time()
-         print("Took "+str(tStop-tStart)+" sec")
-
       return Photoz, sCosmo, sGPhotoz, sOutlierPhotoz
 
 
 
    def varyOutlierPhotozPrior(self, mask, ICosmoPar, dzStd=0.002, szStd=0.003):
-      print("Starting sequence: varying outlier photo-z prior")
       # values of photo-z priors to try
       nPhotoz = 21
       Photoz = np.logspace(np.log10(1.e-4), np.log10(5.), nPhotoz, 10.)
@@ -4719,8 +4679,6 @@ class FisherLsst(object):
       sOutlierPhotoz = np.zeros((nCij, nPhotoz))
 
       for iPhotoz in range(nPhotoz):
-         print(str(iPhotoz))
-         tStart = time()
          photoz = Photoz[iPhotoz]
 
          # compute the forecast with this prior
@@ -4731,9 +4689,6 @@ class FisherLsst(object):
          sGPhotoz[:,iPhotoz] = sFull[-nGPhotoz-nCij:-nCij]
          # extract outlier photoz
          sOutlierPhotoz[:,iPhotoz] = sFull[-nCij:]
-
-         tStop = time()
-         print("Took "+str(tStop-tStart)+" sec")
 
       return Photoz, sCosmo, sGPhotoz, sOutlierPhotoz
 
