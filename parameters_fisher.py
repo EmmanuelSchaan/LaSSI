@@ -239,7 +239,7 @@ class Parameters(object):
          
          # print the marginalized constraint
          titleStr = par.namesLatex[j]+r'$ = '+str(np.round(par.fiducial[j], 4))+r' \pm'+str(np.round(sigma, 4))+r'$'
-         ax.set_title(titleStr, fontsize=12)
+         ax.set_title(titleStr, fontsize=14)
          
          # always remove y ticks
          ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
@@ -289,8 +289,8 @@ class Parameters(object):
             
             # tick labels
             if j==0:
-               ax.set_ylabel(par.namesLatex[i], fontsize=14)
-               plt.setp(ax.get_yticklabels(), fontsize=12)
+               ax.set_ylabel(par.namesLatex[i], fontsize=16)
+               plt.setp(ax.get_yticklabels(), fontsize=14)
             else:
                ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
             #
@@ -298,8 +298,8 @@ class Parameters(object):
 
          # tick labels
          plt.setp(ax.get_xticklabels(), visible=True, rotation=45)
-         ax.set_xlabel(par.namesLatex[j], fontsize=14)
-         plt.setp(ax.get_xticklabels(), fontsize=12)
+         ax.set_xlabel(par.namesLatex[j], fontsize=16)
+         plt.setp(ax.get_xticklabels(), fontsize=14)
       
       if path is None:
          plt.show()

@@ -96,10 +96,11 @@ fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nB
 
 #fish.plotDiagCov()
 
-fish.plotGPhotozRequirements(cosmoPar.ILCDM, name="lcdm")
+#fish.plotGPhotozRequirements(cosmoPar.ILCDM, name="lcdm")
 #fish.plotOutlierPhotozRequirements(cosmoPar.ILCDM, name="lcdm")
-#
-#
+
 #par, _ = fish.computePosterior(fish.lMaxMask+fish.gsOnlyMask, cosmoPar.ILCDM)
 #par.plotContours(IPar=cosmoPar.ILCDM, marg=True, lim=4., color='#E10014', path=None)
-#
+
+fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDM, name="lcdm")
+
