@@ -96,7 +96,7 @@ fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nB
 
 
 # different tomo bins for g and s
-#fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, photoZSPar=photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=True)
+fishDiffgs = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, photoZSPar=photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=False)
 
 
 ##################################################################################
@@ -222,13 +222,15 @@ fish.plotDerivativeDataVectorCosmo(show=False)
 ##################################################################################
 # Dependence on photo-z priors
 # new version
-'''
-fish.plotGPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
-fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
 
-fish.plotGPhotozRequirements(cosmoPar.ILCDMMnu, name="lcdmmnu")
-fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMMnu, name="lcdmmnu")
-'''
+fish.plotGPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa", fish2=fishDiffgs)
+fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa", fish2=fishDiffgs)
+
+fish.plotGPhotozRequirements(cosmoPar.ILCDMMnu, name="lcdmmnu", fish2=fishDiffgs)
+fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMMnu, name="lcdmmnu", fish2=fishDiffgs)
+
+fish.plotGPhotozRequirements(cosmoPar.ILCDMCurv, name="lcdmcurv", fish2=fishDiffgs)
+fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMCurv, name="lcdmcurv", fish2=fishDiffgs)
 
 ##################################################################################
 ##################################################################################
@@ -256,7 +258,17 @@ par.plotContours(IPar=range(len(cosmoPar.ILCDMMnu)), marg=True, lim=4., color='#
 # GKS
 par, _ = fish.computePosterior(fish.fisherDataGks, cosmoPar.ILCDMMnu)
 par.plotContours(IPar=range(len(cosmoPar.ILCDMMnu)), marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gks_lcdmmnu.pdf")
-'''
+
+# LCDMCurv
+# GS
+par, _ = fish.computePosterior(fish.fisherDataGs, cosmoPar.ILCDMCurv)
+par.plotContours(IPar=range(len(cosmoPar.ILCDMCurv)), marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gs_lcdmcurv.pdf")
+# GS no null
+par, _ = fish.computePosterior(fish.fisherDataGsnonull, cosmoPar.ILCDMCurv)
+par.plotContours(IPar=range(len(cosmoPar.ILCDMCurv)), marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gsnonull_lcdmcurv.pdf")
+# GKS
+par, _ = fish.computePosterior(fish.fisherDataGks, cosmoPar.ILCDMCurv)
+par.plotContours(IPar=range(len(cosmoPar.ILCDMCurv)), marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gks_lcdmcurv.pdf")
 
 
 ##################################################################################
@@ -265,5 +277,6 @@ par.plotContours(IPar=range(len(cosmoPar.ILCDMMnu)), marg=True, lim=4., color='#
 
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMMnu, name="lcdmmnu")
-
+fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMCurv, name="lcdmcurv")
+'''
 

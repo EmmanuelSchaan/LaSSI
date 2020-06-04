@@ -125,6 +125,45 @@ class Parameters(object):
       newFisher = np.dot(D.transpose(), newFisher)
       return newFisher
    
+
+   def imposeEqualParams(self, I, J):
+      '''Given parameters (a, b, c),
+      returns the parameter (alpha, c) where alpha = a = b.
+      This corresponds to forcing a and b to be the same.
+      (useful e.g. if a and b are the galaxy biases of two samples,
+      and we decide that they should be the same).
+      The new Fisher matrix is obtained by adding the lines and columns
+      corresponding to a and b:
+      Falpha alpha = Faa + 2Fab + Fbb
+      F alpha c = Fac + Fbc 
+      Here I and J are two sequences of the same lengths,
+      such that we want to force param[I[i]] = param[J[i]].
+      '''
+      nI = len(I)
+
+      # compute the new Fisher
+      newFisher = self.fisher.copy()
+      for iPair in range(nI):
+         i = I[iPair]
+         j = J[iPair]
+         # add the two rows
+         newFisher[i,:] += newFisher[j,:]
+         # add the two columns
+         newFisher[:,i] += newFisher[:,j]
+
+      # remove the rows and columns in J
+      IRemaining = list( set(range(self.nPar))-set(J) )
+      newPar = self.extractParams(IRemaining, marg=False)
+
+      # copy the new fisher matrix
+      IIRemaining = np.ix_(IRemaining, IRemaining)
+      newPar.fisher = newFisher[IIRemaining]
+
+      return newPar       
+
+
+
+
    
    def paramUncertainties(self, marg=True):
       """Returns the marginalized 1-sigma uncertainties of the parameters.
@@ -133,7 +172,7 @@ class Parameters(object):
          invFisher = np.linalg.inv(self.fisher)
          std = np.sqrt(np.diag(invFisher))
       else:
-         std = 1. / np.sqrt(np.diag(invFisher))
+         std = 1. / np.sqrt(np.diag(self.fisher))
       return std
    
    
@@ -441,6 +480,7 @@ class CosmoParams(Parameters):
       self.ILCDMW0Wa = [0,1,2,3,4,5,7,8]
       self.ILCDMMnuCurv = [0,1,2,3,4,5,6,9]
       self.ILCDMW0WaCurv = [0,1,2,3,4,5,7,8,9]
+      self.ILCDMCurv = [0,1,2,3,4,5,9]
       # base cosmology
       self.nPar = 6
       self.names = np.array(['Omega_cdm', 'Omega_b', 'A_s', 'n_s', 'h', 'tau_reio'])

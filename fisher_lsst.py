@@ -4694,27 +4694,6 @@ class FisherLsst(object):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
    ###############################################################
    ###############################################################
    ###############################################################
@@ -4730,16 +4709,17 @@ class FisherLsst(object):
       newPhotoZPar = PhotoZParams(nBins=self.nBins, dzFid=0., szFid=0.05, dzStd=dzStd, szStd=szStd, outliers=0.1, outliersStd=outliersStd)
       # if g and s bins are different
       if self.photoZSPar is not None:
-         newPhotoZPar.addParams(newPhotoZPar)
+         newPhotoZPar.addParams(PhotoZParams(nBins=self.nBins, dzFid=0., szFid=0.05, dzStd=dzStd, szStd=szStd, outliers=0.1, outliersStd=outliersStd))
 
       # update the full parameter object
       newPar = self.cosmoPar.copy()
       newPar.addParams(self.galaxyBiasPar)
       newPar.addParams(self.shearMultBiasPar)
       newPar.addParams(newPhotoZPar)
-      # if g and s bins are different
-      if self.photoZSPar is not None:
-         newPar.addParams(newPhotoZPar)
+
+      #print "check shapes"
+      #print newPar.nPar
+      #print fisherData.shape, self.fisherDataGs.shape 
 
       # get the new posterior Fisher matrix, including the prior
       newPar.fisher += fisherData
@@ -4754,6 +4734,73 @@ class FisherLsst(object):
       #print("Marginalizing unwanted parameters took "+str(tStop-tStart)+" sec")
 
       return parFull, sFull
+
+
+
+
+
+   def computePosteriorImposeSamegs(self, fisherData=None, ICosmoPar=None, dzStd=0.002, szStd=0.003, outliersStd=0.05):
+      '''If the Fisher object has different g and s bins,
+      this will return the uncertainties one would get if the g and s bins were the same.
+      '''
+      #print("Compute posterior uncertainties")
+      if fisherData is None:
+         fisherData = self.fisherDataGks
+      if ICosmoPar is None:
+         ICosmoPar = self.cosmoPar.IFull
+
+      # update the photo-z priors
+      newPhotoZPar = PhotoZParams(nBins=self.nBins, dzFid=0., szFid=0.05, dzStd=dzStd, szStd=szStd, outliers=0.1, outliersStd=outliersStd)
+      # if g and s bins are different
+      if self.photoZSPar is not None:
+         newPhotoZPar.addParams(PhotoZParams(nBins=self.nBins, dzFid=0., szFid=0.05, dzStd=dzStd, szStd=szStd, outliers=0.1, outliersStd=outliersStd))
+
+      # update the full parameter object
+      # to get full prior
+      newParPrior = self.cosmoPar.copy()
+      newParPrior.addParams(self.galaxyBiasPar)
+      newParPrior.addParams(self.shearMultBiasPar)
+      newParPrior.addParams(newPhotoZPar)
+
+      # Copy and get Fisher from the data
+      newParData = newParPrior.copy()
+      newParData.fisher = fisherData.copy()
+
+      # force the g photo-z params to be equal to the s photo-z params
+      iMin = self.cosmoPar.nPar + self.galaxyBiasPar.nPar + self.shearMultBiasPar.nPar + self.photoZPar.nPar
+      iMax = iMin + self.photoZSPar.nPar
+      I = range(iMin, iMax)   # the parameters to keep: shear photo-z
+      iMin = self.cosmoPar.nPar + self.galaxyBiasPar.nPar + self.shearMultBiasPar.nPar
+      iMax = iMin + self.photoZPar.nPar
+      J = range(iMin, iMax)   # the parameters to discard: galaxy photo-z
+      # do it on the data Fisher
+      newParData = newParData.imposeEqualParams(I, J)
+
+      # Do not double count the prior
+#      # This would double count the prior on photo-z
+#      newParPrior = newParPrior.imposeEqualParams(I, J)
+      I = list( set(range(newParPrior.nPar)) - set(J) )
+      newParPrior = newParPrior.extractParams(I)
+
+      # get the new posterior Fisher matrix
+      # add the prior to the data Fisher
+      newParData.fisher += newParPrior.fisher
+
+      # Fix the unwanted cosmological parameters 
+      I = ICosmoPar + range(self.cosmoPar.nPar, newParData.nPar)
+      parFull = newParData.extractParams(I, marg=False)
+      # get the marginalized uncertainties
+      #tStart = time()
+      sFull = parFull.paramUncertainties(marg=True)
+      #tStop = time()
+      #print("Marginalizing unwanted parameters took "+str(tStop-tStart)+" sec")
+
+      return parFull, sFull
+
+
+
+
+
 
 
 
@@ -4789,9 +4836,45 @@ class FisherLsst(object):
 
       return Photoz, sCosmo, sGPhotoz, sOutlierPhotoz
 
+   def varyGPhotozPriorImposeSamegs(self, fisherData, ICosmoPar, outliersStd=0.05):
+      #print("Starting sequence: varying Gaussian photo-z prior")
+      # values of photo-z priors to try
+      nPhotoz = 21
+      Photoz = np.logspace(np.log10(1.e-5), np.log10(0.2), nPhotoz, 10.)
+
+      # results to output
+      sCosmo = np.zeros((len(ICosmoPar), nPhotoz))
+      nGPhotoz = 2 * self.nBins
+      nCij = self.nBins * (self.nBins-1)
+      sGPhotoz = np.zeros((nGPhotoz, nPhotoz))
+      sOutlierPhotoz = np.zeros((nCij, nPhotoz))
+
+      for iPhotoz in range(nPhotoz):
+         #print(str(iPhotoz))
+         #tStart = time()
+         photoz = Photoz[iPhotoz]
+
+         # compute the forecast with this prior
+         parFull, sFull = self.computePosteriorImposeSamegs(fisherData, ICosmoPar, dzStd=photoz, szStd=1.5*photoz, outliersStd=0.05)
+         # extract cosmology
+         sCosmo[:,iPhotoz] = sFull[:len(ICosmoPar)]
+         # extract Gaussian photoz
+         sGPhotoz[:,iPhotoz] = sFull[-nGPhotoz-nCij:-nCij]
+         # extract outlier photoz
+         sOutlierPhotoz[:,iPhotoz] = sFull[-nCij:]
+
+         #tStop = time()
+         #print("Took "+str(tStop-tStart)+" sec")
+
+      return Photoz, sCosmo, sGPhotoz, sOutlierPhotoz
+
 
 
    def varyOutlierPhotozPrior(self, fisherData, ICosmoPar, dzStd=0.002, szStd=0.003):
+      '''Works both if the g and s bins are the same or different.
+      If they are different, the photo-z posterior uncertainties returned
+      are those of the shear bins.
+      '''
       #print("Starting sequence: varying outlier photo-z prior")
       # values of photo-z priors to try
       nPhotoz = 21
@@ -4811,12 +4894,74 @@ class FisherLsst(object):
 
          # compute the forecast with this prior
          parFull, sFull = self.computePosterior(fisherData, ICosmoPar, dzStd=0.002, szStd=0.003, outliersStd=photoz)
+
          # extract cosmology
          sCosmo[:,iPhotoz] = sFull[:len(ICosmoPar)]
          # extract Gaussian photoz
          sGPhotoz[:,iPhotoz] = sFull[-nGPhotoz-nCij:-nCij]
          # extract outlier photoz
          sOutlierPhotoz[:,iPhotoz] = sFull[-nCij:]
+
+#         # case with different g and s bins
+#         # extract cosmology
+#         sCosmo[:,iPhotoz] = sFull[:len(ICosmoPar)]
+#         # extract Gaussian photoz for the source bins
+#         iMin = self.cosmoPar.nPar + self.galaxyBiasPar.nPar + self.shearMultBiasPar.nPar + self.photoZPar.nPar
+#         iMax = iMin + nGPhotoZ
+#         sGPhotoz[:,iPhotoz] = sFull[iMin:iMax]
+#         # extract outlier photoz
+#         iMin = self.cosmoPar.nPar + self.galaxyBiasPar.nPar + self.shearMultBiasPar.nPar + self.photoZPar.nPar + nGPhotoZ
+#         iMax = iMin + nCij
+#         sOutlierPhotoz[:,iPhotoz] = sFull[iMin:iMax]
+
+         #tStop = time()
+         #print("Took "+str(tStop-tStart)+" sec")
+
+      return Photoz, sCosmo, sGPhotoz, sOutlierPhotoz
+
+   def varyOutlierPhotozPriorImposeSamegs(self, fisherData, ICosmoPar, dzStd=0.002, szStd=0.003):
+      '''Works both if the g and s bins are the same or different.
+      If they are different, the photo-z posterior uncertainties returned
+      are those of the shear bins.
+      '''
+      #print("Starting sequence: varying outlier photo-z prior")
+      # values of photo-z priors to try
+      nPhotoz = 21
+      Photoz = np.logspace(np.log10(1.e-4), np.log10(5.), nPhotoz, 10.)
+
+      # results to output
+      sCosmo = np.zeros((len(ICosmoPar), nPhotoz))
+      nGPhotoz = 2 * self.nBins
+      nCij = self.nBins * (self.nBins-1)
+      sGPhotoz = np.zeros((nGPhotoz, nPhotoz))
+      sOutlierPhotoz = np.zeros((nCij, nPhotoz))
+
+      for iPhotoz in range(nPhotoz):
+         #print(str(iPhotoz))
+         #tStart = time()
+         photoz = Photoz[iPhotoz]
+
+         # compute the forecast with this prior
+         parFull, sFull = self.computePosteriorImposeSamegs(fisherData, ICosmoPar, dzStd=0.002, szStd=0.003, outliersStd=photoz)
+
+         # extract cosmology
+         sCosmo[:,iPhotoz] = sFull[:len(ICosmoPar)]
+         # extract Gaussian photoz
+         sGPhotoz[:,iPhotoz] = sFull[-nGPhotoz-nCij:-nCij]
+         # extract outlier photoz
+         sOutlierPhotoz[:,iPhotoz] = sFull[-nCij:]
+
+#         # case with different g and s bins
+#         # extract cosmology
+#         sCosmo[:,iPhotoz] = sFull[:len(ICosmoPar)]
+#         # extract Gaussian photoz for the source bins
+#         iMin = self.cosmoPar.nPar + self.galaxyBiasPar.nPar + self.shearMultBiasPar.nPar + self.photoZPar.nPar
+#         iMax = iMin + nGPhotoZ
+#         sGPhotoz[:,iPhotoz] = sFull[iMin:iMax]
+#         # extract outlier photoz
+#         iMin = self.cosmoPar.nPar + self.galaxyBiasPar.nPar + self.shearMultBiasPar.nPar + self.photoZPar.nPar + nGPhotoZ
+#         iMax = iMin + nCij
+#         sOutlierPhotoz[:,iPhotoz] = sFull[iMin:iMax]
 
          #tStop = time()
          #print("Took "+str(tStop-tStart)+" sec")
@@ -4826,7 +4971,7 @@ class FisherLsst(object):
 
 
 
-   def plotGPhotozRequirements(self, ICosmoPar, name):
+   def plotGPhotozRequirements(self, ICosmoPar, name, fish2=None):
       # Self-calibration of Gaussian photo-z: compare data sets
       Photoz, sCosmoGks, sGPhotozGks, sOutlierPhotozGks = self.varyGPhotozPrior(self.fisherDataGks, ICosmoPar, outliersStd=0.05)
       Photoz, sCosmoGs, sGPhotozGs, sOutlierPhotozGs = self.varyGPhotozPrior(self.fisherDataGs, ICosmoPar, outliersStd=0.05)
@@ -4836,6 +4981,7 @@ class FisherLsst(object):
       ###############################################################
       ###############################################################
       # Degradation in cosmological parameters
+      '''
 
       # get the names of the cosmo params
       parCosmo = self.cosmoPar.extractParams(ICosmoPar, marg=False)
@@ -5053,6 +5199,125 @@ class FisherLsst(object):
       path = "/gphotozreq_outlierphotoz_"+name+".pdf"
       fig.savefig(self.figurePath+path, bbox_inches='tight')
       fig.clf()
+      '''
+
+
+      ###############################################################
+      ###############################################################
+      ###############################################################
+      # Compare the two fisher Forecast objects
+
+
+      if fish2 is not None:
+         # Do the same calculation for the second Fisher forecast
+         Photoz, sCosmoGks2, sGPhotozGks2, sOutlierPhotozGks2 = fish2.varyGPhotozPrior(fish2.fisherDataGks, ICosmoPar, outliersStd=0.05)
+         Photoz, sCosmoGs2, sGPhotozGs2, sOutlierPhotozGs2 = fish2.varyGPhotozPrior(fish2.fisherDataGs, ICosmoPar, outliersStd=0.05)
+         Photoz, sCosmoGsnonull2, sGPhotozGsnonull2, sOutlierPhotozGsnonull2 = fish2.varyGPhotozPrior(fish2.fisherDataGsnonull, ICosmoPar, outliersStd=0.05)
+
+
+         # Check that I recover the case of same g s bins 
+         # from the different g s bins calculation
+         Photoz, sCosmoGks3, sGPhotozGks3, sOutlierPhotozGks3 = fish2.varyGPhotozPriorImposeSamegs(fish2.fisherDataGks, ICosmoPar, outliersStd=0.05)
+         Photoz, sCosmoGs3, sGPhotozGs3, sOutlierPhotozGs3 = fish2.varyGPhotozPriorImposeSamegs(fish2.fisherDataGs, ICosmoPar, outliersStd=0.05)
+         Photoz, sCosmoGsnonull3, sGPhotozGsnonull3, sOutlierPhotozGsnonull3 = fish2.varyGPhotozPriorImposeSamegs(fish2.fisherDataGsnonull, ICosmoPar, outliersStd=0.05)
+
+
+
+         
+         ###############################################################
+         ###############################################################
+         # Compare cosmological parameters
+
+         # get the names of the cosmo params
+         parCosmo = self.cosmoPar.extractParams(ICosmoPar, marg=False)
+
+         
+         fig=plt.figure(0)
+         ax=fig.add_subplot(111)
+         #
+         # fiducial prior
+         ax.axvline(0.002, ls='--', lw=1, c='gray', label=r'Requirement')
+         prop_cycle = plt.rcParams['axes.prop_cycle']
+         colors = prop_cycle.by_key()['color']
+         for iPar in range(parCosmo.nPar):
+            ax.plot(Photoz, sCosmoGs2[iPar, :] / sCosmoGs[iPar,:], c=colors[iPar], label=parCosmo.namesLatex[iPar])
+            ax.plot(Photoz, sCosmoGs3[iPar, :] / sCosmoGs[iPar,:], c=colors[iPar], ls='--')
+         #
+         ax.set_xscale('log', nonposx='clip')
+         ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+         ax.set_ylabel(r'$\sigma_\text{Param, diff bins} / \sigma_\text{Param, same bins}$')
+         ax.set_xlabel(r'Gaussian photo-z prior')
+         #
+         path = "/gphotozreq_cosmo_"+name+"_vs_2.pdf"
+         fig.savefig(self.figurePath+path, bbox_inches='tight')
+         #plt.show()
+         fig.clf()
+
+
+         ###############################################################
+         ###############################################################
+         # Gaussian photo-z posteriors
+
+         fig=plt.figure(1)
+         ax=fig.add_subplot(111)
+         #
+         # fiducial prior
+         ax.axvline(0.002, ls='-', lw=1, color='gray', label=r'Requirement')
+         #
+         # photo-z shifts
+         # add legend entry
+         ax.plot([], [], color='r', label=r'$\delta z$')
+         for iPar in range(self.nBins):
+            darkLight = - 0.5 * iPar/self.nBins
+            color = darkerLighter('r', amount=darkLight)
+            ax.plot(Photoz, sGPhotozGs2[iPar, :]/sGPhotozGs[iPar, :], color=color)
+         #
+         # photo-z scatter
+         # add legend entry
+         ax.plot([], [], color='b', label=r'$\sigma_z / (1+z)$')
+         darkLight = 0.
+         for iPar in range(self.nBins, 2*self.nBins):
+            darkLight = - 0.5 * iPar/self.nBins
+            color = darkerLighter('b', amount=darkLight)
+            ax.plot(Photoz, sGPhotozGs2[iPar, :]/sGPhotozGs[iPar, :], color=color)
+         #
+         ax.set_xscale('log', nonposx='clip')
+         #ax.set_yscale('log', nonposy='clip')
+         ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+         ax.set_ylabel(r'$\sigma_\text{Param, diff bins} / \sigma_\text{Param, same bins}$')
+         ax.set_xlabel(r'Gaussian photo-z prior')
+         #
+         path = "/gphotozreq_gphotoz_"+name+"_vs_2.pdf"
+         fig.savefig(self.figurePath+path, bbox_inches='tight')
+         #plt.show()
+         fig.clf()
+
+
+         ###############################################################
+         ###############################################################
+         # Degradation in outlier photo-z
+         
+         nCij = self.nBins * (self.nBins - 1)
+
+         fig=plt.figure(1)
+         ax=fig.add_subplot(111)
+         #
+         ax.axvline(self.photoZPar.priorStd[-1], ls='-', lw=1, color='gray', label=r'Fiducial')
+         #
+         for iPar in range(nCij):
+            darkLight = -0.5 * iPar/nCij
+            color = darkerLighter('r', amount=darkLight)
+            ax.plot(Photoz/(self.nBins-1), sOutlierPhotozGs2[iPar, :]/sOutlierPhotozGs[iPar, :], color=color, alpha=0.3)
+         #
+         ax.set_xscale('log', nonposx='clip')
+         #ax.set_yscale('log', nonposy='clip')
+         ax.legend(loc=2)
+         ax.set_ylabel(r'$\sigma_{c_{ij} \text{ diff bins}} / \sigma_{c_{ij} \text{ same bins}}$')
+         ax.set_xlabel(r'Gaussian photo-z prior')
+         #
+         path = "/gphotozreq_outlierphotoz_"+name+"_vs_2.pdf"
+         fig.savefig(self.figurePath+path, bbox_inches='tight')
+         fig.clf()
 
 
 
@@ -5065,11 +5330,7 @@ class FisherLsst(object):
 
 
 
-
-
-
-
-   def plotOutlierPhotozRequirements(self, ICosmoPar, name):
+   def plotOutlierPhotozRequirements(self, ICosmoPar, name, fish2=None):
       # Self-calibration of Gaussian photo-z: compare data sets
       Photoz, sCosmoGks, sGPhotozGks, sOutlierPhotozGks = self.varyOutlierPhotozPrior(self.fisherDataGks, ICosmoPar, dzStd=0.002, szStd=0.003)
       Photoz, sCosmoGs, sGPhotozGs, sOutlierPhotozGs = self.varyOutlierPhotozPrior(self.fisherDataGs, ICosmoPar, dzStd=0.002, szStd=0.003)
@@ -5079,7 +5340,7 @@ class FisherLsst(object):
       ###############################################################
       ###############################################################
       # Degradation in cosmological parameters
-
+      '''
       # get the names of the cosmo params
       parCosmo = self.cosmoPar.extractParams(ICosmoPar, marg=False)
 
@@ -5341,8 +5602,126 @@ class FisherLsst(object):
       path = "/outlierphotozreq_outlierphotoz_vs_gsnonull_"+name+".pdf"
       fig.savefig(self.figurePath+path, bbox_inches='tight')
       fig.clf()
+      '''
+
+      ###############################################################
+      ###############################################################
+      ###############################################################
+      # Compare the two fisher Forecast objects
 
 
+      if fish2 is not None:
+         # Do the same calculation for the second Fisher forecast
+         Photoz, sCosmoGks2, sGPhotozGks2, sOutlierPhotozGks2 = fish2.varyOutlierPhotozPrior(fish2.fisherDataGks, ICosmoPar, dzStd=0.002, szStd=0.003)
+         Photoz, sCosmoGs2, sGPhotozGs2, sOutlierPhotozGs2 = fish2.varyOutlierPhotozPrior(fish2.fisherDataGs, ICosmoPar, dzStd=0.002, szStd=0.003)
+         Photoz, sCosmoGsnonull2, sGPhotozGsnonull2, sOutlierPhotozGsnonull2 = fish2.varyOutlierPhotozPrior(fish2.fisherDataGsnonull, ICosmoPar, dzStd=0.002, szStd=0.003)
+
+         # Check that I recover the case of same g s bins
+         # from the different g s bins calculation
+         Photoz, sCosmoGks3, sGPhotozGks3, sOutlierPhotozGks3 = fish2.varyOutlierPhotozPriorImposeSamegs(fish2.fisherDataGks, ICosmoPar, dzStd=0.002, szStd=0.003)
+         Photoz, sCosmoGs3, sGPhotozGs3, sOutlierPhotozGs3 = fish2.varyOutlierPhotozPriorImposeSamegs(fish2.fisherDataGs, ICosmoPar, dzStd=0.002, szStd=0.003)
+         Photoz, sCosmoGsnonull3, sGPhotozGsnonull3, sOutlierPhotozGsnonull3 = fish2.varyOutlierPhotozPriorImposeSamegs(fish2.fisherDataGsnonull, ICosmoPar, dzStd=0.002, szStd=0.003)
+
+
+
+         
+         ###############################################################
+         ###############################################################
+         # Compare cosmological parameters
+
+         # get the names of the cosmo params
+         parCosmo = self.cosmoPar.extractParams(ICosmoPar, marg=False)
+
+         
+         fig=plt.figure(0)
+         ax=fig.add_subplot(111)
+         #
+         # fiducial prior
+         ax.axvline(0.002, ls='--', lw=1, c='gray', label=r'Requirement')
+         prop_cycle = plt.rcParams['axes.prop_cycle']
+         colors = prop_cycle.by_key()['color']
+         for iPar in range(parCosmo.nPar):
+            ax.plot(Photoz, sCosmoGs2[iPar, :] / sCosmoGs[iPar,:], c=colors[iPar], label=parCosmo.namesLatex[iPar])
+            ax.plot(Photoz, sCosmoGs3[iPar, :] / sCosmoGs[iPar,:], c=colors[iPar], ls='--')
+         #
+         ax.set_xscale('log', nonposx='clip')
+         ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+         ax.set_ylabel(r'$\sigma_\text{Param, diff bins} / \sigma_\text{Param, same bins}$')
+         ax.set_xlabel(r'Prior on outlier fraction $c_{ij}$')
+         #
+         path = "/outlierphotozreq_cosmo_"+name+"_vs_2.pdf"
+         fig.savefig(self.figurePath+path, bbox_inches='tight')
+         #plt.show()
+         fig.clf()
+
+
+         ###############################################################
+         ###############################################################
+         # Gaussian photo-z posteriors
+
+         fig=plt.figure(1)
+         ax=fig.add_subplot(111)
+         #
+         # fiducial prior
+         ax.axvline(0.002, ls='-', lw=1, color='gray', label=r'Requirement')
+         #
+         # photo-z shifts
+         # add legend entry
+         ax.plot([], [], color='r', label=r'$\delta z$')
+         for iPar in range(self.nBins):
+            darkLight = - 0.5 * iPar/self.nBins
+            color = darkerLighter('r', amount=darkLight)
+            ax.plot(Photoz, sGPhotozGs2[iPar, :]/sGPhotozGs[iPar, :], color=color)
+         #
+         # photo-z scatter
+         # add legend entry
+         ax.plot([], [], color='b', label=r'$\sigma_z / (1+z)$')
+         darkLight = 0.
+         for iPar in range(self.nBins, 2*self.nBins):
+            darkLight = - 0.5 * iPar/self.nBins
+            color = darkerLighter('b', amount=darkLight)
+            ax.plot(Photoz, sGPhotozGs2[iPar, :]/sGPhotozGs[iPar, :], color=color)
+         #
+         ax.set_xscale('log', nonposx='clip')
+         #ax.set_yscale('log', nonposy='clip')
+         ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+         ax.set_ylabel(r'$\sigma_\text{Param, diff bins} / \sigma_\text{Param, same bins}$')
+         ax.set_xlabel(r'Prior on outlier fraction $c_{ij}$')
+         #
+         path = "/outlierphotozreq_gphotoz_"+name+"_vs_2.pdf"
+         fig.savefig(self.figurePath+path, bbox_inches='tight')
+         #plt.show()
+         fig.clf()
+
+
+         ###############################################################
+         ###############################################################
+         # Outlier photo-z posteriors
+         
+         nCij = self.nBins * (self.nBins - 1)
+
+         fig=plt.figure(1)
+         ax=fig.add_subplot(111)
+         #
+         ax.axvline(self.photoZPar.priorStd[-1], ls='-', lw=1, color='gray', label=r'Fiducial')
+         #
+         color = 'r'
+         darkLight = 0.
+         for iPar in range(nCij):
+            color = 'r'
+            color = darkerLighter(color, amount=darkLight)
+            darkLight += -0.5 * 1./nCij
+            ax.plot(Photoz/(self.nBins-1), sOutlierPhotozGs2[iPar, :]/sOutlierPhotozGs[iPar, :], color=color, alpha=0.3)
+         #
+         ax.set_xscale('log', nonposx='clip')
+         #ax.set_yscale('log', nonposy='clip')
+         ax.legend(loc=2)
+         ax.set_ylabel(r'$\sigma_{c_{ij} \text{ diff bins}} / \sigma_{c_{ij} \text{ same bins}}$')
+         ax.set_xlabel(r'Prior on outlier fraction $c_{ij}$')
+         #
+         path = "/outlierphotozreq_outlierphotoz_"+name+"_vs_2.pdf"
+         fig.savefig(self.figurePath+path, bbox_inches='tight')
+         fig.clf()
 
 
 
@@ -5353,6 +5732,9 @@ class FisherLsst(object):
          ICosmoPar = self.cosmoPar.IFull
 
       # compute the various posterior constraints we want to compare
+      parPlanck = self.cosmoPar.extractParams(ICosmoPar, marg=False)
+      sPlanck = parPlanck.paramUncertainties()
+      #
       parGs, sGs = self.computePosterior(self.fisherDataGs, ICosmoPar, dzStd=0.002, szStd=0.003, outliersStd=0.05)
       parGsNoprior, sGsNoprior = self.computePosterior(self.fisherDataGs, ICosmoPar, dzStd=10., szStd=10., outliersStd=10.)
       #
@@ -5371,18 +5753,44 @@ class FisherLsst(object):
       sGsnonullCosmo = sGsnonull[ICosmo]
       sGsnonullNopriorCosmo = sGsnonullNoprior[ICosmo]
 
-      # plot cosmo constraints
+      # plot cosmo constraints VS fiducial case
       fig=plt.figure(0)
       ax=fig.add_subplot(111)
       #
+      #ax.plot(sPlanck/sGsCosmo, c='gray', ls='--', marker='o', alpha=0.2, label=r'Planck prior')
+      #
       ax.plot(sGsnonullCosmo/sGsCosmo, c='r', ls='-', marker='o', label=r'gs no null')
-      ax.plot(sGsnonullNopriorCosmo/sGsCosmo, c='r', ls='--', marker='o', label=r'gs no null no prior')
+      ax.plot(sGsnonullNopriorCosmo/sGsCosmo, c='r', ls='--', marker='o', alpha=0.5, label=r'gs no null no prior')
       #
       ax.plot(np.ones_like(ICosmo), c='k', ls='-', marker='o', label=r'gs')
-      ax.plot(sGsNopriorCosmo/sGsCosmo, c='k', ls='--', marker='o', label=r'gs no prior')
+      ax.plot(sGsNopriorCosmo/sGsCosmo, c='k', ls='--', marker='o', alpha=0.5, label=r'gs no prior')
       #
       ax.plot(sGksCosmo/sGsCosmo, c='b', ls='-', marker='o', label=r'gks')
-      ax.plot(sGksNopriorCosmo/sGsCosmo, c='b', ls='--', marker='o', label=r'gks no prior')
+      ax.plot(sGksNopriorCosmo/sGsCosmo, c='b', ls='--', marker='o', alpha=0.5, label=r'gks no prior')
+      #
+      ax.legend(loc=2, labelspacing=0.1, frameon=False)#, handlelength=1.)
+      ax.set_xticks(ICosmo)
+      ax.set_xticklabels(parGs.namesLatex[ICosmo], fontsize=24)
+      [l.set_rotation(45) for l in ax.get_xticklabels()]
+      ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Param fiducial}$')
+      #
+      fig.savefig(self.figurePath+"/comparison_cosmo_"+name+"_vs_gs.pdf", bbox_inches='tight')
+      fig.clf()
+
+      # plot cosmo constraints VS Planck only
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      ax.plot(np.ones_like(ICosmo), c='gray', ls='--', marker='o', label=r'Planck prior')
+      #
+      ax.plot(sGsnonullCosmo/sPlanck, c='r', ls='-', marker='o', label=r'gs no null')
+      ax.plot(sGsnonullNopriorCosmo/sPlanck, c='r', ls='--', marker='o', label=r'gs no null no prior')
+      #
+      ax.plot(sGsCosmo/sPlanck, c='k', ls='-', marker='o', label=r'gs')
+      ax.plot(sGsNopriorCosmo/sPlanck, c='k', ls='--', marker='o', label=r'gs no prior')
+      #
+      ax.plot(sGksCosmo/sPlanck, c='b', ls='-', marker='o', label=r'gks')
+      ax.plot(sGksNopriorCosmo/sPlanck, c='b', ls='--', marker='o', label=r'gks no prior')
       #
       ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
       ax.set_xticks(ICosmo)
@@ -5390,7 +5798,7 @@ class FisherLsst(object):
       [l.set_rotation(45) for l in ax.get_xticklabels()]
       ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Param fiducial}$')
       #
-      fig.savefig(self.figurePath+"/comparison_cosmo_"+name+".pdf", bbox_inches='tight')
+      fig.savefig(self.figurePath+"/comparison_cosmo_"+name+"_vs_planck.pdf", bbox_inches='tight')
       fig.clf()
 
 
