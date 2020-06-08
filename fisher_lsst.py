@@ -4981,7 +4981,7 @@ class FisherLsst(object):
       ###############################################################
       ###############################################################
       # Degradation in cosmological parameters
-      '''
+      
 
       # get the names of the cosmo params
       parCosmo = self.cosmoPar.extractParams(ICosmoPar, marg=False)
@@ -5199,7 +5199,7 @@ class FisherLsst(object):
       path = "/gphotozreq_outlierphotoz_"+name+".pdf"
       fig.savefig(self.figurePath+path, bbox_inches='tight')
       fig.clf()
-      '''
+      
 
 
       ###############################################################
@@ -5340,7 +5340,7 @@ class FisherLsst(object):
       ###############################################################
       ###############################################################
       # Degradation in cosmological parameters
-      '''
+      
       # get the names of the cosmo params
       parCosmo = self.cosmoPar.extractParams(ICosmoPar, marg=False)
 
@@ -5602,7 +5602,7 @@ class FisherLsst(object):
       path = "/outlierphotozreq_outlierphotoz_vs_gsnonull_"+name+".pdf"
       fig.savefig(self.figurePath+path, bbox_inches='tight')
       fig.clf()
-      '''
+      
 
       ###############################################################
       ###############################################################

@@ -240,15 +240,213 @@ class Parameters(object):
 
 
 
-   def plotContours(self, IPar=None, marg=True, lim=4., color='#E10014', path=None):
+#   def plotContours(self, IPar=None, marg=True, lim=4., color='#E10014', path=None):
+#      '''Show confidence ellipses.
+#      IPar (optional): indices of parameters to show
+#      '''
+#      if IPar is None:
+#         par = self.copy()
+#      else:
+#         par = self.extractParams(IPar, marg=marg)
+#      invFisher = np.linalg.inv(par.fisher)
+#      
+#
+#      # generate the contour plot
+#      fig=plt.figure(0, figsize=(18, 16))
+#      gs = gridspec.GridSpec(par.nPar, par.nPar)#, height_ratios=[1, 1, 1])
+#      gs.update(hspace=0.)
+#      gs.update(wspace=0.)
+#
+#      # loop over each column
+#      for j in range(par.nPar):
+#         # j=i case: just plot the Gaussian pdf
+#         ax=plt.subplot(gs[j,j])
+#         
+#         # define Gaussian with correct mean and variance
+#         mean = par.fiducial[j]
+#         sigma = np.sqrt(invFisher[j,j])
+#         X = np.linspace(mean - lim*sigma, mean + lim*sigma, 201)
+#         Y = np.exp(-0.5*(X-mean)**2 / sigma**2)
+#         
+#         # plot it
+#         ax.plot(X, Y, color)
+#         
+#         # 68-95% confidence regions
+#         ax.plot([mean,mean], [0,1], color='b')
+#         ax.fill_between(X, 0., Y, where=np.abs(X-mean)<sigma, color=color, alpha=0.7)
+#         ax.fill_between(X, 0., Y, where=np.abs(X-mean)<2.*sigma, color=color, alpha=0.3)
+#         
+#         # print the marginalized constraint
+#         titleStr = par.namesLatex[j]+r'$ = '+str(np.round(par.fiducial[j], 4))+r' \pm'+str(np.round(sigma, 4))+r'$'
+#         ax.set_title(titleStr, fontsize=14)
+#         
+#         # always remove y ticks
+#         ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+#         
+#         # remove x ticks, except if last parameter
+#         if j<par.nPar-1:
+#            ax.tick_params(axis='x', which='both', top=False, bottom=False, labelbottom=False)
+#
+#         # limits
+#         ax.set_xlim((mean - lim*sigma, mean + lim*sigma))
+#         ax.set_ylim((0., 1.1))
+#
+#
+#         # loop over each row i>j
+#         for i in range(j+1, par.nPar):
+#            ax=plt.subplot(gs[i,j], sharex=ax)
+#            
+#            # means and cov
+#            meanx = par.fiducial[j]
+#            meany = par.fiducial[i]
+#            #
+#            sx = np.sqrt(invFisher[j,j])
+#            sy = np.sqrt(invFisher[i,i])
+#            sxy = invFisher[i,j]
+#
+#            # plot the fiducial value
+#            ax.plot([meanx], [meany], 'b.')
+#
+#            # covariance contour
+#            x = np.linspace(meanx - lim*sx, meanx + lim*sx, 501)
+#            y = np.linspace(meany - lim*sy, meany + lim*sy, 501)
+#            X, Y = np.meshgrid(x, y)
+#            Z = bivariate_normal(X, Y, sigmax=sx, sigmay=sy, mux=meanx, muy=meany, sigmaxy=sxy)
+#            norm = bivariate_normal(0., 0., sigmax=sx, sigmay=sy, mux=0., muy=0., sigmaxy=sxy)
+#            Z = -2. * np.log(Z/norm)   # returns the chi squared
+#
+#            # confidence level contours
+#            conf_level = np.array([0.68, 0.95])
+#            chi2 = -2. * np.log(1. - conf_level)
+#            ax.contourf(X,Y,Z, [0., chi2[0]], colors=color, alpha=0.7)
+#            ax.contourf(X,Y,Z, [0., chi2[1]], colors=color, alpha=0.3)
+#            
+#            # limits
+#            mean = par.fiducial[i]
+#            sigma = np.sqrt(invFisher[i,i])
+#            ax.set_ylim((meany - lim*sy, meany + lim*sy))
+#            
+#            # tick labels
+#            if j==0:
+#               ax.set_ylabel(par.namesLatex[i], fontsize=16)
+#               plt.setp(ax.get_yticklabels(), fontsize=14)
+#            else:
+#               ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+#            #
+#            plt.setp(ax.get_xticklabels(), visible=False)
+#
+#         # tick labels
+#         plt.setp(ax.get_xticklabels(), visible=True, rotation=45)
+#         ax.set_xlabel(par.namesLatex[j], fontsize=16)
+#         plt.setp(ax.get_xticklabels(), fontsize=14)
+#      
+#      if path is None:
+#         plt.show()
+#      else:
+#         fig.savefig(path, bbox_inches='tight')
+#         fig.clf()
+
+
+
+
+   def plotContours(self, fishers=None, IPar=None, marg=True, lim=4., colors=None, names=None, path=None):
       '''Show confidence ellipses.
       IPar (optional): indices of parameters to show
       '''
+      
+      # create list of Fisher matrices to visualize
+      if fishers is None:
+         fishers = np.array([self.fisher])
+         nFisher = 1
+      else:
+         nFisher = np.shape(fishers)[0]
+
+      # extract the inverse Fisher matrices,
+      # after extracting selected parameters if requested
       if IPar is None:
          par = self.copy()
+         InvFisher = np.zeros((nFisher, self.nPar, self.nPar))
+         for iFisher in range(nFisher):
+            InvFisher[iFisher,:,:] = np.linalg.inv(fishers[iFisher,:,:])
       else:
-         par = self.extractParams(IPar, marg=marg)
-      invFisher = np.linalg.inv(par.fisher)
+         InvFisher = np.zeros((nFisher, len(IPar), len(IPar)))
+         for iFisher in range(nFisher):
+            par = self.copy()
+            par.fisher = fishers[iFisher,:,:]
+            par = par.extractParams(IPar, marg=marg)
+            InvFisher[iFisher,:,:] = np.linalg.inv(par.fisher)
+         
+
+      def fillPlot(invFisher, color):
+         # loop over each column
+         for j in range(par.nPar):
+
+            # j=i case: just plot the Gaussian pdf
+            ax=plt.subplot(gs[j,j])
+            # define Gaussian with correct mean and variance
+            mean = par.fiducial[j]
+            sigma = np.sqrt(invFisher[j,j])
+            X = np.linspace(mean - lim*sigma, mean + lim*sigma, 201)
+            Y = np.exp(-0.5*(X-mean)**2 / sigma**2)
+            # plot it
+            ax.plot(X, Y, color)
+            # 68-95% confidence regions
+            ax.plot([mean,mean], [0,1], color='k')
+            ax.fill_between(X, 0., Y, where=np.abs(X-mean)<sigma, color=color, alpha=0.7)
+#            ax.fill_between(X, 0., Y, where=np.abs(X-mean)<2.*sigma, color=color, alpha=0.3)
+            # print the marginalized constraint
+            titleStr = par.namesLatex[j]+r'$ = '+str(np.round(par.fiducial[j], 4))+r' \pm'+str(np.round(sigma, 4))+r'$'
+            ax.set_title(titleStr, fontsize=14)
+            # always remove y ticks
+            ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+            # remove x ticks, except if last parameter
+            if j<par.nPar-1:
+               ax.tick_params(axis='x', which='both', top=False, bottom=False, labelbottom=False)
+            # limits
+            ax.set_xlim((mean - lim*sigma, mean + lim*sigma))
+            ax.set_ylim((0., 1.1))
+
+            # loop over each row i>j
+            for i in range(j+1, par.nPar):
+               ax=plt.subplot(gs[i,j], sharex=ax)
+               # means and cov
+               meanx = par.fiducial[j]
+               meany = par.fiducial[i]
+               #
+               sx = np.sqrt(invFisher[j,j])
+               sy = np.sqrt(invFisher[i,i])
+               sxy = invFisher[i,j]
+               # plot the fiducial value
+               ax.plot([meanx], [meany], 'k.')
+               # covariance contour
+               x = np.linspace(meanx - lim*sx, meanx + lim*sx, 501)
+               y = np.linspace(meany - lim*sy, meany + lim*sy, 501)
+               X, Y = np.meshgrid(x, y)
+               Z = bivariate_normal(X, Y, sigmax=sx, sigmay=sy, mux=meanx, muy=meany, sigmaxy=sxy)
+               norm = bivariate_normal(0., 0., sigmax=sx, sigmay=sy, mux=0., muy=0., sigmaxy=sxy)
+               Z = -2. * np.log(Z/norm)   # returns the chi squared
+               # confidence level contours
+               conf_level = np.array([0.68, 0.95])
+               chi2 = -2. * np.log(1. - conf_level)
+               ax.contourf(X,Y,Z, [0., chi2[0]], colors=color, alpha=0.7)
+#               ax.contourf(X,Y,Z, [0., chi2[1]], colors=color, alpha=0.3)
+               # limits
+               mean = par.fiducial[i]
+               sigma = np.sqrt(invFisher[i,i])
+               ax.set_ylim((meany - lim*sy, meany + lim*sy))
+               # tick labels
+               if j==0:
+                  ax.set_ylabel(par.namesLatex[i], fontsize=16)
+                  plt.setp(ax.get_yticklabels(), fontsize=14)
+               else:
+                  ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+               #
+               plt.setp(ax.get_xticklabels(), visible=False)
+
+            # tick labels
+            plt.setp(ax.get_xticklabels(), visible=True, rotation=45)
+            ax.set_xlabel(par.namesLatex[j], fontsize=16)
+            plt.setp(ax.get_xticklabels(), fontsize=14)
       
 
       # generate the contour plot
@@ -256,95 +454,39 @@ class Parameters(object):
       gs = gridspec.GridSpec(par.nPar, par.nPar)#, height_ratios=[1, 1, 1])
       gs.update(hspace=0.)
       gs.update(wspace=0.)
-
-      # loop over each column
-      for j in range(par.nPar):
-         # j=i case: just plot the Gaussian pdf
-         ax=plt.subplot(gs[j,j])
-         
-         # define Gaussian with correct mean and variance
-         mean = par.fiducial[j]
-         sigma = np.sqrt(invFisher[j,j])
-         X = np.linspace(mean - lim*sigma, mean + lim*sigma, 201)
-         Y = np.exp(-0.5*(X-mean)**2 / sigma**2)
-         
-         # plot it
-         ax.plot(X, Y, color)
-         
-         # 68-95% confidence regions
-         ax.plot([mean,mean], [0,1], color='b')
-         ax.fill_between(X, 0., Y, where=np.abs(X-mean)<sigma, color=color, alpha=0.7)
-         ax.fill_between(X, 0., Y, where=np.abs(X-mean)<2.*sigma, color=color, alpha=0.3)
-         
-         # print the marginalized constraint
-         titleStr = par.namesLatex[j]+r'$ = '+str(np.round(par.fiducial[j], 4))+r' \pm'+str(np.round(sigma, 4))+r'$'
-         ax.set_title(titleStr, fontsize=14)
-         
-         # always remove y ticks
-         ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
-         
-         # remove x ticks, except if last parameter
-         if j<par.nPar-1:
-            ax.tick_params(axis='x', which='both', top=False, bottom=False, labelbottom=False)
-
-         # limits
-         ax.set_xlim((mean - lim*sigma, mean + lim*sigma))
-         ax.set_ylim((0., 1.1))
-
-
-         # loop over each row i>j
-         for i in range(j+1, par.nPar):
-            ax=plt.subplot(gs[i,j], sharex=ax)
-            
-            # means and cov
-            meanx = par.fiducial[j]
-            meany = par.fiducial[i]
-            #
-            sx = np.sqrt(invFisher[j,j])
-            sy = np.sqrt(invFisher[i,i])
-            sxy = invFisher[i,j]
-
-            # plot the fiducial value
-            ax.plot([meanx], [meany], 'b.')
-
-            # covariance contour
-            x = np.linspace(meanx - lim*sx, meanx + lim*sx, 501)
-            y = np.linspace(meany - lim*sy, meany + lim*sy, 501)
-            X, Y = np.meshgrid(x, y)
-            Z = bivariate_normal(X, Y, sigmax=sx, sigmay=sy, mux=meanx, muy=meany, sigmaxy=sxy)
-            norm = bivariate_normal(0., 0., sigmax=sx, sigmay=sy, mux=0., muy=0., sigmaxy=sxy)
-            Z = -2. * np.log(Z/norm)   # returns the chi squared
-
-            # confidence level contours
-            conf_level = np.array([0.68, 0.95])
-            chi2 = -2. * np.log(1. - conf_level)
-            ax.contourf(X,Y,Z, [0., chi2[0]], colors=color, alpha=0.7)
-            ax.contourf(X,Y,Z, [0., chi2[1]], colors=color, alpha=0.3)
-            
-            # limits
-            mean = par.fiducial[i]
-            sigma = np.sqrt(invFisher[i,i])
-            ax.set_ylim((meany - lim*sy, meany + lim*sy))
-            
-            # tick labels
-            if j==0:
-               ax.set_ylabel(par.namesLatex[i], fontsize=16)
-               plt.setp(ax.get_yticklabels(), fontsize=14)
-            else:
-               ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
-            #
-            plt.setp(ax.get_xticklabels(), visible=False)
-
-         # tick labels
-         plt.setp(ax.get_xticklabels(), visible=True, rotation=45)
-         ax.set_xlabel(par.namesLatex[j], fontsize=16)
-         plt.setp(ax.get_xticklabels(), fontsize=14)
       
+      # fill it for each Fisher matrix
+      for iFisher in range(nFisher):
+         if colors is None:
+            c = '#E10014'
+         else:
+            c = colors[iFisher]
+
+         # Visualize the Fisher matrix
+         fillPlot(InvFisher[iFisher], color=c)
+         
+         # Add legend entry for each Fisher matrix visualized
+         if names is not None:
+            ax=plt.subplot(gs[0,-1])
+            ax.fill_between([], [], [], facecolor=c, label=names[iFisher])
+            ax.axis('off')
+      if names is not None:
+         plt.legend(loc=1, frameon=False)
+
+      # Show or save it
       if path is None:
          plt.show()
       else:
          fig.savefig(path, bbox_inches='tight')
          fig.clf()
+
+
+
+
+
+
+
+
 
 
 

@@ -94,10 +94,10 @@ fsky = 0.35 # 0.4
 # same tomo bins for g and s
 fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=False)
 
-
+'''
 # different tomo bins for g and s
 fishDiffgs = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, photoZSPar=photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=False)
-
+'''
 
 ##################################################################################
 # basic plots and checks
@@ -222,7 +222,7 @@ fish.plotDerivativeDataVectorCosmo(show=False)
 ##################################################################################
 # Dependence on photo-z priors
 # new version
-
+'''
 fish.plotGPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa", fish2=fishDiffgs)
 fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMW0Wa, name="lcdmw0wa", fish2=fishDiffgs)
 
@@ -231,50 +231,64 @@ fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMMnu, name="lcdmmnu", fish2=fish
 
 fish.plotGPhotozRequirements(cosmoPar.ILCDMCurv, name="lcdmcurv", fish2=fishDiffgs)
 fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMCurv, name="lcdmcurv", fish2=fishDiffgs)
-
+'''
 ##################################################################################
 ##################################################################################
 # Contour plots
 
-'''
+
+# Compare Planck prior, gs, gks
+fishers=np.array([fish.fullPar.fisher, fish.fullPar.fisher+fish.fisherDataGs, fish.fullPar.fisher+fish.fisherDataGks])
+par = fish.fullPar.copy()
+
 # LCDMW0Wa
-# GS
-par, _ = fish.computePosterior(fish.fisherDataGs, cosmoPar.ILCDMW0Wa)
-par.plotContours(IPar=range(len(cosmoPar.ILCDMW0Wa)), marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gs_lcdmw0wa.pdf")
-# GS no null
-par, _ = fish.computePosterior(fish.fisherDataGsnonull, cosmoPar.ILCDMW0Wa)
-par.plotContours(IPar=range(len(cosmoPar.ILCDMW0Wa)), marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gsnonull_lcdmw0wa.pdf")
-# GKS
-par, _ = fish.computePosterior(fish.fisherDataGks, cosmoPar.ILCDMW0Wa)
-par.plotContours(IPar=range(len(cosmoPar.ILCDMW0Wa)), marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gks_lcdmw0wa.pdf")
-
+par.plotContours(fishers=fishers, names=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], IPar=cosmoPar.ILCDMW0Wa, marg=True, lim=4., path=fish.figurePath+"/contours_lcdmw0wa.pdf")
 # LCDMMnu
-# GS
-par, _ = fish.computePosterior(fish.fisherDataGs, cosmoPar.ILCDMMnu)
-par.plotContours(IPar=range(len(cosmoPar.ILCDMMnu)), marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gs_lcdmmnu.pdf")
-# GS no null
-par, _ = fish.computePosterior(fish.fisherDataGsnonull, cosmoPar.ILCDMMnu)
-par.plotContours(IPar=range(len(cosmoPar.ILCDMMnu)), marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gsnonull_lcdmmnu.pdf")
-# GKS
-par, _ = fish.computePosterior(fish.fisherDataGks, cosmoPar.ILCDMMnu)
-par.plotContours(IPar=range(len(cosmoPar.ILCDMMnu)), marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gks_lcdmmnu.pdf")
-
+par.plotContours(fishers=fishers, names=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], IPar=cosmoPar.ILCDMMnu, marg=True, lim=4., path=fish.figurePath+"/contours_lcdmmnu.pdf")
 # LCDMCurv
-# GS
-par, _ = fish.computePosterior(fish.fisherDataGs, cosmoPar.ILCDMCurv)
-par.plotContours(IPar=range(len(cosmoPar.ILCDMCurv)), marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gs_lcdmcurv.pdf")
-# GS no null
-par, _ = fish.computePosterior(fish.fisherDataGsnonull, cosmoPar.ILCDMCurv)
-par.plotContours(IPar=range(len(cosmoPar.ILCDMCurv)), marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gsnonull_lcdmcurv.pdf")
-# GKS
-par, _ = fish.computePosterior(fish.fisherDataGks, cosmoPar.ILCDMCurv)
-par.plotContours(IPar=range(len(cosmoPar.ILCDMCurv)), marg=True, lim=4., color='#E10014', path=fish.figurePath+"/contours_gks_lcdmcurv.pdf")
+par.plotContours(fishers=fishers, names=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], IPar=cosmoPar.ILCDMCurv, marg=True, lim=4., path=fish.figurePath+"/contours_lcdmcurv.pdf")
+
+
+## Contours for individual forecasts
+#
+## LCDMW0Wa
+## GS
+#par, _ = fish.computePosterior(fish.fisherDataGs)
+#par.plotContours(IPar=range(len(cosmoPar.ILCDMW0Wa)), marg=True, lim=4., path=fish.figurePath+"/contours_gs_lcdmw0wa.pdf")
+## GS no null
+#par, _ = fish.computePosterior(fish.fisherDataGsnonull)
+#par.plotContours(IPar=range(len(cosmoPar.ILCDMW0Wa)), marg=True, lim=4., path=fish.figurePath+"/contours_gsnonull_lcdmw0wa.pdf")
+## GKS
+#par, _ = fish.computePosterior(fish.fisherDataGks)
+#par.plotContours(IPar=range(len(cosmoPar.ILCDMW0Wa)), marg=True, lim=4., path=fish.figurePath+"/contours_gks_lcdmw0wa.pdf")
+#
+## LCDMMnu
+## GS
+#par, _ = fish.computePosterior(fish.fisherDataGs)
+#par.plotContours(IPar=range(len(cosmoPar.ILCDMMnu)), marg=True, lim=4., path=fish.figurePath+"/contours_gs_lcdmmnu.pdf")
+## GS no null
+#par, _ = fish.computePosterior(fish.fisherDataGsnonull)
+#par.plotContours(IPar=range(len(cosmoPar.ILCDMMnu)), marg=True, lim=4., path=fish.figurePath+"/contours_gsnonull_lcdmmnu.pdf")
+## GKS
+#par, _ = fish.computePosterior(fish.fisherDataGks)
+#par.plotContours(IPar=range(len(cosmoPar.ILCDMMnu)), marg=True, lim=4., path=fish.figurePath+"/contours_gks_lcdmmnu.pdf")
+#
+## LCDMCurv
+## GS
+#par, _ = fish.computePosterior(fish.fisherDataGs)
+#par.plotContours(IPar=range(len(cosmoPar.ILCDMCurv)), marg=True, lim=4., path=fish.figurePath+"/contours_gs_lcdmcurv.pdf")
+## GS no null
+#par, _ = fish.computePosterior(fish.fisherDataGsnonull)
+#par.plotContours(IPar=range(len(cosmoPar.ILCDMCurv)), marg=True, lim=4., path=fish.figurePath+"/contours_gsnonull_lcdmcurv.pdf")
+## GKS
+#par, _ = fish.computePosterior(fish.fisherDataGks)
+#par.plotContours(IPar=range(len(cosmoPar.ILCDMCurv)), marg=True, lim=4., path=fish.figurePath+"/contours_gks_lcdmcurv.pdf")
 
 
 ##################################################################################
 ##################################################################################
 # Comparison of cosmological parameters for the various runs
-
+'''
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMMnu, name="lcdmmnu")
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMCurv, name="lcdmcurv")

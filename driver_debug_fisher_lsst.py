@@ -95,7 +95,7 @@ fsky = 0.35 # 0.4
 fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=False)
 
 # different tomo bins for g and s
-fishDiffgs = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, photoZSPar=photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=False)
+#fishDiffgs = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, photoZSPar=photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=name, nProc=nProc, save=False)
 
 
 
@@ -104,8 +104,18 @@ fishDiffgs = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, ph
 #fish.plotGPhotozRequirements(cosmoPar.ILCDM, name="lcdm", fish2=fishDiffgs)
 #fish.plotOutlierPhotozRequirements(cosmoPar.ILCDM, name="lcdm", fish2=fishDiffgs)
 
-#par, _ = fish.computePosterior(fish.fisherDataGs, cosmoPar.ILCDM)
-#par.plotContours(IPar=cosmoPar.ILCDM, marg=True, lim=4., color='#E10014', path=None)
+#par, _ = fish.computePosterior(fish.fisherDataGs)
+#par.plotContours(IPar=cosmoPar.ILCDM, marg=True, lim=4., path=None)
+
+
+fishers=np.array([fish.fullPar.fisher, fish.fullPar.fisher+fish.fisherDataGs, fish.fullPar.fisher+fish.fisherDataGks])
+par = fish.fullPar.copy()
+par.plotContours(fishers=fishers, names=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], IPar=cosmoPar.ILCDM, marg=True, lim=3., path=None)
+
+
+
+
+
 
 #fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDM, name="lcdm")
 
