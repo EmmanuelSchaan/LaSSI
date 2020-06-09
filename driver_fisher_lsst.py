@@ -236,7 +236,7 @@ fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMCurv, name="lcdmcurv", fish2=fi
 ##################################################################################
 # Contour plots
 
-
+'''
 # Compare Planck prior, gs, gks
 fishers=np.array([fish.fullPar.fisher, fish.fullPar.fisher+fish.fisherDataGs, fish.fullPar.fisher+fish.fisherDataGks])
 par = fish.fullPar.copy()
@@ -247,7 +247,7 @@ par.plotContours(fishers=fishers, names=['Planck', 'LSST', 'LSST + CMB lensing']
 par.plotContours(fishers=fishers, names=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], IPar=cosmoPar.ILCDMMnu, marg=True, lim=4., path=fish.figurePath+"/contours_lcdmmnu.pdf")
 # LCDMCurv
 par.plotContours(fishers=fishers, names=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], IPar=cosmoPar.ILCDMCurv, marg=True, lim=4., path=fish.figurePath+"/contours_lcdmcurv.pdf")
-
+'''
 
 ## Contours for individual forecasts
 #
@@ -293,4 +293,13 @@ fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMMnu, name="lcdmmnu")
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMCurv, name="lcdmcurv")
 '''
+
+##################################################################################
+##################################################################################
+# Biases from wrong outlier photo-z
+
+fish.plotBiasFromOutliers(cosmoPar.ILCDMW0Wa, name='lcdmw0wa')
+fish.plotBiasFromOutliers(cosmoPar.ILCDMMnu, name='lcdmmnu')
+fish.plotBiasFromOutliers(cosmoPar.ILCDMCurv, name='lcdmcurv')
+
 

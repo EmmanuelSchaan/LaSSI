@@ -5802,4 +5802,110 @@ class FisherLsst(object):
       fig.clf()
 
 
+   ###############################################################
+   ###############################################################
+
+
+   def computeBiasFromOutliers(self, fisherData=None, ICosmoPar=None, cijBias=0.1):
+      '''Compute the bias in desired parameters when one incorrectly
+      assumes no photo-z outliers.
+      cijBias is the fractional bias on the cij parameters
+      dTheta_i = - (F^-1)_{ij} F_{j alpha} dPsi_alpha
+      where:
+      dPsi_alpha are the error in the fixed parameters
+      dTheta_i are the resulting biases in the inferred parameters.
+      '''
+      if fisherData is None:
+         fisherData = self.fisherDataGks
+      if ICosmoPar is None:
+         ICosmoPar = self.cosmoPar.IFull
+
+      # get the posterior Fisher matrix
+      par, s = self.computePosterior(fisherData=fisherData, ICosmoPar=ICosmoPar, dzStd=0.002, szStd=0.003, outliersStd=0.05)
+      fisher = par.fisher
+      # extract the sub-Fisher matrix for the inferred parameters only
+      nCij = self.nBins * (self.nBins-1)
+      fisherPartial = fisher[:-nCij, :-nCij]
+      invFisherPartial = np.linalg.inv(fisherPartial)
+
+      # dPsi: errors in the assumed fixed params
+      wrongParFiducial = np.zeros(par.nPar)
+      # assume (wrongly) no outliers
+      wrongParFiducial[-nCij:] = self.photoZPar.fiducial[-nCij:] * cijBias
+      
+      # dTheta: bias in the inferred parameters
+      dTheta = - np.dot(invFisherPartial, np.dot(fisher[:-nCij,:], wrongParFiducial))
+      # uncertainties on the inferred parameters,
+      # when the cij are fixed, not marginalized,
+      # to assess the significance of the bias
+      sTheta = np.sqrt(np.diag(invFisherPartial))  #s[:-nCij]
+      return dTheta, sTheta
+
+
+   def varyBiasFromOutliers(self, fisherData=None, ICosmoPar=None):
+      # values of Cij fractional bias to try
+      nCijBias = 21
+      CijBias = np.logspace(np.log10(1.e-2), np.log10(1.), nCijBias, 10.)
+      # results to output
+      nCij = self.nBins * (self.nBins-1)
+      nPar = self.fullPar.nPar - self.cosmoPar.nPar + len(ICosmoPar) - nCij
+      dTheta = np.zeros((nPar, nCijBias))
+      sTheta = np.zeros((nPar, nCijBias))
+      for iCijBias in range(nCijBias):
+         cijBias = CijBias[iCijBias]
+         # Compute the bias on inferred parameters
+         dTheta[:,iCijBias], sTheta[:,iCijBias] = self.computeBiasFromOutliers(fisherData=fisherData, ICosmoPar=ICosmoPar, cijBias=cijBias)
+      return CijBias, dTheta, sTheta
+
+
+
+
+   def plotBiasFromOutliers(self, ICosmoPar, name):
+
+      # compute the biases for the different data sets
+      CijBias, dThetaGks, sThetaGks = self.varyBiasFromOutliers(fisherData=self.fisherDataGks, ICosmoPar=ICosmoPar)
+
+
+      ###############################################################
+      ###############################################################
+      # Bias on cosmological parameters
+
+      # get the names and fiducial values of the cosmo params
+      parCosmo = self.cosmoPar.extractParams(ICosmoPar, marg=False)
+
+#      print parCosmo.names[:len(ICosmoPar)]
+#      print dThetaGks[:len(ICosmoPar),-1]
+#      print dThetaGks[:len(ICosmoPar),-1] / parCosmo.fiducial[:len(ICosmoPar)]
+#      print parCosmo.fiducial[:len(ICosmoPar)]
+
+
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      ax.axhline(0., c='k', ls='--')
+      #
+      prop_cycle = plt.rcParams['axes.prop_cycle']
+      colors = prop_cycle.by_key()['color']
+      for iPar in range(parCosmo.nPar):
+         ax.plot(CijBias, dThetaGks[iPar,:], c=colors[iPar], label=parCosmo.namesLatex[iPar])
+         ax.fill_between(CijBias, dThetaGks[iPar,:]-sThetaGks[iPar,:], dThetaGks[iPar,:]+sThetaGks[iPar,:], facecolor=colors[iPar], edgecolor='', alpha=0.4)
+
+      #
+      ax.set_xlim((1.e-2, 1.))
+#      ax.set_ylim((-0.1, 0.1))
+      #ax.set_yscale('symlog', linthreshy=0.05)
+      #ax.axhline(-0.05, c='gray', lw=0.5)
+      #ax.axhline(0.05, c='gray', lw=0.5)
+      ax.set_xscale('log', nonposx='clip')
+      ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+      ax.set_ylabel(r'Parameter bias')
+      ax.set_xlabel(r'Fractional bias on outliers $c_{ij}$')
+      #
+      path = "/bias_photozoutliers_cosmo_"+name+".pdf"
+      fig.savefig(self.figurePath+path, bbox_inches='tight')
+      #plt.show()
+      fig.clf()
+
+
+
 
