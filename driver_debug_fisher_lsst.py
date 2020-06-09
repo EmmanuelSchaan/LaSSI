@@ -110,11 +110,27 @@ fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nB
 
 #fishers=np.array([fish.fullPar.fisher, fish.fullPar.fisher+fish.fisherDataGs, fish.fullPar.fisher+fish.fisherDataGks])
 #par = fish.fullPar.copy()
-#par.plotContours(fishers=fishers, names=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], IPar=cosmoPar.ILCDM, marg=True, lim=3., path=None)
+#par.plotContours(fishers=fishers, names=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], IPar=cosmoPar.ILCDM, lim=3., path=None)
+
+
+
+fishers=np.array([fish.fullPar.fisher, fish.fullPar.fisher+fish.fisherDataGs, fish.fullPar.fisher+fish.fisherDataGks])
+
+# LCDM
+fish.plotCosmoContours(cosmoPar.ILCDM, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=fish.figurePath+"/contours_lcdm.pdf")
+
+
+
+
+
+
+
+
+
 
 #dTheta, sTheta = fish.computeBiasFromOutliers(fisherData=fish.fisherDataGs, ICosmoPar=cosmoPar.ILCDM)
 
-fish.plotBiasFromOutliers(cosmoPar.ILCDM, name='lcdm')
+#fish.plotBiasFromOutliers(cosmoPar.ILCDM, name='lcdm')
 
 
 #fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDM, name="lcdm")

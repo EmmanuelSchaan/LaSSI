@@ -5908,4 +5908,49 @@ class FisherLsst(object):
 
 
 
+   ###############################################################
+   ###############################################################
+
+
+
+   def plotCosmoContours(self, ICosmoPar, fishers, fisherNames=None, colors=None, path=None):
+      
+      # Create the list of inverse Fisher matrices,
+      # by fixing unwanted cosmo params
+      # and marginalizing over all nuisance marams
+      nFisher = np.shape(fishers)[0]
+      invFishers = np.zeros((nFisher, len(ICosmoPar), len(ICosmoPar)))
+      for iFisher in range(nFisher):
+
+         par = self.fullPar
+         par.fisher = fishers[iFisher,:,:]
+
+         # Fix the unwanted cosmological parameters 
+         I = ICosmoPar + range(self.cosmoPar.nPar, self.fullPar.nPar)
+         par = par.extractParams(I, marg=False)
+         
+         # Marginalize over the nuisance parameters
+         par = par.extractParams(range(len(ICosmoPar)), marg=True)
+         
+         invFishers[iFisher,:,:] = np.linalg.inv(par.fisher)
+
+      # generate the contour plot
+      par = self.fullPar
+      par = par.extractParams(ICosmoPar, marg=False)  # only used for fiducial values and names
+
+      par.plotContours(par=par, invFishers=invFishers, lim=4., colors=colors, fisherNames=fisherNames, path=path)
+         
+
+
+   def plotSummaryCosmoContours(self):
+      # Compare Planck prior, gs, gks
+      fishers=np.array([self.fullPar.fisher, self.fullPar.fisher+self.fisherDataGs, self.fullPar.fisher+self.fisherDataGks])
+
+      # LCDMW0Wa
+      self.plotCosmoContours(self.cosmoPar.ILCDMW0Wa, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=self.figurePath+"/contours_lcdmw0wa.pdf")
+      # LCDMMnu
+      self.plotCosmoContours(self.cosmoPar.ILCDMMnu, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=self.figurePath+"/contours_lcdmmnu.pdf")
+      # LCDMCurv
+      self.plotCosmoContours(self.cosmoPar.ILCDMCurv, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=self.figurePath+"/contours_lcdmcurv.pdf")
+
 
