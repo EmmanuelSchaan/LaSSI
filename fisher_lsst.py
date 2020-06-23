@@ -5802,6 +5802,80 @@ class FisherLsst(object):
       fig.clf()
 
 
+
+
+
+
+
+   def plotFomComparison(self, ICosmoPar=None, name=""):
+      '''Assumes that the last two cosmological parameters are w0,wa
+      FOM = 1/sqrt(det(Cov(w0,wa))).
+      '''
+      if ICosmoPar is None:
+         ICosmoPar = self.cosmoPar.IFull
+
+      # extract the cosmological parameters only
+      ICosmo = range(len(ICosmoPar))
+
+      # Planck prior
+      parPlanck = self.cosmoPar.extractParams(ICosmoPar, marg=False)
+      parPlanck = parPlanck.extractParams(ICosmo[-2:], marg=True)
+      fomPlanck = np.sqrt(np.linalg.det(parPlanck.fisher))
+
+      # compute the various posterior constraints we want to compare
+
+      # gs
+      parGs, sGs = self.computePosterior(self.fisherDataGs, ICosmoPar, dzStd=0.002, szStd=0.003, outliersStd=0.05)
+      parGs = parGs.extractParams(ICosmo[-2:], marg=True)
+      fomGs = np.sqrt(np.linalg.det(parGs.fisher))
+      #
+      parGsNoprior, sGsNoprior = self.computePosterior(self.fisherDataGs, ICosmoPar, dzStd=10., szStd=10., outliersStd=10.)
+      parGsNoprior = parGsNoprior.extractParams(ICosmo[-2:], marg=True)
+      fomGsNoprior = np.sqrt(np.linalg.det(parGsNoprior.fisher))
+
+      # gks
+      parGks, sGks = self.computePosterior(self.fisherDataGks, ICosmoPar, dzStd=0.002, szStd=0.003, outliersStd=0.05)
+      parGks = parGks.extractParams(ICosmo[-2:], marg=True)
+      fomGks = np.sqrt(np.linalg.det(parGks.fisher))
+      #
+      parGksNoprior, sGksNoprior = self.computePosterior(self.fisherDataGks, ICosmoPar, dzStd=10., szStd=10., outliersStd=10.)
+      parGksNoprior = parGksNoprior.extractParams(ICosmo[-2:], marg=True)
+      fomGksNoprior = np.sqrt(np.linalg.det(parGksNoprior.fisher))
+
+      # gs no null
+      parGsnonull, sGsnonull = self.computePosterior(self.fisherDataGsnonull, ICosmoPar, dzStd=0.002, szStd=0.003, outliersStd=0.05)
+      parGsnonull = parGsnonull.extractParams(ICosmo[-2:], marg=True)
+      fomGsnonull = np.sqrt(np.linalg.det(parGsnonull.fisher))
+      #
+      parGsnonullNoprior, sGsnonullNoprior = self.computePosterior(self.fisherDataGsnonull, ICosmoPar, dzStd=10., szStd=10., outliersStd=10.)
+      parGsnonullNoprior = parGsnonullNoprior.extractParams(ICosmo[-2:], marg=True)
+      fomGsnonullNoprior = np.sqrt(np.linalg.det(parGsnonullNoprior.fisher))
+
+
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      ax.plot([fomPlanck], c='k', marker='s')
+      ax.plot([np.nan, fomGsnonull, fomGs, fomGks], 'ko-', label=r'fiducial')
+      ax.plot([np.nan, fomGsnonullNoprior, fomGsNoprior, fomGksNoprior], 'ko--', label=r'no photoz prior')
+      #
+      ax.legend(loc=4, fontsize='x-small', labelspacing=0.1)
+      ax.set_yscale('log', nonposy='clip')
+      ax.set_xticks(range(4))
+      ax.set_xticklabels(['Planck prior', 'gs no null', 'gs', 'gks'], rotation=45, ha='right')
+      ax.set_ylabel(r'Dark energy FOM')
+      #
+      fig.savefig(self.figurePath+"/compare_fom_"+name+".pdf", bbox_inches='tight')
+      #plt.show()
+      fig.clf()
+
+
+
+
+
+
+
+
    ###############################################################
    ###############################################################
 

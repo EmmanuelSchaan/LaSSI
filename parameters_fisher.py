@@ -749,6 +749,7 @@ class CosmoParams(Parameters):
       self.ILCDMMnuW0Wa = range(9)
       self.ILCDMMnu = range(7)
       self.ILCDM = range(6)
+      self.ILCDMW0 = [0,1,2,3,4,5,7]
       self.ILCDMW0Wa = [0,1,2,3,4,5,7,8]
       self.ILCDMMnuCurv = [0,1,2,3,4,5,6,9]
       self.ILCDMW0WaCurv = [0,1,2,3,4,5,7,8,9]

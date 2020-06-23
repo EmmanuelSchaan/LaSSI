@@ -236,20 +236,7 @@ fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMCurv, name="lcdmcurv", fish2=fi
 ##################################################################################
 # Contour plots
 
-
-## Compare Planck prior, gs, gks
-#fishers=np.array([fish.fullPar.fisher, fish.fullPar.fisher+fish.fisherDataGs, fish.fullPar.fisher+fish.fisherDataGks])
-#par = fish.fullPar.copy()
-#
-## LCDMW0Wa
-#par.plotContours(fishers=fishers, names=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], IPar=cosmoPar.ILCDMW0Wa, lim=4., path=fish.figurePath+"/contours_lcdmw0wa.pdf")
-## LCDMMnu
-#par.plotContours(fishers=fishers, names=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], IPar=cosmoPar.ILCDMMnu, lim=4., path=fish.figurePath+"/contours_lcdmmnu.pdf")
-## LCDMCurv
-#par.plotContours(fishers=fishers, names=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], IPar=cosmoPar.ILCDMCurv, lim=4., path=fish.figurePath+"/contours_lcdmcurv.pdf")
-
-
-
+'''
 fishers=np.array([fish.fullPar.fisher, fish.fullPar.fisher+fish.fisherDataGs, fish.fullPar.fisher+fish.fisherDataGks])
 
 # LCDM
@@ -260,49 +247,24 @@ fish.plotCosmoContours(cosmoPar.ILCDMW0Wa, fishers, fisherNames=['Planck', 'LSST
 fish.plotCosmoContours(cosmoPar.ILCDMMnu, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=fish.figurePath+"/contours_lcdmmnu.pdf")
 # LCDMCurv
 fish.plotCosmoContours(cosmoPar.ILCDMCurv, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=fish.figurePath+"/contours_lcdmcurv.pdf")
+'''
 
-
-
-
-
-
-
-
-## Contours for individual forecasts
-#
-## LCDMW0Wa
-## GS
-#par, _ = fish.computePosterior(fish.fisherDataGs)
-#par.plotContours(IPar=range(len(cosmoPar.ILCDMW0Wa)), marg=True, lim=4., path=fish.figurePath+"/contours_gs_lcdmw0wa.pdf")
-## GS no null
-#par, _ = fish.computePosterior(fish.fisherDataGsnonull)
-#par.plotContours(IPar=range(len(cosmoPar.ILCDMW0Wa)), marg=True, lim=4., path=fish.figurePath+"/contours_gsnonull_lcdmw0wa.pdf")
-## GKS
-#par, _ = fish.computePosterior(fish.fisherDataGks)
-#par.plotContours(IPar=range(len(cosmoPar.ILCDMW0Wa)), marg=True, lim=4., path=fish.figurePath+"/contours_gks_lcdmw0wa.pdf")
-#
-## LCDMMnu
-## GS
-#par, _ = fish.computePosterior(fish.fisherDataGs)
-#par.plotContours(IPar=range(len(cosmoPar.ILCDMMnu)), marg=True, lim=4., path=fish.figurePath+"/contours_gs_lcdmmnu.pdf")
-## GS no null
-#par, _ = fish.computePosterior(fish.fisherDataGsnonull)
-#par.plotContours(IPar=range(len(cosmoPar.ILCDMMnu)), marg=True, lim=4., path=fish.figurePath+"/contours_gsnonull_lcdmmnu.pdf")
-## GKS
-#par, _ = fish.computePosterior(fish.fisherDataGks)
-#par.plotContours(IPar=range(len(cosmoPar.ILCDMMnu)), marg=True, lim=4., path=fish.figurePath+"/contours_gks_lcdmmnu.pdf")
-#
-## LCDMCurv
-## GS
-#par, _ = fish.computePosterior(fish.fisherDataGs)
-#par.plotContours(IPar=range(len(cosmoPar.ILCDMCurv)), marg=True, lim=4., path=fish.figurePath+"/contours_gs_lcdmcurv.pdf")
-## GS no null
-#par, _ = fish.computePosterior(fish.fisherDataGsnonull)
-#par.plotContours(IPar=range(len(cosmoPar.ILCDMCurv)), marg=True, lim=4., path=fish.figurePath+"/contours_gsnonull_lcdmcurv.pdf")
-## GKS
-#par, _ = fish.computePosterior(fish.fisherDataGks)
-#par.plotContours(IPar=range(len(cosmoPar.ILCDMCurv)), marg=True, lim=4., path=fish.figurePath+"/contours_gks_lcdmcurv.pdf")
-
+'''
+# Examine Planck prior,
+# to check degeneracy h0 - w in Planck prior
+# LCDM
+par = cosmoPar.extractParams(cosmoPar.ILCDM, marg=False)
+par.plotContours(invFishers=None, lim=4., colors=None, fisherNames=None, path=fish.figurePath+"/planck_prior_lcdm.pdf")
+# LCDMWW0Wa
+par = cosmoPar.extractParams(cosmoPar.ILCDMW0Wa, marg=False)
+par.plotContours(invFishers=None, lim=4., colors=None, fisherNames=None, path=fish.figurePath+"/planck_prior_lcdmw0wa.pdf")
+# LCDMMnu
+par = cosmoPar.extractParams(cosmoPar.ILCDMMnu, marg=False)
+par.plotContours(invFishers=None, lim=4., colors=None, fisherNames=None, path=fish.figurePath+"/planck_prior_lcdmmnu.pdf")
+# LCDMCurv
+par = cosmoPar.extractParams(cosmoPar.ILCDMCurv, marg=False)
+par.plotContours(invFishers=None, lim=4., colors=None, fisherNames=None, path=fish.figurePath+"/planck_prior_lcdmcurv.pdf")
+'''
 
 ##################################################################################
 ##################################################################################
@@ -311,7 +273,11 @@ fish.plotCosmoContours(cosmoPar.ILCDMCurv, fishers, fisherNames=['Planck', 'LSST
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMMnu, name="lcdmmnu")
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMCurv, name="lcdmcurv")
+fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMW0, name="lcdmw0")
 '''
+
+fish.plotFomComparison(ICosmoPar=cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
+
 
 ##################################################################################
 ##################################################################################

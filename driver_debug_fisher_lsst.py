@@ -25,9 +25,9 @@ fsky = 0.35
 
 
 # cosmological parameters to include
-massiveNu = False  #True
-wCDM = False #True
-curvature = False #True
+massiveNu = True
+wCDM = True
+curvature = True
 
 # priors to include
 PlanckPrior = True
@@ -114,24 +114,16 @@ fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nB
 
 
 
-fishers=np.array([fish.fullPar.fisher, fish.fullPar.fisher+fish.fisherDataGs, fish.fullPar.fisher+fish.fisherDataGks])
-
-# LCDM
-fish.plotCosmoContours(cosmoPar.ILCDM, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=fish.figurePath+"/contours_lcdm.pdf")
-
-
-
-
-
-
-
-
+#fishers=np.array([fish.fullPar.fisher, fish.fullPar.fisher+fish.fisherDataGs, fish.fullPar.fisher+fish.fisherDataGks])
+## LCDM
+#fish.plotCosmoContours(cosmoPar.ILCDM, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=fish.figurePath+"/contours_lcdm.pdf")
 
 
 #dTheta, sTheta = fish.computeBiasFromOutliers(fisherData=fish.fisherDataGs, ICosmoPar=cosmoPar.ILCDM)
 
 #fish.plotBiasFromOutliers(cosmoPar.ILCDM, name='lcdm')
 
-
 #fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDM, name="lcdm")
+
+fish.plotFomComparison(ICosmoPar=cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
 
