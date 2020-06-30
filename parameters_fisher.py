@@ -570,7 +570,7 @@ class Parameters(object):
                ax.set_ylim((meany - lim*sy, meany + lim*sy))
                # tick labels
                if j==0:
-                  ax.set_ylabel(par.namesLatex[i], fontsize=16)
+                  ax.set_ylabel(par.namesLatex[i], fontsize=22)
                   plt.setp(ax.get_yticklabels(), fontsize=14)
                else:
                   ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
@@ -579,12 +579,13 @@ class Parameters(object):
 
             # tick labels
             plt.setp(ax.get_xticklabels(), visible=True, rotation=45)
-            ax.set_xlabel(par.namesLatex[j], fontsize=16)
+            ax.set_xlabel(par.namesLatex[j], fontsize=22)
             plt.setp(ax.get_xticklabels(), fontsize=14)
       
 
       # generate the contour plot
-      fig=plt.figure(0, figsize=(18, 16))
+      # set the fig size at the end, otherwise it is ignored somehow
+      fig=plt.figure(0)
       gs = gridspec.GridSpec(par.nPar, par.nPar)#, height_ratios=[1, 1, 1])
       gs.update(hspace=0.)
       gs.update(wspace=0.)
@@ -606,7 +607,10 @@ class Parameters(object):
             ax.axis('off')
       if fisherNames is not None:
          plt.legend(loc=1, frameon=False)
-
+      
+      # set the figure size
+      fig.set_size_inches((16, 16))
+      
       # Show or save it
       if path is None:
          plt.show()

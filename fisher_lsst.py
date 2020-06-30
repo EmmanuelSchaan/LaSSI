@@ -4982,6 +4982,18 @@ class FisherLsst(object):
       ###############################################################
       # Degradation in cosmological parameters
       
+      # Put the cosmo parameter set in the title
+      if ICosmoPar==self.cosmoPar.ILCDM:
+         title = r'$\Lambda$CDM'
+      elif ICosmoPar==self.cosmoPar.ILCDMW0Wa:
+         title = r'wCDM'
+      elif ICosmoPar==self.cosmoPar.ILCDMMnu:
+         title = r'$\Lambda$CDM + $M_\nu$'
+      elif ICosmoPar==self.cosmoPar.ILCDMCurv:
+         title = r'$\Lambda$CDM + curvature'
+      else:
+         title = r''
+
 
       # get the names of the cosmo params
       parCosmo = self.cosmoPar.extractParams(ICosmoPar, marg=False)
@@ -5003,6 +5015,7 @@ class FisherLsst(object):
       ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
       ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect photo-z}$')
       ax.set_xlabel(r'Gaussian photo-z prior')
+      ax.set_title(title)
       #
       path = "/gphotozreq_deg_cosmo_"+name+".pdf"
       fig.savefig(self.figurePath+path, bbox_inches='tight')
@@ -5024,6 +5037,7 @@ class FisherLsst(object):
       ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
       ax.set_ylabel(r'$\sigma_\text{Param, gks} / \sigma_\text{Param}$')
       ax.set_xlabel(r'Gaussian photo-z prior')
+      ax.set_title(title)
       #
       path = "/gphotozreq_cosmo_vs_gks_"+name+".pdf"
       fig.savefig(self.figurePath+path, bbox_inches='tight')
@@ -5044,6 +5058,7 @@ class FisherLsst(object):
       ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
       ax.set_ylabel(r'$\sigma_\text{Param, no null} / \sigma_\text{Param}$')
       ax.set_xlabel(r'Gaussian photo-z prior')
+      ax.set_title(title)
       #
       path = "/gphotozreq_cosmo_vs_gsnonull_"+name+".pdf"
       fig.savefig(self.figurePath+path, bbox_inches='tight')
@@ -5060,10 +5075,13 @@ class FisherLsst(object):
       ax=fig.add_subplot(111)
       #
       # fiducial prior
-      ax.axvline(0.002, ls='-', lw=1, color='gray', label=r'Requirement')
-      ax.axhline(0.002, ls='-', lw=1, color='gray')
-      #ax.plot(Photoz, Photoz, c='gray', ls=':', lw=1, label=r'Posterior=Prior')
-      #ax.plot(Photoz, 1.5*Photoz, c='gray', ls=':')
+      ax.axvline(0.002, ls='--', lw=1, color='gray', label=r'Fiducial')
+      #ax.axvline(0.002, ls='--', lw=1, color='r', label=r'Requirement')
+      #ax.axvline(0.003, ls='--', lw=1, color='b', label=r'Requirement')
+      ax.axhline(0.002, ls='--', lw=1, color='b')
+      ax.axhline(0.003, ls='--', lw=1, color='r')
+      #ax.plot(Photoz, Photoz, c='gray', ls='--')
+      #ax.plot(Photoz, 1.5*Photoz, c='r', ls='--')
       #
       # photo-z shifts
       # add legend entry
@@ -5088,7 +5106,7 @@ class FisherLsst(object):
       #
       ax.set_xscale('log', nonposx='clip')
       ax.set_yscale('log', nonposy='clip')
-      ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+      ax.legend(loc=2, labelspacing=0.1, frameon=True, handlelength=1.)
       ax.set_ylabel(r'Gaussian photo-z posterior')
       ax.set_xlabel(r'Gaussian photo-z prior')
       #
@@ -5247,6 +5265,7 @@ class FisherLsst(object):
          ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
          ax.set_ylabel(r'$\sigma_\text{Param, diff bins} / \sigma_\text{Param, same bins}$')
          ax.set_xlabel(r'Gaussian photo-z prior')
+         ax.set_title(title)
          #
          path = "/gphotozreq_cosmo_"+name+"_vs_2.pdf"
          fig.savefig(self.figurePath+path, bbox_inches='tight')
@@ -5344,6 +5363,18 @@ class FisherLsst(object):
       # get the names of the cosmo params
       parCosmo = self.cosmoPar.extractParams(ICosmoPar, marg=False)
 
+      # Put the cosmo parameter set in the title
+      if ICosmoPar==self.cosmoPar.ILCDM:
+         title = r'$\Lambda$CDM'
+      elif ICosmoPar==self.cosmoPar.ILCDMW0Wa:
+         title = r'wCDM'
+      elif ICosmoPar==self.cosmoPar.ILCDMMnu:
+         title = r'$\Lambda$CDM + $M_\nu$'
+      elif ICosmoPar==self.cosmoPar.ILCDMCurv:
+         title = r'$\Lambda$CDM + curvature'
+      else:
+         title = r''
+
       
       fig=plt.figure(0)
       ax=fig.add_subplot(111)
@@ -5360,6 +5391,7 @@ class FisherLsst(object):
       #ax.set_ylabel(r'$\sigma_\text{Param} / \sigma_\text{Perfect photo-z}$')
       ax.set_ylabel(r'Degradation in posterior uncertainty')
       ax.set_xlabel(r'Prior on outlier fraction $c_{ij}$')
+      ax.set_title(title)
       #
       path = "/outlierphotozreq_deg_cosmo_"+name+".pdf"
       fig.savefig(self.figurePath+path, bbox_inches='tight')
@@ -5381,6 +5413,7 @@ class FisherLsst(object):
       ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
       ax.set_ylabel(r'$\sigma_\text{Param, gks} / \sigma_\text{Param}$')
       ax.set_xlabel(r'Prior on outlier fraction $c_{ij}$')
+      ax.set_title(title)
       #
       path = "/outlierphotozreq_cosmo_vs_gks_"+name+".pdf"
       fig.savefig(self.figurePath+path, bbox_inches='tight')
@@ -5401,6 +5434,7 @@ class FisherLsst(object):
       ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
       ax.set_ylabel(r'$\sigma_\text{Param, no null} / \sigma_\text{Param}$')
       ax.set_xlabel(r'Prior on outlier fraction $c_{ij}$')
+      ax.set_title(title)
       #
       path = "/outlierphotozreq_cosmo_vs_gsnonull_"+name+".pdf"
       fig.savefig(self.figurePath+path, bbox_inches='tight')
@@ -5593,7 +5627,7 @@ class FisherLsst(object):
          ax.plot(Photoz/(self.nBins-1), sOutlierPhotozGsnonull[iPar,:]/ sOutlierPhotozGs[iPar,:], color=color, alpha=0.3)
       #
       ax.set_xscale('log', nonposx='clip')
-      #ax.set_yscale('log', nonposy='clip')
+      ax.set_yscale('log', nonposy='clip')
       ax.legend(loc=2)
       ax.set_ylabel(r'Posterior on outlier fraction $c_{ij}$')
       ax.set_ylabel(r'$\sigma_{c_{ij}, \text{no null}} / \sigma_{c_{ij}}$')
@@ -5648,6 +5682,7 @@ class FisherLsst(object):
          ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
          ax.set_ylabel(r'$\sigma_\text{Param, diff bins} / \sigma_\text{Param, same bins}$')
          ax.set_xlabel(r'Prior on outlier fraction $c_{ij}$')
+         ax.set_title(title)
          #
          path = "/outlierphotozreq_cosmo_"+name+"_vs_2.pdf"
          fig.savefig(self.figurePath+path, bbox_inches='tight')
@@ -5714,7 +5749,7 @@ class FisherLsst(object):
             ax.plot(Photoz/(self.nBins-1), sOutlierPhotozGs2[iPar, :]/sOutlierPhotozGs[iPar, :], color=color, alpha=0.3)
          #
          ax.set_xscale('log', nonposx='clip')
-         #ax.set_yscale('log', nonposy='clip')
+         ax.set_yscale('log', nonposy='clip')
          ax.legend(loc=2)
          ax.set_ylabel(r'$\sigma_{c_{ij} \text{ diff bins}} / \sigma_{c_{ij} \text{ same bins}}$')
          ax.set_xlabel(r'Prior on outlier fraction $c_{ij}$')
