@@ -50,18 +50,18 @@ nProc = 4   # not actually used
 ##################################################################################
 # Parameter classes
 
-cosmoPar = CosmoParams(massiveNu=massiveNu, wCDM=wCDM, curvature=curvature, PlanckPrior=PlanckPrior, derivStepSize=1.)
+cosmoPar = CosmoParams(massiveNu=massiveNu, wCDM=wCDM, curvature=curvature, PlanckPrior=PlanckPrior)
 #cosmoPar.plotParams()
-galaxyBiasPar = GalaxyBiasParams(nBins=nBins, derivStepSize=1.)
+galaxyBiasPar = GalaxyBiasParams(nBins=nBins)
 #galaxyBiasPar.plotParams()
-shearMultBiasPar = ShearMultBiasParams(nBins=nBins, derivStepSize=1.)
+shearMultBiasPar = ShearMultBiasParams(nBins=nBins)
 #shearMultBiasPar = ShearMultBiasParams(nBins=nBins, mStd=1.e-5)   # perfect photo-z priors
 #shearMultBiasPar.plotParams()
 
 # Gaussian photo-z only:
 #photoZPar = PhotoZParams(nBins=nBins)
 # Photo-z with Gaussian core and outliers:
-photoZPar = PhotoZParams(nBins=nBins, outliers=0.1, derivStepSize=1.)
+photoZPar = PhotoZParams(nBins=nBins, outliers=0.1)
 #photoZPar.plotParams()
 
 #cosmoPar.plotContours()

@@ -628,18 +628,14 @@ class Parameters(object):
 
 class ShearMultBiasParams(Parameters):
 
-   def __init__(self, nBins=2, mStd=0.005, derivStepSize=1.):
+   def __init__(self, nBins=2, mStd=0.005):
       self.nPar = nBins
-
-      # scaling factor for the derivative step size,
-      # to check for convergence
-      self.dss = derivStepSize
 
       self.names = np.array(['m'+str(iBin) for iBin in range(self.nPar)])
       self.namesLatex = np.array([r'$m_{'+str(iBin)+'}$' for iBin in range(self.nPar)])
       self.fiducial = np.array([0. for iBin in range(self.nPar)])
-      self.high = np.array([self.dss*0.05 for iBin in range(self.nPar)])
-      self.low = np.array([-self.dss*0.05 for iBin in range(self.nPar)])
+      self.high = np.array([0.05 for iBin in range(self.nPar)])
+      self.low = np.array([-0.05 for iBin in range(self.nPar)])
       self.priorStd = np.array([mStd for iBin in range(self.nPar)])
       self.fisher = np.diagflat(1./self.priorStd**2)
 
@@ -647,16 +643,11 @@ class ShearMultBiasParams(Parameters):
 
 class PhotoZParams(Parameters):
 
-   def __init__(self, nBins=2, dzFid=0., szFid=0.05, dzStd=0.002, szStd=0.003, outliers=0., outliersStd=0.05, derivStepSize=1.):
+   def __init__(self, nBins=2, dzFid=0., szFid=0.05, dzStd=0.002, szStd=0.003, outliers=0., outliersStd=0.05):
       self.nPar = 2 * nBins
       if outliers<>0.:
          self.nPar += nBins*(nBins-1)
       self.outliers = outliers
-
-      # scaling factor for the derivative step size,
-      # to check for convergence
-      self.dss = derivStepSize
-
 
       # bias and std dev of photo-z
       dz = np.array(['dz'+str(iBin) for iBin in range(nBins)])
@@ -695,21 +686,21 @@ class PhotoZParams(Parameters):
 #      self.low = np.concatenate((dz, sz))
 
       # high values
-      dz = np.array([dzFid+self.dss*0.002 for iBin in range(nBins)])
-      sz = np.array([szFid+self.dss*0.003 for iBin in range(nBins)])
+      dz = np.array([dzFid+0.002 for iBin in range(nBins)])
+      sz = np.array([szFid+0.003 for iBin in range(nBins)])
       if outliers==0.:
          self.high = np.concatenate((dz, sz))
       else:
-         cij = np.array([(1.+self.dss*0.5)*outliers/(nBins-1.) for iBin in range(nBins) for jBin in list(set(range(nBins)) - set([iBin]))])
+         cij = np.array([(1.+0.5)*outliers/(nBins-1.) for iBin in range(nBins) for jBin in list(set(range(nBins)) - set([iBin]))])
          self.high = np.concatenate((dz, sz, cij))
 
       # low values
-      dz = np.array([dzFid-self.dss*0.002 for iBin in range(nBins)])
-      sz = np.array([szFid-self.dss*0.003 for iBin in range(nBins)])
+      dz = np.array([dzFid-0.002 for iBin in range(nBins)])
+      sz = np.array([szFid-0.003 for iBin in range(nBins)])
       if outliers==0.:
          self.low = np.concatenate((dz, sz))
       else:
-         cij = np.array([(1.-self.dss*0.5)*outliers/(nBins-1.) for iBin in range(nBins) for jBin in list(set(range(nBins)) - set([iBin]))])
+         cij = np.array([(1.-0.5)*outliers/(nBins-1.) for iBin in range(nBins) for jBin in list(set(range(nBins)) - set([iBin]))])
          self.low = np.concatenate((dz, sz, cij))
 
       # std dev of parameter prior
@@ -728,21 +719,17 @@ class PhotoZParams(Parameters):
 
 class GalaxyBiasParams(Parameters):
 
-   def __init__(self, nBins, derivStepSize=1.):
+   def __init__(self, nBins):
       '''Galaxy biases, relative to their fiducial values
       '''
-      # scaling factor for the derivative step size,
-      # to check for convergence
-      self.dss = derivStepSize
-
       self.nPar = nBins
       self.names = np.array(['bg'+str(iBin) for iBin in range(self.nPar)])
       self.namesLatex = np.array([r'$b_{g\;'+str(iBin)+'} / b_{g\;'+str(iBin)+r'}^\text{fid}$' for iBin in range(self.nPar)])
       
       self.fiducial = np.array([1. for iBin in range(self.nPar)])
       # high/low values for derivative
-      self.high = self.fiducial * (1. + self.dss*0.05)
-      self.low = self.fiducial * (1. - self.dss*0.05)
+      self.high = self.fiducial * 1.05
+      self.low = self.fiducial * 0.95
 
 #      self.fisher = np.zeros((self.nPar, self.nPar))
       # uninformative prior, just to avoid non-invertible Fisher matrices
@@ -758,13 +745,9 @@ class CosmoParams(Parameters):
    - "Planck priors" from Pat MCDonald
    '''
 
-   def __init__(self, massiveNu=False, wCDM=False, curvature=False, PlanckPrior=False, derivStepSize=1.):
+   def __init__(self, massiveNu=False, wCDM=False, curvature=False, PlanckPrior=False):
       '''Step sizes for derivatives inspired from Allison+15
       '''
-      # scaling factor for the derivative step size,
-      # to check for convergence
-      self.dss = derivStepSize
-
       # indices to keep for various relevant combinations:
       self.IFull = range(10)
       self.ILCDMMnuW0Wa = range(9)
@@ -780,8 +763,8 @@ class CosmoParams(Parameters):
       self.names = np.array(['Omega_cdm', 'Omega_b', 'A_s', 'n_s', 'h', 'tau_reio'])
       self.namesLatex = np.array([r'$\Omega^0_\text{CDM}$', r'$\Omega^0_\text{b}$', r'$A_\text{s} / A_\text{s}^\text{fid}$', r'$n_\text{s}$', r'$h_0$', r'$\tau$'])
       self.fiducial = np.array([0.26, 0.049, 1., 0.9665, 0.6766, 0.0561])
-      self.high = np.array([0.26 + self.dss*0.0066, 0.049 + self.dss*0.0018, 1. + self.dss*1.e-10/2.105e-9, 0.9665 + self.dss*0.01, 0.6766 + self.dss*0.067, 0.0561 + self.dss*0.02])
-      self.low = np.array([0.26 - self.dss*0.0066, 0.049 - self.dss*0.0018, 1. - self.dss*1.e-10/2.105e-9, 0.9665 - self.dss*0.01, 0.6766 - self.dss*0.067, 0.0561 - self.dss*0.02])
+      self.high = np.array([0.26 + 0.0066, 0.049 + 0.0018, 1. + 1.e-10/2.105e-9, 0.9665 + 0.01, 0.6766 + 0.067, 0.0561 + 0.02])
+      self.low = np.array([0.26 - 0.0066, 0.049 - 0.0018, 1. - 1.e-10/2.105e-9, 0.9665 - 0.01, 0.6766 - 0.067, 0.0561 - 0.02])
       self.paramsClassy = {
                            # Cosmological parameters
                            'Omega_cdm': 0.26, #0.267,
@@ -799,12 +782,12 @@ class CosmoParams(Parameters):
                            }
       self.paramsClassyHigh = {
                            # Cosmological parameters
-                           'Omega_cdm': 0.26 + self.dss*0.0066,
-                           'Omega_b': 0.049 + self.dss*0.0018,
-                           'A_s': 2.105e-9 + self.dss*1.e-10,
-                           'n_s': 0.9665 + self.dss*0.01,
-                           'tau_reio': 0.0561 + self.dss*0.02,
-                           'h': 0.6766 + self.dss*0.067,
+                           'Omega_cdm': 0.26 + 0.0066,
+                           'Omega_b': 0.049 + 0.0018,
+                           'A_s': 2.105e-9 + 1.e-10,
+                           'n_s': 0.9665 + 0.01,
+                           'tau_reio': 0.0561 + 0.02,
+                           'h': 0.6766 + 0.067,
                            # parameters
                            'reio_parametrization': 'reio_camb',
                            'output': 'mPk',#'dTk vTk lCl tCl pCl mPk',
@@ -814,12 +797,12 @@ class CosmoParams(Parameters):
                            }
       self.paramsClassyLow = {
                            # Cosmological parameters
-                           'Omega_cdm': 0.26 - self.dss*0.0066,
-                           'Omega_b': 0.049 - self.dss*0.0018,
-                           'A_s': 2.105e-9 - self.dss*1.e-10,
-                           'n_s': 0.9665 - self.dss*0.01,
-                           'tau_reio': 0.0561 - self.dss*0.02,
-                           'h': 0.6766 - self.dss*0.067,
+                           'Omega_cdm': 0.26 - 0.0066,
+                           'Omega_b': 0.049 - 0.0018,
+                           'A_s': 2.105e-9 - 1.e-10,
+                           'n_s': 0.9665 - 0.01,
+                           'tau_reio': 0.0561 - 0.02,
+                           'h': 0.6766 - 0.067,
                            # parameters
                            'reio_parametrization': 'reio_camb',
                            'output': 'mPk',#'dTk vTk lCl tCl pCl mPk',
@@ -854,8 +837,8 @@ class CosmoParams(Parameters):
                                  'm_ncdm': str(nuMasses[0])+','+str(nuMasses[1])+','+str(nuMasses[2]),
                                  'deg_ncdm': '1, 1, 1',
                                  })
-         self.high = np.concatenate((self.high, np.array([Mnu+self.dss*0.02])))
-         nuMasses = self.computeNuMasses(Mnu+self.dss*0.02, normal=normalHierarchy)
+         self.high = np.concatenate((self.high, np.array([Mnu+0.02])))
+         nuMasses = self.computeNuMasses(Mnu+0.02, normal=normalHierarchy)
          self.paramsClassyHigh.update({
                                  # Massive neutrinos
                                  'N_ur': 0.00641,  # recommended in explanatory.ini to get correct Neff
@@ -872,7 +855,7 @@ class CosmoParams(Parameters):
          self.namesLatex = np.concatenate((self.namesLatex, np.array([r'$w_0$', r'$w_a$'])))
          self.fiducial = np.concatenate((self.fiducial, np.array([-1., 0.])))
          
-         self.high = np.concatenate((self.high, np.array([-1.+self.dss*0.3, 0.+self.dss*0.6])))
+         self.high = np.concatenate((self.high, np.array([-1.+0.3, 0.+0.6])))
          self.low = np.concatenate((self.low, np.array([-1., 0.])))
          self.paramsClassy.update({
                                  # w0 and wa
@@ -883,8 +866,8 @@ class CosmoParams(Parameters):
          self.paramsClassyHigh.update({
                                  # w0 and wa
                                  'Omega_Lambda': 0.,
-                                 'w0_fld': -1.+self.dss*0.3,
-                                 'wa_fld': 0.+self.dss*0.6,
+                                 'w0_fld': -1.+0.3,
+                                 'wa_fld': 0.+0.6,
                                  })
          self.paramsClassyLow.update({
                                  # w0 and wa
@@ -900,19 +883,19 @@ class CosmoParams(Parameters):
          self.namesLatex = np.concatenate((self.namesLatex, np.array([r'$\Omega_\text{k}$'])))
          self.fiducial = np.concatenate((self.fiducial, np.array([0.])))
 
-         self.high = np.concatenate((self.high, np.array([0.+self.dss*0.02])))
-         self.low = np.concatenate((self.low, np.array([0.-self.dss*0.02])))
+         self.high = np.concatenate((self.high, np.array([0.+0.02])))
+         self.low = np.concatenate((self.low, np.array([0.-0.02])))
          self.paramsClassy.update({
                                  # Curvature
                                  'Omega_k': 0.,
                                  })
          self.paramsClassyHigh.update({
                                  # Curvature
-                                 'Omega_k': 0.+self.dss*0.02,
+                                 'Omega_k': 0.+0.02,
                                  })
          self.paramsClassyLow.update({
                                  # Curvature
-                                 'Omega_k': 0.-self.dss*0.02,
+                                 'Omega_k': 0.-0.02,
                                  })
 
       # load Planck priors if requested

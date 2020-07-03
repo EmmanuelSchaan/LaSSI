@@ -2163,7 +2163,6 @@ class FisherLsst(object):
       derivative = np.zeros((self.fullPar.nPar, self.nData))
       
       
-      
       def derivativeWrtCosmoPar(iPar):
          print "Derivative wrt "+self.cosmoPar.names[iPar],
          tStart = time()
@@ -2211,14 +2210,6 @@ class FisherLsst(object):
 #         result = pool.map(derivativeWrtCosmoPar, range(self.cosmoPar.nPar))
 #         derivative[:self.cosmoPar.nPar,:] = result.copy()
       derivative[:self.cosmoPar.nPar,:] = np.array(map(derivativeWrtCosmoPar, range(self.cosmoPar.nPar)))
-      
-      
-      
-      
-      
-      
-      
-      
       
       
       
@@ -2346,8 +2337,10 @@ class FisherLsst(object):
 #      path = "./output/dDatadPar/dDatadPar_"+self.name
 #      np.savetxt(path, derivative)
 
-   def loadDerivativeDataVector(self):
-      path = "./output/dDatadPar/dDatadPar_"+self.name
+   def loadDerivativeDataVector(self, name=None):
+      if name is None:
+         name = self.name
+      path = "./output/dDatadPar/dDatadPar_"+name
       self.derivativeDataVector = np.genfromtxt(path)
 
 
