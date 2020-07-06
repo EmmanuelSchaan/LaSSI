@@ -396,7 +396,7 @@ class FisherLsst(object):
       ssz = sz[:,None,None]
       
       # axes: [iBin, z, zp]
-      z = np.linspace(zMin, zMax, 501)
+      z = np.linspace(zMin, zMax, 1001)
       zz = z[None,:,None]
       zp = z.copy()
       zzp = zp[None,None,:]
@@ -515,7 +515,7 @@ class FisherLsst(object):
          ax=fig.add_subplot(111)
          #
          for iBin in range(self.nBins):
-            z = np.linspace(zMin, zMax, 501)
+            z = np.linspace(zMin, zMax, 1001)
             ax.plot(z, dnGdz_t(iBin, z), '-', label=r'Clustering')
             ax.plot(z, dnSdz_t(iBin, z), '--', label=r'Shear')
          #
@@ -567,7 +567,7 @@ class FisherLsst(object):
             w_g[iBin].f = lambda a, iBin=iBin: w_g_nomagbias[iBin].f(a) + 2.*(alpha-1.)*w_s[iBin].f(a)
 
          if test:
-            z = np.linspace(zMin, zMax, 501)
+            z = np.linspace(zMin, zMax, 1001)
             plt.plot(z, w_s[iBin].f(z), ':', label=r'shear')
             plt.plot(z, w_g[iBin].f(z), '-', label=r'g, no mag bias')
             if self.magBias:
@@ -797,7 +797,9 @@ class FisherLsst(object):
       # Generate all power spectra
       # common for all power spectra
       # axes: [ell, a]
-      nA = 501
+      #nA = 501
+#!!! manuwarning: convergence test
+      nA = 1001
       aMin = 1./(1. + 6.)
       aMax = 1./(1.+1.e-5)
       a = np.linspace(aMin, aMax, nA)
@@ -2527,7 +2529,7 @@ class FisherLsst(object):
       w_glsst = WeightTracerLSSTSourcesDESCSRDV1(self.u, name='glsst')
       zMin = 1./w_glsst.aMax-1.
       zMax = 1./w_glsst.aMin-1.
-      Z = np.linspace(zMin, zMax, 501)
+      Z = np.linspace(zMin, zMax, 1001)
       dndzFull = w_glsst.dndz(Z)
       dndzFull /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
       ax.plot(Z, dndzFull, 'k', label=r'LSST galaxies')
@@ -2616,7 +2618,7 @@ class FisherLsst(object):
       w_glsst = WeightTracerLSSTSourcesDESCSRDV1(self.u, name='glsst')
       zMin = 1./w_glsst.aMax-1.
       zMax = 1./w_glsst.aMin-1.
-      Z = np.linspace(zMin, zMax, 501)
+      Z = np.linspace(zMin, zMax, 1001)
       dndz = w_glsst.dndz(Z)
       dndz /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
       ax.plot(Z, dndz, 'k')
@@ -2647,7 +2649,7 @@ class FisherLsst(object):
             # redshift range for that bin
             zMin = 1./self.w_g[iBin].aMax-1.
             zMax = 1./self.w_g[iBin].aMin-1.
-            Z = np.linspace(zMin, zMax, 501)
+            Z = np.linspace(zMin, zMax, 1001)
             # evaluate dn/dz
             dndz = np.array(map(w_g[iBin].dndz, Z))
             dndz /= (180.*60./np.pi)**2 # convert from 1/sr to 1/arcmin^2
@@ -3707,9 +3709,6 @@ class FisherLsst(object):
 
       Colors = ['purple', 'orange', 'lime', 'darkolivegreen', 'r', 'royalblue', 'navy', 'gold', 'silver', 'saddlebrown']
       
-      
-
-
 
       # kk
       fig=plt.figure(0)
@@ -3929,6 +3928,227 @@ class FisherLsst(object):
       if show:
          plt.show()
       fig.clf()
+
+
+
+   ##################################################################################
+
+
+   def plotErrorDerivativeDataVectorCosmo(self, relatErrorDeriv, show=False):
+      """Plot the input relative difference of derivatives of the data vector wrt cosmo parameters.
+      Used for convergence null test, when varying the step size.
+      """
+
+      Colors = ['purple', 'orange', 'lime', 'darkolivegreen', 'r', 'royalblue', 'navy', 'gold', 'silver', 'saddlebrown']
+      
+
+      # kk
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      # for each cosmo parameter
+      for iPar in range(self.cosmoPar.nPar)[::-1]:
+#      for iPar in [6]:  # Mnu
+#      for iPar in [9]:  # curvature
+         # plot all the 2pt functions
+         for i2pt in range(self.nKK):
+#            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            I = range(i2pt*self.nL, (i2pt+1)*self.nL)
+            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+            relatErrordDdp = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
+            color = Colors[iPar]
+            color = darkerLighter(color, amount=-0.5*i2pt/self.nGG)
+            ax.plot(L, relatErrordDdp, c=color, lw=3)
+         ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
+      #
+      #ax.grid()
+#      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
+      ax.set_xscale('log', nonposx='clip')
+      #ax.set_ylim((-4., 4.))
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'Relat. error on $dC_\ell^{\kappa_\text{CMB}\kappa_\text{CMB}} / d\text{Param.}$')
+      #
+      fig.savefig(self.figurePath+"/relat_error_dp2d_kk_cosmo.pdf")
+      if show:
+         plt.show()
+      fig.clf()
+
+
+      # kg
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      # for each cosmo parameter
+      for iPar in range(self.cosmoPar.nPar)[::-1]:
+#      for iPar in [6]:  # Mnu
+#      for iPar in [9]:  # curvature
+         # plot all the 2pt functions
+         for i2pt in range(self.nKK, self.nKK+self.nKG):
+#            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            I = range(i2pt*self.nL, (i2pt+1)*self.nL)
+            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+            relatErrordDdp = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
+            color = Colors[iPar]
+            color = darkerLighter(color, amount=-0.5*i2pt/self.nGG)
+            ax.plot(L, relatErrordDdp, c=color, lw=3)
+         ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
+      #
+      #ax.grid()
+#      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
+      ax.set_xscale('log', nonposx='clip')
+      #ax.set_ylim((-4., 4.))
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'Relat. error on $dC_\ell^{g\kappa_\text{CMB}} / d\text{Param.}$')
+      #
+      fig.savefig(self.figurePath+"/relat_error_dp2d_kg_cosmo.pdf")
+      if show:
+         plt.show()
+      fig.clf()
+
+
+      # ks
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      # for each cosmo parameter
+      for iPar in range(self.cosmoPar.nPar)[::-1]:
+#      for iPar in [6]:  # Mnu
+#      for iPar in [9]:  # curvature
+         # plot all the 2pt functions
+         for i2pt in range(self.nKK+self.nKG, self.nKK+self.nKG+self.nKS):
+#            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            I = range(i2pt*self.nL, (i2pt+1)*self.nL)
+            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+            relatErrordDdp = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
+            color = Colors[iPar]
+            color = darkerLighter(color, amount=-0.5*i2pt/self.nGG)
+            ax.plot(L, relatErrordDdp, c=color, lw=3)
+         ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
+      #
+      #ax.grid()
+#      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
+      ax.set_xscale('log', nonposx='clip')
+      #ax.set_ylim((-4., 4.))
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'Relat. error on $dC_\ell^{\gamma\kappa_\text{CMB}} / d\text{Param.}$')
+      #
+      fig.savefig(self.figurePath+"/relat_error_dp2d_ks_cosmo.pdf")
+      if show:
+         plt.show()
+      fig.clf()
+
+      
+      # gg
+      fig=plt.figure(0)
+      ax=fig.add_subplot(111)
+      #
+      # for each cosmo parameter
+      for iPar in range(self.cosmoPar.nPar)[::-1]:
+#      for iPar in [6]:  # Mnu
+#      for iPar in [9]:  # curvature
+         # plot all the 2pt functions
+         for i2pt in range(self.nKK+self.nKG+self.nKS, self.nKK+self.nKG+self.nKS+self.nGG):
+#            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            I = range(i2pt*self.nL, (i2pt+1)*self.nL)
+            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+            relatErrordDdp = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
+            color = Colors[iPar]
+            color = darkerLighter(color, amount=-0.5*i2pt/self.nGG)
+            ax.plot(L, relatErrordDdp, c=color, lw=3)
+         ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
+      #
+      #ax.grid()
+#      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
+      ax.set_xscale('log', nonposx='clip')
+      #ax.set_ylim((-4., 4.))
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'Relat error on $dC_\ell^{gg} / d\text{Param.}$')
+      #
+      fig.savefig(self.figurePath+"/relat_error_dp2d_gg_cosmo.pdf")
+      if show:
+         plt.show()
+      fig.clf()
+
+      # gs
+      fig=plt.figure(1)
+      ax=fig.add_subplot(111)
+      #
+      # for each cosmo parameter
+      for iPar in range(self.cosmoPar.nPar)[::-1]:
+#      for iPar in range(self.cosmoPar.nPar):
+#      for iPar in [9]:  # curvature
+         # plot all the 2pt functions
+         for i2pt in range(self.nKK+self.nKG+self.nKS+self.nGG, self.nKK+self.nKG+self.nKS+self.nGG+self.nGS):
+#            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            I = range(i2pt*self.nL, (i2pt+1)*self.nL)
+            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+            relatErrordDdp = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
+            color = Colors[iPar]
+            color = darkerLighter(color, amount=-0.5*(i2pt-self.nGG)/self.nGS)
+            ax.plot(L, relatErrordDdp, c=color, lw=3)
+         ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
+      #
+      #ax.grid()
+#      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+#      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
+      ax.set_xscale('log', nonposx='clip')
+      #ax.set_ylim((-4., 4.))
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'Relat. error on $dC_\ell^{gs} / d\text{Param.}$')
+      #
+      fig.savefig(self.figurePath+"/relat_error_dp2d_gs_cosmo.pdf")
+      if show:
+         plt.show()
+      fig.clf()
+
+      # ss
+      fig=plt.figure(2)
+      ax=fig.add_subplot(111)
+      #
+      # for each cosmo parameter
+      for iPar in range(self.cosmoPar.nPar)[::-1]:
+#      for iPar in range(self.cosmoPar.nPar):
+#      for iPar in [9]:  # curvature
+         # plot all the 2pt functions
+         for i2pt in range(self.nKK+self.nKG+self.nKS+self.nGG+self.nGS, self.nKK+self.nKG+self.nKS+self.nGG+self.nGS+self.nSS):
+#            dlnDdlnP = self.derivativeDataVector[iPar, i2pt*self.nL:(i2pt+1)*self.nL] / self.dataVector[i2pt*self.nL:(i2pt+1)*self.nL]
+            I = range(i2pt*self.nL, (i2pt+1)*self.nL)
+            L = extractMaskedVec(self.L, mask=self.lMaxMask[I])
+            relatErrordDdp = extractMaskedVec(self.derivativeDataVector[iPar, :], mask=self.lMaxMask, I=I)
+            color = Colors[iPar]
+            color = darkerLighter(color, amount=-0.5*(i2pt-(self.nGG+self.nGS))/self.nSS)
+            ax.plot(L, relatErrordDdp, c=color, lw=3)
+         ax.plot([],[], c=Colors[iPar], label=self.cosmoPar.namesLatex[iPar])
+      #
+      #ax.grid()
+#      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
+#      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
+      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
+      ax.set_xscale('log', nonposx='clip')
+      #ax.set_ylim((-4., 4.))
+      ax.set_xlabel(r'$\ell$')
+      ax.set_ylabel(r'Relat. error on $dC_\ell^{ss} / d\text{Param.}$')
+      #
+      fig.savefig(self.figurePath+"/relat_error_dp2d_ss_cosmo.pdf")
+      if show:
+         plt.show()
+      fig.clf()
+
+
+
+
+
+
+   ##################################################################################
 
 
 

@@ -30,11 +30,25 @@ class Universe(object):
 #                  'm_ncdm': str(self.nuMasses[0])+','+str(self.nuMasses[1])+','+str(self.nuMasses[2]),
 #                  'deg_ncdm': '1, 1, 1',
                   'non linear': 'halofit',
-                  'z_max_pk': 100.
+                  'z_max_pk': 100.,
+                  #
+                  # precision file to be passed as input in order to achieve at least percent precision on scalar Cls:
+                  # from precision file: cl_permille.pre
+                  'hyper_flat_approximation_nu': 7000.,
+                  'transfer_neglect_delta_k_S_t0': 0.17,
+                  'transfer_neglect_delta_k_S_t1': 0.05,
+                  'transfer_neglect_delta_k_S_t2': 0.17,
+                  'transfer_neglect_delta_k_S_e': 0.13,
+                  'delta_l_max': 1000,
                   }
       else:
          self.params = params
       
+      # Load a precision file
+      #CLASS.load_precision(filename)
+      #pre_params = classylss.load_precision('pk_ref.pre')
+      #engine = CLASS.ClassEngine(pre_params)
+
       # run CLASS
 #      tStart = time()
       self.engine = CLASS.ClassEngine(self.params)

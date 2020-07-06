@@ -851,8 +851,8 @@ class CosmoParams(Parameters):
                                  'm_ncdm': str(nuMasses[0])+','+str(nuMasses[1])+','+str(nuMasses[2]),
                                  'deg_ncdm': '1, 1, 1',
                                  })
-         self.high = np.concatenate((self.high, np.array([Mnu+self.dss*0.006])))
-         nuMasses = self.computeNuMasses(Mnu+self.dss*0.006, normal=normalHierarchy)
+         self.high = np.concatenate((self.high, np.array([Mnu+self.dss*0.02])))
+         nuMasses = self.computeNuMasses(Mnu+self.dss*0.02, normal=normalHierarchy)
          self.paramsClassyHigh.update({
                                  # Massive neutrinos
                                  'N_ur': 0.00641,  # recommended in explanatory.ini to get correct Neff
@@ -869,28 +869,25 @@ class CosmoParams(Parameters):
          self.namesLatex = np.concatenate((self.namesLatex, np.array([r'$w_0$', r'$w_a$'])))
          self.fiducial = np.concatenate((self.fiducial, np.array([-1., 0.])))
          
-         self.high = np.concatenate((self.high, np.array([-1.+self.dss*0.06, 0.+self.dss*0.15])))
+         self.high = np.concatenate((self.high, np.array([-1.+self.dss*0.3, 0.+self.dss*0.6])))
          self.low = np.concatenate((self.low, np.array([-1., 0.])))
          self.paramsClassy.update({
                                  # w0 and wa
                                  'Omega_Lambda': 0.,
                                  'w0_fld': -1.,
                                  'wa_fld': 0.,
-                                 'cs2_fld': 1,
                                  })
          self.paramsClassyHigh.update({
                                  # w0 and wa
                                  'Omega_Lambda': 0.,
-                                 'w0_fld': -1.+self.dss*0.06,
-                                 'wa_fld': 0.+self.dss*0.15,
-                                 'cs2_fld': 1,
+                                 'w0_fld': -1.+self.dss*0.3,
+                                 'wa_fld': 0.+self.dss*0.6,
                                  })
          self.paramsClassyLow.update({
                                  # w0 and wa
                                  'Omega_Lambda': 0.,
                                  'w0_fld': -1.,
                                  'wa_fld': 0.,
-                                 'cs2_fld': 1,
                                  })
 
       # curvature

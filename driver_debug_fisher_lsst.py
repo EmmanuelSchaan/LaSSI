@@ -125,5 +125,7 @@ fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nB
 
 #fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDM, name="lcdm")
 
-fish.plotFomComparison(ICosmoPar=cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
+#fish.plotFomComparison(ICosmoPar=cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
+
+#fish.plotErrorDerivativeDataVectorCosmo(0.01 * fish.derivativeDataVector, show=False)
 
