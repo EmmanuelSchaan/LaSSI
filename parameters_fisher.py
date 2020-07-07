@@ -697,7 +697,8 @@ class PhotoZParams(Parameters):
       if outliers==0.:
          self.high = np.concatenate((dz, sz))
       else:
-         cij = np.array([(1.+self.dss*0.5)*outliers/(nBins-1.) for iBin in range(nBins) for jBin in list(set(range(nBins)) - set([iBin]))])
+         #cij = np.array([(1.+self.dss*0.5)*outliers/(nBins-1.) for iBin in range(nBins) for jBin in list(set(range(nBins)) - set([iBin]))])
+         cij = np.array([(1.+self.dss*0.05)*outliers/(nBins-1.) for iBin in range(nBins) for jBin in list(set(range(nBins)) - set([iBin]))])
          self.high = np.concatenate((dz, sz, cij))
 
       # low values
@@ -706,7 +707,8 @@ class PhotoZParams(Parameters):
       if outliers==0.:
          self.low = np.concatenate((dz, sz))
       else:
-         cij = np.array([(1.-self.dss*0.5)*outliers/(nBins-1.) for iBin in range(nBins) for jBin in list(set(range(nBins)) - set([iBin]))])
+         #cij = np.array([(1.-self.dss*0.5)*outliers/(nBins-1.) for iBin in range(nBins) for jBin in list(set(range(nBins)) - set([iBin]))])
+         cij = np.array([(1.-self.dss*0.05)*outliers/(nBins-1.) for iBin in range(nBins) for jBin in list(set(range(nBins)) - set([iBin]))])
          self.low = np.concatenate((dz, sz, cij))
 
       # std dev of parameter prior
@@ -831,7 +833,7 @@ class CosmoParams(Parameters):
          self.names = np.concatenate((self.names, np.array(['m_ncdm'])))
          self.namesLatex = np.concatenate((self.namesLatex, np.array([r'$M_\nu$'])))
          #
-         Mnu = 0.06 # eV, minimum possible masses
+         Mnu = 0.1 #0.06 # eV, minimum possible sum of masses
          normalHierarchy = True
          # compute neutrino masses
          self.fiducial = np.concatenate((self.fiducial, np.array([Mnu])))
@@ -843,7 +845,9 @@ class CosmoParams(Parameters):
                                  'm_ncdm': str(nuMasses[0])+','+str(nuMasses[1])+','+str(nuMasses[2]),
                                  'deg_ncdm': '1, 1, 1',
                                  })
-         self.low = np.concatenate((self.low, np.array([Mnu])))
+         self.low = np.concatenate((self.low, np.array([Mnu-self.dss*0.01])))
+         nuMasses = self.computeNuMasses(Mnu-self.dss*0.01, normal=normalHierarchy)
+#         self.low = np.concatenate((self.low, np.array([Mnu])))
          self.paramsClassyLow.update({
                                  # Massive neutrinos
                                  'N_ur': 0.00641,  # recommended in explanatory.ini to get correct Neff
@@ -851,8 +855,8 @@ class CosmoParams(Parameters):
                                  'm_ncdm': str(nuMasses[0])+','+str(nuMasses[1])+','+str(nuMasses[2]),
                                  'deg_ncdm': '1, 1, 1',
                                  })
-         self.high = np.concatenate((self.high, np.array([Mnu+self.dss*0.006])))
-         nuMasses = self.computeNuMasses(Mnu+self.dss*0.006, normal=normalHierarchy)
+         self.high = np.concatenate((self.high, np.array([Mnu+self.dss*0.01])))
+         nuMasses = self.computeNuMasses(Mnu+self.dss*0.01, normal=normalHierarchy)
          self.paramsClassyHigh.update({
                                  # Massive neutrinos
                                  'N_ur': 0.00641,  # recommended in explanatory.ini to get correct Neff
@@ -869,8 +873,6 @@ class CosmoParams(Parameters):
          self.namesLatex = np.concatenate((self.namesLatex, np.array([r'$w_0$', r'$w_a$'])))
          self.fiducial = np.concatenate((self.fiducial, np.array([-1., 0.])))
          
-         self.high = np.concatenate((self.high, np.array([-1.+self.dss*0.06, 0.+self.dss*0.15])))
-         self.low = np.concatenate((self.low, np.array([-1., 0.])))
          self.paramsClassy.update({
                                  # w0 and wa
                                  'Omega_Lambda': 0.,
@@ -878,6 +880,7 @@ class CosmoParams(Parameters):
                                  'wa_fld': 0.,
                                  'cs2_fld': 1,
                                  })
+         self.high = np.concatenate((self.high, np.array([-1.+self.dss*0.06, 0.+self.dss*0.15])))
          self.paramsClassyHigh.update({
                                  # w0 and wa
                                  'Omega_Lambda': 0.,
@@ -885,11 +888,20 @@ class CosmoParams(Parameters):
                                  'wa_fld': 0.+self.dss*0.15,
                                  'cs2_fld': 1,
                                  })
+#         self.low = np.concatenate((self.low, np.array([-1., 0.])))
+#         self.paramsClassyLow.update({
+#                                 # w0 and wa
+#                                 'Omega_Lambda': 0.,
+#                                 'w0_fld': -1.,
+#                                 'wa_fld': 0.,
+#                                 'cs2_fld': 1,
+#                                 })
+         self.low = np.concatenate((self.low, np.array([-1.-self.dss*0.06, 0.-self.dss*0.15])))
          self.paramsClassyLow.update({
                                  # w0 and wa
                                  'Omega_Lambda': 0.,
-                                 'w0_fld': -1.,
-                                 'wa_fld': 0.,
+                                 'w0_fld': -1.-self.dss*0.06,
+                                 'wa_fld': 0.-self.dss*0.15,
                                  'cs2_fld': 1,
                                  })
 

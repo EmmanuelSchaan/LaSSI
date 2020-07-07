@@ -59,13 +59,15 @@ fsky = 0.35 # 0.4
 
 ##################################################################################
 
-save = True
+save = False
 
 #derivStepSizes = np.array([0.01, 0.05, 0.1, 0.5, 1., 1.5, 2.])
-derivStepSizes = np.array([0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 1., 1.5])#, 1.75]
+derivStepSizes = np.array([0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 1., 1.5, 2.])#, 1.75]
+#derivStepSizes = np.array([0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 1.])#, 1.5, 2.])#, 1.75]
+#derivStepSizes = np.array([2.])
 nStep = len(derivStepSizes)
 
-iStepFid = 4#-1 #4
+iStepFid = 6#-1 #4
 
 
 nData = 11550  # read from the output of the fisher class
@@ -107,6 +109,20 @@ for iStep in range(nStep):
 
 
 ##################################################################################
+# Fiducial analysis, just to get the figure path...
+
+cosmoPar = CosmoParams(massiveNu=massiveNu, wCDM=wCDM, curvature=curvature, PlanckPrior=PlanckPrior)
+galaxyBiasPar = GalaxyBiasParams(nBins=nBins)
+shearMultBiasPar = ShearMultBiasParams(nBins=nBins)
+photoZPar = PhotoZParams(nBins=nBins, outliers=0.1)
+
+fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nBins, nL=nL, fsky=fsky, fNk=fNk, magBias=magBias, name=None, nProc=nProc, save=False)
+
+
+
+##################################################################################
+##################################################################################
+
 '''
 # Check parameters
 fig=plt.figure(0)
@@ -172,6 +188,7 @@ plt.show()
 
 
 ##################################################################################
+##################################################################################
 # Check diagonal Fisher matrix
 
 
@@ -180,20 +197,113 @@ for iStep in range(nStep):
    for iPar in range(nPar):
       diagFisher[iStep, iPar] = par[iStep].fisher[iPar, iPar]
 
-diagFisherRelDiff = diagFisher[:,:] / diagFisher[iStepFid,:][np.newaxis,:] - 1.
+diagFisherRelDiff = np.sqrt(diagFisher[:,:]) / np.sqrt(diagFisher[iStepFid,:][np.newaxis,:]) - 1.
 
 
-fig=plt.figure(0)
+fig=plt.figure(0, figsize=(8,6))
 ax=fig.add_subplot(111)
 #
 for iPar in range(cosmoPar.nPar):
-   ax.fill_between(derivStepSizes, 0.5*iPar - 0.1*np.ones(nStep), 0.5*iPar + 0.1*np.ones(nStep), facecolor='gray', edgecolor='', alpha=0.5)
+   ax.fill_between(derivStepSizes, 0.25*iPar - 0.1*np.ones(nStep), 0.25*iPar + 0.1*np.ones(nStep), facecolor='gray', edgecolor='', alpha=0.5)
+   ax.axhline(0.25*iPar, color='gray', linestyle='--')
    #
-   ax.plot(derivStepSizes, 0.5*iPar +  diagFisherRelDiff[:,iPar], label=par[0].namesLatex[iPar], alpha=1.)
+   ax.plot(derivStepSizes[iStepFid], 0.25*iPar +  diagFisherRelDiff[iStepFid,iPar], 'ko')
+   ax.plot(derivStepSizes, 0.25*iPar +  diagFisherRelDiff[:,iPar], label=par[0].namesLatex[iPar], alpha=1.)
 #
-ax.legend(loc=1, fontsize='x-small', labelspacing=0.1)
+ax.set_yticks(0.25*np.arange(cosmoPar.nPar))
+ax.set_yticklabels(par[0].namesLatex[range(cosmoPar.nPar)])
+ax.set_xlim((derivStepSizes[0], derivStepSizes[-1]))
+ax.set_ylim((-0.25, (cosmoPar.nPar)*0.25))
+#ax.legend(loc=1, fontsize='x-small', labelspacing=0.1)
 ax.set_xlabel(r'Derivative step size')
-ax.set_ylabel(r'Relat change in $F_{\alpha, \alpha}$')
+ax.set_title(r'Relative change in $\sigma_\alpha^\text{unmarg} = \left(F_{\alpha, \alpha}\right)^{-1/2}$')
+#
+fig.savefig(fish.figurePath+'/convergence_uncertainty_unmarg.pdf', bbox_inches='tight')
+
+plt.show()
+
+
+##################################################################################
+# Check marginalized cosmo param constraints
+
+
+sRelDiff = s[:,:] / s[iStepFid,:][np.newaxis,:] - 1.
+
+
+fig=plt.figure(0, figsize=(8,6))
+ax=fig.add_subplot(111)
+#
+for iPar in range(cosmoPar.nPar):
+   ax.fill_between(derivStepSizes, 0.25*iPar - 0.1*np.ones(nStep), 0.25*iPar + 0.1*np.ones(nStep), facecolor='gray', edgecolor='', alpha=0.5)
+   ax.axhline(0.25*iPar, color='gray', linestyle='--')
+   #
+   ax.plot(derivStepSizes[iStepFid], 0.25*iPar +  sRelDiff[iStepFid,iPar], 'ko')
+   ax.plot(derivStepSizes, 0.25*iPar +  sRelDiff[:,iPar], label=par[0].namesLatex[iPar], alpha=1.)
+#
+ax.set_yticks(0.25*np.arange(cosmoPar.nPar))
+ax.set_yticklabels(par[0].namesLatex[range(cosmoPar.nPar)])
+ax.set_xlim((derivStepSizes[0], derivStepSizes[-1]))
+ax.set_ylim((-0.25, (cosmoPar.nPar)*0.25))
+#ax.legend(loc=1, fontsize='x-small', labelspacing=0.1)
+ax.set_xlabel(r'Derivative step size')
+ax.set_title(r'Relative change in $\sigma_\alpha^\text{marg} = F^{-1}_{\alpha, \alpha}$')
+#
+fig.savefig(fish.figurePath+'/convergence_uncertainty_marg.pdf', bbox_inches='tight')
+
+plt.show()
+
+
+##################################################################################
+##################################################################################
+# For the marginalized posteriors, vary only the corresponding parameter step,
+# not all of them at once
+
+# first param is the one we will forecast
+derivMixed  = np.zeros((nPar, nStep, nPar, nData))
+fisherData  = np.zeros((nPar, nStep, nPar, nPar))
+sMixed = np.zeros((nPar, nStep))
+
+for iPar in range(cosmoPar.nPar):
+   print("Computing parameter "+str(iPar))
+   for iStep in range(nStep):
+
+      # generate the derivative where only the iPar par is rescaled
+      derivMixed[iPar,iStep,:,:] = fish.derivativeDataVector.copy()
+      derivMixed[iPar,iStep,iPar,:] = deriv[iStep,iPar,:]
+
+      # get the corresponding Fisher
+      fisherData[iPar,iStep,:,:] = fish.generateFisher(mask=None, deriv=derivMixed[iPar,iStep,:,:])
+
+      # get the posterior constraints
+      _, sMixed[iPar,iStep] = fish.computePosterior(fisherData=fisherData[iPar,iStep,:,:])
+
+
+
+
+
+
+sMixedRelDiff = sMixed[:,:] / s[:,iStepFid][:,np.newaxis] - 1.
+
+
+fig=plt.figure(0, figsize=(8,6))
+ax=fig.add_subplot(111)
+#
+for iPar in range(cosmoPar.nPar):
+   ax.fill_between(derivStepSizes, 0.25*iPar - 0.1*np.ones(nStep), 0.25*iPar + 0.1*np.ones(nStep), facecolor='gray', edgecolor='', alpha=0.5)
+   ax.axhline(0.25*iPar, color='gray', linestyle='--')
+   #
+   ax.plot(derivStepSizes[iStepFid], 0.25*iPar +  sMixedRelDiff[iStepFid,iPar], 'ko')
+   ax.plot(derivStepSizes, 0.25*iPar +  sMixedRelDiff[:,iPar], label=par[0].namesLatex[iPar], alpha=1.)
+#
+ax.set_yticks(0.25*np.arange(cosmoPar.nPar))
+ax.set_yticklabels(par[0].namesLatex[range(cosmoPar.nPar)])
+ax.set_xlim((derivStepSizes[0], derivStepSizes[-1]))
+ax.set_ylim((-0.25, (cosmoPar.nPar)*0.25))
+#ax.legend(loc=1, fontsize='x-small', labelspacing=0.1)
+ax.set_xlabel(r'Derivative step size')
+ax.set_title(r'Relative change in $\sigma_\alpha^\text{marg} = F^{-1}_{\alpha, \alpha}$')
+#
+fig.savefig(fish.figurePath+'/convergence_uncertainty_marg_onebyone.pdf', bbox_inches='tight')
 
 plt.show()
 

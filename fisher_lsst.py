@@ -2367,13 +2367,15 @@ class FisherLsst(object):
 
 
 
-   def generateFisher(self, mask=None):
+   def generateFisher(self, mask=None, deriv=None):
       '''Here I compute the explicit matrix inverse once.
       This is way faster than doing scipy.linalg.solve every time,
       and a bit faster than doing scipy.linalg.lu_factor once then lu_solve each time.
       '''
       if mask is None:
          mask=self.lMaxMask
+      if deriv is None:
+         deriv = self.derivativeDataVector
       fisherData = np.zeros((self.fullPar.nPar, self.fullPar.nPar))
       # extract unmasked cov elements, and invert
       cov = extractMaskedMat(self.covMat, mask=mask)
@@ -2382,8 +2384,8 @@ class FisherLsst(object):
       # Fisher from the data
       for i in range(self.fullPar.nPar):
          for j in range(self.fullPar.nPar):
-            di = extractMaskedVec(self.derivativeDataVector[i,:], mask=mask)
-            dj = extractMaskedVec(self.derivativeDataVector[j,:], mask=mask)
+            di = extractMaskedVec(deriv[i,:], mask=mask)
+            dj = extractMaskedVec(deriv[j,:], mask=mask)
             fisherData[i,j] = np.dot(di.transpose(), np.dot(invCov, dj))
       return fisherData
 
