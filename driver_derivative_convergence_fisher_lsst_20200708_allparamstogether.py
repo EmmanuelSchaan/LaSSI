@@ -59,7 +59,7 @@ fsky = 0.35 # 0.4
 
 ##################################################################################
 
-save = True
+save = False
 
 #derivStepSizes = np.array([0.01, 0.05, 0.1, 0.5, 1., 1.5, 2.])
 derivStepSizes = np.array([0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 1., 1.5, 2.])#, 1.75]
@@ -77,7 +77,6 @@ deriv  = np.zeros((nStep, nPar, nData))
 # Posterior uncertainties
 par = np.empty(nStep, dtype=object)
 s = np.zeros((nStep, nPar))
-
 
 
 for iStep in range(nStep):
@@ -124,6 +123,70 @@ fish = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, nBins=nB
 ##################################################################################
 ##################################################################################
 
+'''
+# Check parameters
+fig=plt.figure(0)
+ax=fig.add_subplot(111)
+#
+ax.fill_between(derivStepSizes, -0.1*np.ones(nStep), 0.1*np.ones(nStep), facecolor='gray', edgecolor='', alpha=0.5)
+#
+for iPar in range(nPar):
+   ax.plot(derivStepSizes, s[:,iPar] / s[iStepFid,iPar]-1., label=par[0].namesLatex[iPar], alpha=0.1)
+#
+#ax.legend(loc=1, fontsize='x-small', labelspacing=0.1)
+ax.set_xlabel(r'Derivative step size')
+ax.set_ylabel(r'$\sigma(\text{step size}) / \sigma_\text{fiducial} - 1$')
+
+plt.show()
+'''
+
+
+##################################################################################
+# Check derivatives
+
+'''
+# relative difference with fiducial step size
+derivRelDiff = deriv / deriv[iStepFid, :, :][np.newaxis,:,:] - 1.
+derivRelDiff *= fish.lMaxMask[np.newaxis,np.newaxis,:]
+
+##################################################################################
+
+# find what C_ell has a problem, for a given cosmo parameter
+#fish.plotErrorDerivativeDataVectorCosmo(derivRelDiff[iStepFid-1,:,:], show=False)
+
+##################################################################################
+
+
+# for each parameter, combine all the data,
+# to find if the parameter is ok or not
+minRelDiff = np.min(derivRelDiff, axis=-1)
+meanRelDiff = np.mean(derivRelDiff, axis=-1) * len(fish.lMaxMask) / np.sum(fish.lMaxMask) 
+maxRelDiff = np.max(derivRelDiff, axis=-1)
+#sRelDiff = np.std(derivRelDiff, axis=-1) * len(fish.lMaxMask) / np.sum(fish.lMaxMask) 
+
+
+fig=plt.figure(0)
+ax=fig.add_subplot(111)
+#
+for iPar in range(cosmoPar.nPar):
+#for iPar in [3]:
+#for iPar in [1]:
+   ax.fill_between(derivStepSizes, 0.5*iPar - 0.1*np.ones(nStep), 0.5*iPar + 0.1*np.ones(nStep), facecolor='gray', edgecolor='', alpha=0.5)
+   #
+   ax.plot(derivStepSizes, 0.5*iPar +  meanRelDiff[:,iPar], label=par[0].namesLatex[iPar], alpha=1.)
+   #
+   ax.fill_between(derivStepSizes, 0.5*iPar + minRelDiff[:,iPar], 0.5*iPar + maxRelDiff[:,iPar], alpha=0.5)
+   #ax.fill_between(derivStepSizes, 0.5*iPar + meanRelDiff[:,iPar] -  sRelDiff[:,iPar], 0.5*iPar + meanRelDiff[:,iPar] + sRelDiff[:,iPar], alpha=0.5)
+#
+ax.legend(loc=1, fontsize='x-small', labelspacing=0.1)
+ax.set_xlabel(r'Derivative step size')
+ax.set_ylabel(r'Relat change in derivative')
+
+plt.show()
+'''
+
+
+
 ##################################################################################
 ##################################################################################
 # Check diagonal Fisher matrix
@@ -161,13 +224,8 @@ plt.show()
 
 
 ##################################################################################
-##################################################################################
-##################################################################################
 # Check marginalized cosmo param constraints
 
-
-##################################################################################
-# Jointly fit for LCDM + neutrinos + w0,wa + curvature
 
 sRelDiff = s[:,:] / s[iStepFid,:][np.newaxis,:] - 1.
 
@@ -190,129 +248,11 @@ ax.set_ylim((-0.25, (cosmoPar.nPar)*0.25))
 ax.set_xlabel(r'Derivative step size')
 ax.set_title(r'Relative change in $\sigma_\alpha^\text{marg} = F^{-1}_{\alpha, \alpha}$')
 #
-fig.savefig(fish.figurePath+'/convergence_uncertainty_marg_allatonce_lcdmw0wamnucurv.pdf', bbox_inches='tight')
+fig.savefig(fish.figurePath+'/convergence_uncertainty_marg_allatonce.pdf', bbox_inches='tight')
 
 plt.show()
 
 
-##################################################################################
-# Jointly fit for LCDM + neutrinos
-
-I = cosmoPar.ILCDMMnu + range(cosmoPar.nPar,nPar)
-s2 = np.zeros((nStep, len(cosmoPar.ILCDMMnu)))
-for iStep in range(nStep):
-   par2 = par[iStep].extractParams(I, marg=False)
-   par2 = par2.extractParams(range(len(cosmoPar.ILCDMMnu)), marg=True)
-   s2[iStep,:] = par2.paramUncertainties(marg=True)
-
-sRelDiff = s2[:,:] / s2[iStepFid,:][np.newaxis,:] - 1.
-
-
-fig=plt.figure(0, figsize=(8,6))
-ax=fig.add_subplot(111)
-#
-for iPar in range(par2.nPar):
-   ax.fill_between(derivStepSizes, 0.25*iPar - 0.1*np.ones(nStep), 0.25*iPar + 0.1*np.ones(nStep), facecolor='gray', edgecolor='', alpha=0.5)
-   ax.axhline(0.25*iPar, color='gray', linestyle='--')
-   #
-   ax.plot(derivStepSizes[iStepFid], 0.25*iPar +  sRelDiff[iStepFid,iPar], 'ko')
-   ax.plot(derivStepSizes, 0.25*iPar +  sRelDiff[:,iPar], label=par2.namesLatex[iPar], alpha=1.)
-#
-ax.set_yticks(0.25*np.arange(par2.nPar))
-ax.set_yticklabels(par2.namesLatex[range(par2.nPar)])
-ax.set_xlim((derivStepSizes[0], derivStepSizes[-1]))
-ax.set_ylim((-0.25, (par2.nPar)*0.25))
-#ax.legend(loc=1, fontsize='x-small', labelspacing=0.1)
-ax.set_xlabel(r'Derivative step size')
-ax.set_title(r'Relative change in $\sigma_\alpha^\text{marg} = F^{-1}_{\alpha, \alpha}$')
-#
-fig.savefig(fish.figurePath+'/convergence_uncertainty_marg_allatonce_lcdmmnu.pdf', bbox_inches='tight')
-
-plt.show()
-
-
-##################################################################################
-# Jointly fit for LCDM + w0, wa
-
-I = cosmoPar.ILCDMW0Wa + range(cosmoPar.nPar,nPar)
-s2 = np.zeros((nStep, len(cosmoPar.ILCDMW0Wa)))
-for iStep in range(nStep):
-   par2 = par[iStep].extractParams(I, marg=False)
-   par2 = par2.extractParams(range(len(cosmoPar.ILCDMW0Wa)), marg=True)
-   s2[iStep,:] = par2.paramUncertainties(marg=True)
-
-sRelDiff = s2[:,:] / s2[iStepFid,:][np.newaxis,:] - 1.
-
-
-fig=plt.figure(0, figsize=(8,6))
-ax=fig.add_subplot(111)
-#
-for iPar in range(par2.nPar):
-   ax.fill_between(derivStepSizes, 0.25*iPar - 0.1*np.ones(nStep), 0.25*iPar + 0.1*np.ones(nStep), facecolor='gray', edgecolor='', alpha=0.5)
-   ax.axhline(0.25*iPar, color='gray', linestyle='--')
-   #
-   ax.plot(derivStepSizes[iStepFid], 0.25*iPar +  sRelDiff[iStepFid,iPar], 'ko')
-   ax.plot(derivStepSizes, 0.25*iPar +  sRelDiff[:,iPar], label=par2.namesLatex[iPar], alpha=1.)
-#
-ax.set_yticks(0.25*np.arange(par2.nPar))
-ax.set_yticklabels(par2.namesLatex[range(par2.nPar)])
-ax.set_xlim((derivStepSizes[0], derivStepSizes[-1]))
-ax.set_ylim((-0.25, (par2.nPar)*0.25))
-#ax.legend(loc=1, fontsize='x-small', labelspacing=0.1)
-ax.set_xlabel(r'Derivative step size')
-ax.set_title(r'Relative change in $\sigma_\alpha^\text{marg} = F^{-1}_{\alpha, \alpha}$')
-#
-fig.savefig(fish.figurePath+'/convergence_uncertainty_marg_allatonce_lcdmw0wa.pdf', bbox_inches='tight')
-
-plt.show()
-
-
-##################################################################################
-# Jointly fit for LCDM + curvature
-
-I = cosmoPar.ILCDMCurv + range(cosmoPar.nPar,nPar)
-s2 = np.zeros((nStep, len(cosmoPar.ILCDMCurv)))
-for iStep in range(nStep):
-   par2 = par[iStep].extractParams(I, marg=False)
-   par2 = par2.extractParams(range(len(cosmoPar.ILCDMCurv)), marg=True)
-   s2[iStep,:] = par2.paramUncertainties(marg=True)
-
-sRelDiff = s2[:,:] / s2[iStepFid,:][np.newaxis,:] - 1.
-
-
-fig=plt.figure(0, figsize=(8,6))
-ax=fig.add_subplot(111)
-#
-for iPar in range(par2.nPar):
-   ax.fill_between(derivStepSizes, 0.25*iPar - 0.1*np.ones(nStep), 0.25*iPar + 0.1*np.ones(nStep), facecolor='gray', edgecolor='', alpha=0.5)
-   ax.axhline(0.25*iPar, color='gray', linestyle='--')
-   #
-   ax.plot(derivStepSizes[iStepFid], 0.25*iPar +  sRelDiff[iStepFid,iPar], 'ko')
-   ax.plot(derivStepSizes, 0.25*iPar +  sRelDiff[:,iPar], label=par2.namesLatex[iPar], alpha=1.)
-#
-ax.set_yticks(0.25*np.arange(par2.nPar))
-ax.set_yticklabels(par2.namesLatex[range(par2.nPar)])
-ax.set_xlim((derivStepSizes[0], derivStepSizes[-1]))
-ax.set_ylim((-0.25, (par2.nPar)*0.25))
-#ax.legend(loc=1, fontsize='x-small', labelspacing=0.1)
-ax.set_xlabel(r'Derivative step size')
-ax.set_title(r'Relative change in $\sigma_\alpha^\text{marg} = F^{-1}_{\alpha, \alpha}$')
-#
-fig.savefig(fish.figurePath+'/convergence_uncertainty_marg_allatonce_lcdmcurv.pdf', bbox_inches='tight')
-
-plt.show()
-
-
-
-
-
-
-##################################################################################
-
-
-
-##################################################################################
-##################################################################################
 ##################################################################################
 ##################################################################################
 # For the marginalized posteriors, vary only the corresponding parameter step,

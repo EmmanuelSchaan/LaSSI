@@ -5200,8 +5200,10 @@ class FisherLsst(object):
       # Put the cosmo parameter set in the title
       if ICosmoPar==self.cosmoPar.ILCDM:
          title = r'$\Lambda$CDM'
+      elif ICosmoPar==self.cosmoPar.ILCDMW0:
+         title = r'$w_0$CDM'
       elif ICosmoPar==self.cosmoPar.ILCDMW0Wa:
-         title = r'wCDM'
+         title = r'$w_0w_a$CDM'
       elif ICosmoPar==self.cosmoPar.ILCDMMnu:
          title = r'$\Lambda$CDM + $M_\nu$'
       elif ICosmoPar==self.cosmoPar.ILCDMCurv:
@@ -5581,8 +5583,10 @@ class FisherLsst(object):
       # Put the cosmo parameter set in the title
       if ICosmoPar==self.cosmoPar.ILCDM:
          title = r'$\Lambda$CDM'
+      elif ICosmoPar==self.cosmoPar.ILCDMW0:
+         title = r'$w_0$CDM'
       elif ICosmoPar==self.cosmoPar.ILCDMW0Wa:
-         title = r'wCDM'
+         title = r'$w_0w_a$CDM'
       elif ICosmoPar==self.cosmoPar.ILCDMMnu:
          title = r'$\Lambda$CDM + $M_\nu$'
       elif ICosmoPar==self.cosmoPar.ILCDMCurv:
@@ -5595,7 +5599,7 @@ class FisherLsst(object):
       ax=fig.add_subplot(111)
       #
       # fiducial prior
-      ax.axvline(0.002, ls='--', lw=1, c='gray', label=r'Requirement')
+      ax.axvline(self.photoZPar.priorStd[-1], ls='--', lw=1, color='gray', label=r'Fiducial')
       prop_cycle = plt.rcParams['axes.prop_cycle']
       colors = prop_cycle.by_key()['color']
       for iPar in range(parCosmo.nPar):
@@ -5618,7 +5622,7 @@ class FisherLsst(object):
       ax=fig.add_subplot(111)
       #
       # fiducial prior
-      ax.axvline(0.002, ls='--', lw=1, c='gray', label=r'Requirement')
+      ax.axvline(self.photoZPar.priorStd[-1], ls='--', lw=1, color='gray', label=r'Fiducial')
       prop_cycle = plt.rcParams['axes.prop_cycle']
       colors = prop_cycle.by_key()['color']
       for iPar in range(parCosmo.nPar):
@@ -5639,7 +5643,7 @@ class FisherLsst(object):
       ax=fig.add_subplot(111)
       #
       # fiducial prior
-      ax.axvline(0.002, ls='--', lw=1, c='gray', label=r'Requirement')
+      ax.axvline(self.photoZPar.priorStd[-1], ls='--', lw=1, color='gray', label=r'Fiducial')
       prop_cycle = plt.rcParams['axes.prop_cycle']
       colors = prop_cycle.by_key()['color']
       for iPar in range(parCosmo.nPar):
@@ -5666,7 +5670,7 @@ class FisherLsst(object):
       ax=fig.add_subplot(111)
       #
       # fiducial prior
-      ax.axvline(0.002, ls='-', lw=1, color='gray', label=r'Requirement')
+      ax.axvline(self.photoZPar.priorStd[-1], ls='--', lw=1, color='gray', label=r'Fiducial')
       #
       # photo-z shifts
       # add legend entry
@@ -5703,8 +5707,7 @@ class FisherLsst(object):
       ax=fig.add_subplot(111)
       #
       # fiducial prior
-      ax.axvline(0.002, ls='-', lw=1, color='gray', label=r'Requirement')
-      #ax.axhline(0.002, ls='-', lw=1, color='gray')
+      ax.axvline(self.photoZPar.priorStd[-1], ls='--', lw=1, color='gray', label=r'Fiducial')
       #
       # photo-z shifts
       # add legend entry
@@ -5737,8 +5740,7 @@ class FisherLsst(object):
       ax=fig.add_subplot(111)
       #
       # fiducial prior
-      ax.axvline(0.002, ls='-', lw=1, color='gray', label=r'Requirement')
-      #ax.axhline(0.002, ls='-', lw=1, color='gray')
+      ax.axvline(self.photoZPar.priorStd[-1], ls='--', lw=1, color='gray', label=r'Fiducial')
       #
       # photo-z shifts
       # add legend entry
@@ -5886,7 +5888,7 @@ class FisherLsst(object):
          ax=fig.add_subplot(111)
          #
          # fiducial prior
-         ax.axvline(0.002, ls='--', lw=1, c='gray', label=r'Requirement')
+         ax.axvline(self.photoZPar.priorStd[-1], ls='--', lw=1, color='gray', label=r'Fiducial')
          prop_cycle = plt.rcParams['axes.prop_cycle']
          colors = prop_cycle.by_key()['color']
          for iPar in range(parCosmo.nPar):
@@ -5913,7 +5915,7 @@ class FisherLsst(object):
          ax=fig.add_subplot(111)
          #
          # fiducial prior
-         ax.axvline(0.002, ls='-', lw=1, color='gray', label=r'Requirement')
+         ax.axvline(self.photoZPar.priorStd[-1], ls='--', lw=1, color='gray', label=r'Fiducial')
          #
          # photo-z shifts
          # add legend entry

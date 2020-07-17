@@ -779,8 +779,8 @@ class CosmoParams(Parameters):
       self.names = np.array(['Omega_cdm', 'Omega_b', 'A_s', 'n_s', 'h', 'tau_reio'])
       self.namesLatex = np.array([r'$\Omega^0_\text{CDM}$', r'$\Omega^0_\text{b}$', r'$A_\text{s} / A_\text{s}^\text{fid}$', r'$n_\text{s}$', r'$h_0$', r'$\tau$'])
       self.fiducial = np.array([0.26, 0.049, 1., 0.9665, 0.6766, 0.0561])
-      self.high = np.array([0.26 + self.dss*0.0066, 0.049 + self.dss*0.0018, 1. + self.dss*1.e-10/2.105e-9, 0.9665 + self.dss*0.01, 0.6766 + self.dss*0.067, 0.0561 + self.dss*0.02])
-      self.low = np.array([0.26 - self.dss*0.0066, 0.049 - self.dss*0.0018, 1. - self.dss*1.e-10/2.105e-9, 0.9665 - self.dss*0.01, 0.6766 - self.dss*0.067, 0.0561 - self.dss*0.02])
+      self.high = np.array([0.26 + self.dss*0.0066, 0.049 + self.dss*0.0018, 1. + self.dss*1.e-10/2.105e-9, 0.9665 + self.dss*0.01, 0.6766 + self.dss*0.1, 0.0561 + self.dss*0.02])
+      self.low = np.array([0.26 - self.dss*0.0066, 0.049 - self.dss*0.0018, 1. - self.dss*1.e-10/2.105e-9, 0.9665 - self.dss*0.01, 0.6766 - self.dss*0.1, 0.0561 - self.dss*0.02])
       self.paramsClassy = {
                            # Cosmological parameters
                            'Omega_cdm': 0.26, #0.267,
@@ -803,7 +803,7 @@ class CosmoParams(Parameters):
                            'A_s': 2.105e-9 + self.dss*1.e-10,
                            'n_s': 0.9665 + self.dss*0.01,
                            'tau_reio': 0.0561 + self.dss*0.02,
-                           'h': 0.6766 + self.dss*0.067,
+                           'h': 0.6766 + self.dss*0.1,
                            # parameters
                            'reio_parametrization': 'reio_camb',
                            'output': 'mPk',#'dTk vTk lCl tCl pCl mPk',
@@ -818,7 +818,7 @@ class CosmoParams(Parameters):
                            'A_s': 2.105e-9 - self.dss*1.e-10,
                            'n_s': 0.9665 - self.dss*0.01,
                            'tau_reio': 0.0561 - self.dss*0.02,
-                           'h': 0.6766 - self.dss*0.067,
+                           'h': 0.6766 - self.dss*0.1,
                            # parameters
                            'reio_parametrization': 'reio_camb',
                            'output': 'mPk',#'dTk vTk lCl tCl pCl mPk',
@@ -833,7 +833,7 @@ class CosmoParams(Parameters):
          self.names = np.concatenate((self.names, np.array(['m_ncdm'])))
          self.namesLatex = np.concatenate((self.namesLatex, np.array([r'$M_\nu$'])))
          #
-         Mnu = 0.1 #0.06 # eV, minimum possible sum of masses
+         Mnu = 0.1001 #0.06 # eV, minimum possible sum of masses
          normalHierarchy = True
          # compute neutrino masses
          self.fiducial = np.concatenate((self.fiducial, np.array([Mnu])))
@@ -845,8 +845,8 @@ class CosmoParams(Parameters):
                                  'm_ncdm': str(nuMasses[0])+','+str(nuMasses[1])+','+str(nuMasses[2]),
                                  'deg_ncdm': '1, 1, 1',
                                  })
-         self.low = np.concatenate((self.low, np.array([Mnu-self.dss*0.01])))
-         nuMasses = self.computeNuMasses(Mnu-self.dss*0.01, normal=normalHierarchy)
+         self.low = np.concatenate((self.low, np.array([Mnu-self.dss*0.02])))
+         nuMasses = self.computeNuMasses(Mnu-self.dss*0.02, normal=normalHierarchy)
 #         self.low = np.concatenate((self.low, np.array([Mnu])))
          self.paramsClassyLow.update({
                                  # Massive neutrinos
@@ -855,8 +855,8 @@ class CosmoParams(Parameters):
                                  'm_ncdm': str(nuMasses[0])+','+str(nuMasses[1])+','+str(nuMasses[2]),
                                  'deg_ncdm': '1, 1, 1',
                                  })
-         self.high = np.concatenate((self.high, np.array([Mnu+self.dss*0.01])))
-         nuMasses = self.computeNuMasses(Mnu+self.dss*0.01, normal=normalHierarchy)
+         self.high = np.concatenate((self.high, np.array([Mnu+self.dss*0.02])))
+         nuMasses = self.computeNuMasses(Mnu+self.dss*0.02, normal=normalHierarchy)
          self.paramsClassyHigh.update({
                                  # Massive neutrinos
                                  'N_ur': 0.00641,  # recommended in explanatory.ini to get correct Neff
