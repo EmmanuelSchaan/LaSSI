@@ -6204,6 +6204,8 @@ class FisherLsst(object):
 #      print dThetaGks[:len(ICosmoPar),-1] / parCosmo.fiducial[:len(ICosmoPar)]
 #      print parCosmo.fiducial[:len(ICosmoPar)]
 
+      # get the absolute c_ij bias from the relative c_ij bias
+      CijAbsBias = self.photoZPar.fiducial[-1] * CijBias
 
       fig=plt.figure(0)
       ax=fig.add_subplot(111)
@@ -6213,11 +6215,11 @@ class FisherLsst(object):
       prop_cycle = plt.rcParams['axes.prop_cycle']
       colors = prop_cycle.by_key()['color']
       for iPar in range(parCosmo.nPar):
-         ax.plot(CijBias, dThetaGks[iPar,:], c=colors[iPar], label=parCosmo.namesLatex[iPar])
-         ax.fill_between(CijBias, dThetaGks[iPar,:]-sThetaGks[iPar,:], dThetaGks[iPar,:]+sThetaGks[iPar,:], facecolor=colors[iPar], edgecolor='', alpha=0.4)
+         ax.plot(CijAbsBias, dThetaGks[iPar,:], c=colors[iPar], label=parCosmo.namesLatex[iPar])
+         ax.fill_between(CijAbsBias, dThetaGks[iPar,:]-sThetaGks[iPar,:], dThetaGks[iPar,:]+sThetaGks[iPar,:], facecolor=colors[iPar], edgecolor='', alpha=0.4)
 
       #
-      ax.set_xlim((1.e-2, 1.))
+      ax.set_xlim((CijAbsBias.min(), CijAbsBias.max()))
 #      ax.set_ylim((-0.1, 0.1))
       #ax.set_yscale('symlog', linthreshy=0.05)
       #ax.axhline(-0.05, c='gray', lw=0.5)
@@ -6225,7 +6227,7 @@ class FisherLsst(object):
       ax.set_xscale('log', nonposx='clip')
       ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
       ax.set_ylabel(r'Parameter bias')
-      ax.set_xlabel(r'Fractional bias on outliers $c_{ij}$')
+      ax.set_xlabel(r'Additive bias to outlier $c_{ij}$')
       #
       path = "/bias_photozoutliers_cosmo_"+name+".pdf"
       fig.savefig(self.figurePath+path, bbox_inches='tight')

@@ -103,10 +103,11 @@ fishDiffgs = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, ph
 # basic plots and checks
 
 #fish.SampleDndz(photoZPar, nSamples=2)#, path=fish.figurePath+"/sampling_dndz_prior.pdf")
-'''
+
 # Show observables and uncertainties
 fish.plotEllBins(show=False)
 fish.plotDndz(show=False)
+'''
 fish.plotPowerSpectra(show=False)
 fish.plotUncertaintyPowerSpectra(show=False)
 fish.plotDiagCov()
@@ -222,7 +223,7 @@ fish.plotDerivativeDataVectorCosmo(show=False)
 ##################################################################################
 # Dependence on photo-z priors
 # new version
-
+'''
 fish.plotGPhotozRequirements(cosmoPar.ILCDMW0, name="lcdmw0", fish2=fishDiffgs)
 fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMW0, name="lcdmw0", fish2=fishDiffgs)
 
@@ -234,7 +235,7 @@ fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMMnu, name="lcdmmnu", fish2=fish
 
 fish.plotGPhotozRequirements(cosmoPar.ILCDMCurv, name="lcdmcurv", fish2=fishDiffgs)
 fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMCurv, name="lcdmcurv", fish2=fishDiffgs)
-
+'''
 
 
 ##################################################################################
@@ -246,22 +247,19 @@ fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMMnu, name="lcdmmnu")
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMCurv, name="lcdmcurv")
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMW0, name="lcdmw0")
 
-'''
 fish.plotFomComparison(ICosmoPar=cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
 fish.plotFomComparison(ICosmoPar=cosmoPar.ILCDMW0, name="lcdmw0")
-
+'''
 
 ##################################################################################
 ##################################################################################
 # Biases from wrong outlier photo-z
-
+'''
 fish.plotBiasFromOutliers(cosmoPar.ILCDMW0, name='lcdmw0')
 fish.plotBiasFromOutliers(cosmoPar.ILCDMW0Wa, name='lcdmw0wa')
-'''
 fish.plotBiasFromOutliers(cosmoPar.ILCDMMnu, name='lcdmmnu')
 fish.plotBiasFromOutliers(cosmoPar.ILCDMCurv, name='lcdmcurv')
 '''
-
 ##################################################################################
 ##################################################################################
 # Contour plots
@@ -271,12 +269,10 @@ fishers=np.array([fish.fullPar.fisher, fish.fullPar.fisher+fish.fisherDataGs, fi
 '''
 # LCDM
 fish.plotCosmoContours(cosmoPar.ILCDM, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=fish.figurePath+"/contours_lcdm.pdf")
-'''
 # LCDMW0
 fish.plotCosmoContours(cosmoPar.ILCDMW0, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=fish.figurePath+"/contours_lcdmw0.pdf")
 # LCDMW0Wa
 fish.plotCosmoContours(cosmoPar.ILCDMW0Wa, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=fish.figurePath+"/contours_lcdmw0wa.pdf")
-'''
 # LCDMMnu
 fish.plotCosmoContours(cosmoPar.ILCDMMnu, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=fish.figurePath+"/contours_lcdmmnu.pdf")
 # LCDMCurv
@@ -289,14 +285,12 @@ fish.plotCosmoContours(cosmoPar.ILCDMCurv, fishers, fisherNames=['Planck', 'LSST
 # LCDM
 par = cosmoPar.extractParams(cosmoPar.ILCDM, marg=False)
 par.plotContours(invFishers=None, lim=4., colors=None, fisherNames=None, path=fish.figurePath+"/planck_prior_lcdm.pdf")
-'''
 # LCDMWW0
 par = cosmoPar.extractParams(cosmoPar.ILCDMW0, marg=False)
 par.plotContours(invFishers=None, lim=4., colors=None, fisherNames=None, path=fish.figurePath+"/planck_prior_lcdmw0.pdf")
 # LCDMWW0Wa
 par = cosmoPar.extractParams(cosmoPar.ILCDMW0Wa, marg=False)
 par.plotContours(invFishers=None, lim=4., colors=None, fisherNames=None, path=fish.figurePath+"/planck_prior_lcdmw0wa.pdf")
-'''
 # LCDMMnu
 par = cosmoPar.extractParams(cosmoPar.ILCDMMnu, marg=False)
 par.plotContours(invFishers=None, lim=4., colors=None, fisherNames=None, path=fish.figurePath+"/planck_prior_lcdmmnu.pdf")
