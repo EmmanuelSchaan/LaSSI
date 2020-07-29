@@ -462,7 +462,6 @@ class FisherLsst(object):
    def generateTomoBins(self, u, nuisancePar, save=True, doS=True, test=False):
       '''The option doS=False is only used to save time when sampling dn/dz,
       since the s bins take much longer to generate (by a factor ~100).
-      !!! I am using loose mean redshifts for tomo bins at several places.
       '''
 
       # CMB lensing kernel
@@ -798,7 +797,6 @@ class FisherLsst(object):
       # common for all power spectra
       # axes: [ell, a]
       #nA = 501
-#!!! manuwarning: convergence test
       nA = 1001
       aMin = 1./(1. + 6.)
       aMax = 1./(1.+1.e-5)

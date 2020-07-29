@@ -13,7 +13,6 @@ class Projection(object):
 
       # interpolate the projection kernel, for speed
       #nA = 201
-#!!! manuwarning: convergence test
       nA = 1001
       A = np.linspace(self.aMin, self.aMax, nA)
       F = np.array(map(self.fForInterp, A))
