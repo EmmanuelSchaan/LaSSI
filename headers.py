@@ -24,10 +24,8 @@ import sys
 # version that works when the function is a class module
 from pathos.multiprocessing import ProcessingPool as Pool
 #from multiprocess import Pool
-# import sharedmem   # library from Yu Feng to fork rather than pickle
-
 # Yu Feng's version of multiprocessing, relying on forking rather than pickling
-import sharedmem
+#import sharedmem
 
 import vegas   # for Monte Carlo integration, for CMB lens reconstruction
 #import gvar as gv
@@ -38,8 +36,8 @@ import colormaps as cmaps  # for viridis and plasma colormaps
 from scipy.io import wavfile
 
 # for faster FFT
-import pyfftw
-pyfftw.interfaces.cache.enable() # so subsequent FFTs use the wisdom from the first one
+#import pyfftw
+#pyfftw.interfaces.cache.enable() # so subsequent FFTs use the wisdom from the first one
 ## however, this wisdom is only kept for 0.1sec, or for x seconds if using:
 ##pyfftw.interfaces.cache.set_keepalive_time(x)
 

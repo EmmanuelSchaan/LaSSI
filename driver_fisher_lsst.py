@@ -104,10 +104,10 @@ fishDiffgs = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, ph
 
 #fish.SampleDndz(photoZPar, nSamples=2)#, path=fish.figurePath+"/sampling_dndz_prior.pdf")
 
+'''
 # Show observables and uncertainties
 fish.plotEllBins(show=False)
 fish.plotDndz(show=False)
-'''
 fish.plotPowerSpectra(show=False)
 fish.plotUncertaintyPowerSpectra(show=False)
 fish.plotDiagCov()
