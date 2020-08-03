@@ -87,7 +87,20 @@ class FisherLsst(object):
          self.name += "_diffGS"
       print "Ouput file name:", self.name
       
-      # create folder for figures
+      # create folders for output, if needed
+      if not os.path.exists("./output"):
+         os.makedirs("./output")
+      if not os.path.exists("./output/cov"):
+         os.makedirs("./output/cov")
+      if not os.path.exists("./output/dDatadPar"):
+         os.makedirs("./output/dDatadPar")
+      if not os.path.exists("./output/fisher"):
+         os.makedirs("./output/fisher")
+
+
+      # create folders for figures
+      if not os.path.exists("./figures"):
+         os.makedirs("./figures")
       self.figurePath = "./figures/"+self.name
       if not os.path.exists(self.figurePath):
          os.makedirs(self.figurePath)
