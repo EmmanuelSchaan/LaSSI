@@ -91,7 +91,7 @@ fishDiffgs = FisherLsst(cosmoPar, galaxyBiasPar, shearMultBiasPar, photoZPar, ph
 # basic plots and checks
 
 
-'''
+
 # Show observables and uncertainties
 fish.plotEllBins(show=False)
 fish.plotDndz(show=False)
@@ -105,7 +105,7 @@ fish.plotDerivativeDataVectorCosmo(show=False)
 #fish.plotSingleDerivative("gg", 0, 0)
 #fish.plotSingleDerivative("ss", 0, 15)
 #fish.plotSingleDerivative("gg", 0, 20)
-'''
+
 
 # outdated function, may not work
 #fish.SampleDndz(photoZPar, nSamples=2)#, path=fish.figurePath+"/sampling_dndz_prior.pdf")
@@ -115,7 +115,7 @@ fish.plotDerivativeDataVectorCosmo(show=False)
 ##################################################################################
 # Dependence on photo-z priors
 # new version
-'''
+
 fish.plotGPhotozRequirements(cosmoPar.ILCDMW0, name="lcdmw0", fish2=fishDiffgs)
 fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMW0, name="lcdmw0", fish2=fishDiffgs)
 
@@ -127,13 +127,13 @@ fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMMnu, name="lcdmmnu", fish2=fish
 
 fish.plotGPhotozRequirements(cosmoPar.ILCDMCurv, name="lcdmcurv", fish2=fishDiffgs)
 fish.plotOutlierPhotozRequirements(cosmoPar.ILCDMCurv, name="lcdmcurv", fish2=fishDiffgs)
-'''
+
 
 
 ##################################################################################
 ##################################################################################
 # Comparison of cosmological parameters for the various runs
-'''
+
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMMnu, name="lcdmmnu")
 fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMCurv, name="lcdmcurv")
@@ -141,24 +141,24 @@ fish.plotSummaryComparison(ICosmoPar=cosmoPar.ILCDMW0, name="lcdmw0")
 
 fish.plotFomComparison(ICosmoPar=cosmoPar.ILCDMW0Wa, name="lcdmw0wa")
 fish.plotFomComparison(ICosmoPar=cosmoPar.ILCDMW0, name="lcdmw0")
-'''
+
 
 ##################################################################################
 ##################################################################################
 # Biases from wrong outlier photo-z
-'''
+
 fish.plotBiasFromOutliers(cosmoPar.ILCDMW0, name='lcdmw0')
 fish.plotBiasFromOutliers(cosmoPar.ILCDMW0Wa, name='lcdmw0wa')
 fish.plotBiasFromOutliers(cosmoPar.ILCDMMnu, name='lcdmmnu')
 fish.plotBiasFromOutliers(cosmoPar.ILCDMCurv, name='lcdmcurv')
-'''
+
 ##################################################################################
 ##################################################################################
 # Contour plots
 
 
 fishers=np.array([fish.fullPar.fisher, fish.fullPar.fisher+fish.fisherDataGs, fish.fullPar.fisher+fish.fisherDataGks])
-'''
+
 # LCDM
 fish.plotCosmoContours(cosmoPar.ILCDM, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=fish.figurePath+"/contours_lcdm.pdf")
 # LCDMW0
@@ -169,9 +169,9 @@ fish.plotCosmoContours(cosmoPar.ILCDMW0Wa, fishers, fisherNames=['Planck', 'LSST
 fish.plotCosmoContours(cosmoPar.ILCDMMnu, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=fish.figurePath+"/contours_lcdmmnu.pdf")
 # LCDMCurv
 fish.plotCosmoContours(cosmoPar.ILCDMCurv, fishers, fisherNames=['Planck', 'LSST', 'LSST + CMB lensing'], colors=['r', 'g', 'b'], path=fish.figurePath+"/contours_lcdmcurv.pdf")
-'''
 
-'''
+
+
 # Examine Planck prior,
 # to check degeneracy h0 - w in Planck prior
 # LCDM
@@ -189,4 +189,4 @@ par.plotContours(invFishers=None, lim=4., colors=None, fisherNames=None, path=fi
 # LCDMCurv
 par = cosmoPar.extractParams(cosmoPar.ILCDMCurv, marg=False)
 par.plotContours(invFishers=None, lim=4., colors=None, fisherNames=None, path=fish.figurePath+"/planck_prior_lcdmcurv.pdf")
-'''
+

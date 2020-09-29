@@ -3747,10 +3747,10 @@ class FisherLsst(object):
       #
       #ax.grid()
 #      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
-      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
+      #ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
       ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
       ax.set_xscale('log', nonposx='clip')
-      ax.set_ylim((-4., 4.))
+      ax.set_ylim((-6., 4.))
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$d\ln C_\ell^{\kappa_\text{CMB}\kappa_\text{CMB}} / d\ln \text{Param.}$')
       #
@@ -3784,10 +3784,10 @@ class FisherLsst(object):
       #
       #ax.grid()
 #      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
-      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
+      #ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
       ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
       ax.set_xscale('log', nonposx='clip')
-      ax.set_ylim((-4., 4.))
+      ax.set_ylim((-6., 4.))
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$d\ln C_\ell^{g\kappa_\text{CMB}} / d\ln \text{Param.}$')
       #
@@ -3821,10 +3821,10 @@ class FisherLsst(object):
       #
       #ax.grid()
 #      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
-      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
+      #ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
       ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
       ax.set_xscale('log', nonposx='clip')
-      ax.set_ylim((-4., 4.))
+      ax.set_ylim((-6., 4.))
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$d\ln C_\ell^{\gamma\kappa_\text{CMB}} / d\ln \text{Param.}$')
       #
@@ -3858,10 +3858,10 @@ class FisherLsst(object):
       #
       #ax.grid()
 #      ax.legend(loc=4, ncol=5, labelspacing=0.05, frameon=False, handlelength=0.4, borderaxespad=0.01)
-      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
+      #ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
       ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
       ax.set_xscale('log', nonposx='clip')
-      ax.set_ylim((-4., 4.))
+      ax.set_ylim((-6., 4.))
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$d\ln C_\ell^{gg} / d\ln \text{Param.}$')
       #
@@ -3897,7 +3897,7 @@ class FisherLsst(object):
 #      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
       ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
       ax.set_xscale('log', nonposx='clip')
-      ax.set_ylim((-4., 4.))
+      ax.set_ylim((-6., 4.))
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$d\ln C_\ell^{gs} / d\ln \text{Param.}$')
       #
@@ -3933,7 +3933,7 @@ class FisherLsst(object):
 #      ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.5, handletextpad=0.01, columnspacing=0.4, borderaxespad=0.01)
       ax.legend(loc=4, ncol=5, labelspacing=0.07, frameon=False, handlelength=0.7, handletextpad=0.1, columnspacing=0.5, borderaxespad=0.01)
       ax.set_xscale('log', nonposx='clip')
-      ax.set_ylim((-4., 4.))
+      ax.set_ylim((-6., 4.))
       ax.set_xlabel(r'$\ell$')
       ax.set_ylabel(r'$d\ln C_\ell^{ss} / d\ln \text{Param.}$')
       #
@@ -5262,7 +5262,8 @@ class FisherLsst(object):
          ax.plot(Photoz, sCosmoGks[iPar,:] / sCosmoGs[iPar,:], c=colors[iPar], label=parCosmo.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
-      ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+      #ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+      ax.legend(loc=2, labelspacing=0.1, frameon=True, framealpha=0.6, handlelength=1.)
       ax.set_ylabel(r'$\sigma_\text{Param, gks} / \sigma_\text{Param}$')
       ax.set_xlabel(r'Gaussian photo-z prior')
       ax.set_title(title)
@@ -5283,7 +5284,8 @@ class FisherLsst(object):
          ax.plot(Photoz, sCosmoGsnonull[iPar,:] / sCosmoGs[iPar,:], c=colors[iPar], label=parCosmo.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
-      ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+      #ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+      ax.legend(loc=2, labelspacing=0.1, frameon=True, framealpha=0.6, handlelength=1.)
       ax.set_ylabel(r'$\sigma_\text{Param, no null} / \sigma_\text{Param}$')
       ax.set_xlabel(r'Gaussian photo-z prior')
       ax.set_title(title)
@@ -5370,7 +5372,8 @@ class FisherLsst(object):
       #
       ax.set_xscale('log', nonposx='clip')
       ax.set_yscale('log', nonposy='clip')
-      ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+      #ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+      ax.legend(loc=2, labelspacing=0.1, frameon=True, framealpha=0.6, handlelength=1.)
       ax.set_ylabel(r'$\sigma_\text{G photo-z, gks} / \sigma_\text{G photo-z}$')
       ax.set_xlabel(r'Gaussian photo-z prior')
       #
@@ -5490,7 +5493,8 @@ class FisherLsst(object):
             ax.plot(Photoz, sCosmoGs3[iPar, :] / sCosmoGs[iPar,:], c=colors[iPar], ls='--')
          #
          ax.set_xscale('log', nonposx='clip')
-         ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+         #ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+         ax.legend(loc=2, labelspacing=0.1, frameon=True, framealpha=0.6, handlelength=1.)
          ax.set_ylabel(r'$\sigma_\text{Param, diff bins} / \sigma_\text{Param, same bins}$')
          ax.set_xlabel(r'Gaussian photo-z prior')
          ax.set_title(title)
@@ -5640,7 +5644,8 @@ class FisherLsst(object):
          ax.plot(Photoz/(self.nBins-1), sCosmoGks[iPar,:] / sCosmoGs[iPar,:], c=colors[iPar], label=parCosmo.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
-      ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+      #ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+      ax.legend(loc=2, labelspacing=0.1, frameon=True, framealpha=0.6, handlelength=1.)
       ax.set_ylabel(r'$\sigma_\text{Param, gks} / \sigma_\text{Param}$')
       ax.set_xlabel(r'Prior on outlier fraction $c_{ij}$')
       ax.set_title(title)
@@ -5661,7 +5666,8 @@ class FisherLsst(object):
          ax.plot(Photoz/(self.nBins-1), sCosmoGsnonull[iPar,:] / sCosmoGs[iPar,:], c=colors[iPar], label=parCosmo.namesLatex[iPar])
       #
       ax.set_xscale('log', nonposx='clip')
-      ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+      #ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+      ax.legend(loc=2, labelspacing=0.1, frameon=True, framealpha=0.6, handlelength=1.)
       ax.set_ylabel(r'$\sigma_\text{Param, no null} / \sigma_\text{Param}$')
       ax.set_xlabel(r'Prior on outlier fraction $c_{ij}$')
       ax.set_title(title)
@@ -6031,7 +6037,8 @@ class FisherLsst(object):
       ax.plot(sGksCosmo/sGsCosmo, c='b', ls='-', marker='o', label=r'gks')
       ax.plot(sGksNopriorCosmo/sGsCosmo, c='b', ls='--', marker='o', alpha=0.5, label=r'gks no prior')
       #
-      ax.legend(loc=2, labelspacing=0.1, frameon=False)#, handlelength=1.)
+      #ax.legend(loc=2, labelspacing=0.1, frameon=False)#, handlelength=1.)
+      ax.legend(loc=2, labelspacing=0.1, frameon=True, framealpha=0.6)#, handlelength=1.)
       ax.set_xticks(ICosmo)
       ax.set_xticklabels(parGs.namesLatex[ICosmo], fontsize=24)
       [l.set_rotation(45) for l in ax.get_xticklabels()]
@@ -6236,7 +6243,8 @@ class FisherLsst(object):
       #ax.axhline(-0.05, c='gray', lw=0.5)
       #ax.axhline(0.05, c='gray', lw=0.5)
       ax.set_xscale('log', nonposx='clip')
-      ax.legend(loc=2, labelspacing=0.1, frameon=False, handlelength=1.)
+      #ax.legend(loc=3, labelspacing=0.1, frameon=False, handlelength=1.)
+      ax.legend(loc=3, labelspacing=0.1, frameon=True, framealpha=0.6, handlelength=1.)
       ax.set_ylabel(r'Parameter bias')
       ax.set_xlabel(r'Additive bias to outlier $c_{ij}$')
       #
